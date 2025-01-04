@@ -27,7 +27,7 @@ describe("BohriumMining", function () {
     });
 
     describe("Initial Setup", function () {
-        it("should set the correct initial reward", async function () {
+        it("should set the correct initial reward to 10 BOHR", async function () {
             const reward = await miningContract.currentReward();
             expect(reward).to.equal(ethers.parseEther("10"));
         });
