@@ -50,16 +50,41 @@ describe("BohriumMining", function () {
             expect(await miningContract.bestMiner()).to.equal(miner1.address);
         });
 
-        it("should reward the miner with the best hash", async function () {
-            await miningContract.connect(miner1).submitHash(12345);
-            await miningContract.connect(miner2).submitHash(54321);
+        it("should reward the miner with the lowest computed hash", async function () {
+            // Submit nonces from different miners
+            const nonce1 = 54321;
+            const nonce2 = 12345;
+            
+            await miningContract.connect(miner1).submitHash(nonce1);
+            await miningContract.connect(miner2).submitHash(nonce2);
+            
+            // Get the current round ID
+            const roundId = await miningContract.roundId();
+            
+            // Calculate expected hashes using the same algorithm as the contract
+            const hash1 = ethers.solidityPackedKeccak256(
+                ["uint256", "address", "uint256"],
+                [roundId, miner1.address, nonce1]
+            );
+            const hash2 = ethers.solidityPackedKeccak256(
+                ["uint256", "address", "uint256"],
+                [roundId, miner2.address, nonce2]
+            );
+            
+            // Determine which hash is lower
+            const expectedWinner = BigInt(hash1) < BigInt(hash2) ? miner1.address : miner2.address;
+            const expectedHash = BigInt(hash1) < BigInt(hash2) ? hash1 : hash2;
+            
+            // Verify the contract picked the correct winner
+            expect(await miningContract.bestMiner()).to.equal(expectedWinner);
+            expect(await miningContract.bestHashValue()).to.equal(expectedHash);
             
             // Wait for round to end
             await time.increase(600); // 10 minutes
-            
             await miningContract.endRound();
             
-            const balance = await bohriumToken.balanceOf(miner1.address);
+            // Verify the winner got rewarded
+            const balance = await bohriumToken.balanceOf(expectedWinner);
             expect(balance).to.equal(ethers.parseEther("10"));
         });
     });
