@@ -1,25 +1,20 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("@nomicfoundation/hardhat-ignition");
-require("@nomicfoundation/hardhat-verify");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: {
-    compilers: [
-      {
-        version: "0.8.20",  // for your new contracts
-      },
-      {
-        version: "0.5.16",  // for UniswapV2 interfaces
-      }
-    ],
-  },
+  solidity: "0.8.20",
   networks: {
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
     },
+    hardhat: {
+      mining: {
+        auto: true,
+        interval: 0
+      }
+    }
   },
   etherscan: {
     apiKey: {
@@ -36,7 +31,7 @@ module.exports = {
       }
     ]
   },
-  sourcify: {
-    enabled: true
-  }
+  // sourcify: {
+  //   enabled: true
+  // }
 };
