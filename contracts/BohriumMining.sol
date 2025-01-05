@@ -11,7 +11,7 @@ contract BohriumMining {
     uint256 public initialReward = 10 * 10**18; // Initial reward (10 BOH)
     uint256 public halvingInterval = 365 * 24 * 60 * 60; // Halve every 1 year (31,536,000 seconds)
     uint256 public lastHalvingTimestamp; // Last time the reward was halved
-    uint256 public roundDuration = 10 minutes; // Duration of each mining round
+    uint256 public roundDuration = 60 seconds; // Duration of each mining round
     uint256 public lastRoundEnd; // Timestamp of the last round end
     uint256 public roundId; // Unique ID for each mining round
 

@@ -109,7 +109,7 @@ describe("BohriumMining", function () {
 
     describe("Round Management", function () {
         it("should not allow submitting hash after round ends", async function () {
-            await time.increase(600); // 10 minutes
+            await time.increase(60);
             await expect(
                 miningContract.connect(miner1).submitHash(12345)
             ).to.be.revertedWith("Round has ended");
@@ -119,6 +119,69 @@ describe("BohriumMining", function () {
             await expect(
                 miningContract.endRound()
             ).to.be.revertedWith("Round is still ongoing");
+        });
+    });
+
+    describe("Security Tests", function () {
+        it("should not allow double-ending of rounds", async function () {
+            // Submit a hash to have a winner
+            await miningContract.connect(miner1).submitHash(12345);
+            
+            // Wait for round to end
+            await time.increase(60);
+            
+            // End round first time
+            await miningContract.endRound();
+            
+            // Try to end it again
+            await expect(
+                miningContract.endRound()
+            ).to.be.revertedWith("Round is still ongoing");
+        });
+
+        it("should reset best hash and miner after round ends", async function () {
+            await miningContract.connect(miner1).submitHash(12345);
+            
+            await time.increase(60);
+            await miningContract.endRound();
+            
+            expect(await miningContract.bestMiner()).to.equal(ethers.ZeroAddress);
+            expect(await miningContract.bestHashValue()).to.equal(ethers.MaxUint256);
+        });
+
+        it("should not allow submitting hash with previous round data", async function () {
+            const initialRoundId = await miningContract.roundId();
+            await miningContract.connect(miner1).submitHash(12345);
+            
+            // End round
+            await time.increase(600);
+            await miningContract.endRound();
+            
+            // Try to submit hash in new round with data from old round
+            const oldHash = ethers.solidityPackedKeccak256(
+                ["uint256", "address", "uint256"],
+                [initialRoundId, miner1.address, 12345]
+            );
+            
+            // Submit same nonce, should produce different hash due to new roundId
+            await miningContract.connect(miner1).submitHash(12345);
+            const newBestHash = await miningContract.bestHashValue();
+            expect(newBestHash).to.not.equal(oldHash);
+        });
+
+        it("should maintain correct timing between rounds", async function () {
+            // End first round
+            await time.increase(61);
+            const firstRoundEndTime = await time.latest();
+            await miningContract.endRound();
+            
+            // Check new round end time
+            const nextRoundEnd = await miningContract.lastRoundEnd();
+            // Allow for small timestamp variations (within 2 seconds)
+            expect(nextRoundEnd).to.be.closeTo(
+                firstRoundEndTime + 60,
+                2 // delta of 2 seconds
+            );
         });
     });
 });
