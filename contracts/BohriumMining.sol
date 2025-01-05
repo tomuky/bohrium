@@ -38,7 +38,12 @@ contract BohriumMining {
         return reward > 1e14 ? reward : 1e14; // Minimum reward is 0.0001 BOH
     }
 
-    function submitHash(uint256 nonce) external {
+    function submitNonce(uint256 nonce) external {
+        // Auto-end previous round if it's expired
+        if (block.timestamp >= lastRoundEnd) {
+            _endRound();
+        }
+
         require(block.timestamp < lastRoundEnd, "Round has ended");
 
         // Generate the hash
@@ -54,7 +59,7 @@ contract BohriumMining {
         }
     }
 
-    function endRound() external {
+    function _endRound() internal {
         require(block.timestamp >= lastRoundEnd, "Round is still ongoing");
 
         uint256 reward = currentReward(); // Get the current reward based on halvings
