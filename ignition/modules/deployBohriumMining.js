@@ -1,8 +1,14 @@
 const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
 
 module.exports = buildModule("BohriumMining", (m) => {
-    const mining = m.contract("BohriumMining", ["0xC5DF11E456D30f4FE1c319e84eb238cA8e0f4e54"]);
+    // Deploy token contract first
+    const token = m.contract("BohriumToken");
     
-    return mining;
-});
+    // Deploy mining contract with the token address
+    const mining = m.contract("BohriumMining", [token]);
+    
+    // Transfer ownership of token to mining contract
+    const transferOwnership = m.call(token, "transferOwnership", [mining]);
 
+    return { token, mining };
+});

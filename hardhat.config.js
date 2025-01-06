@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("@nomicfoundation/hardhat-ignition");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -8,6 +9,9 @@ module.exports = {
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545"
     },
     hardhat: {
       mining: {

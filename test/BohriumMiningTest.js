@@ -51,10 +51,10 @@ describe("BohriumMining", function () {
         });
 
         it("should reward the miner with the lowest computed hash", async function () {
-            // Submit nonces from different miners
-            const nonce1 = 54321;
-            const nonce2 = 12345;
+            const nonce1 = 123;
+            const nonce2 = 321;
             
+            // Submit nonces for different miners
             await miningContract.connect(miner1).submitNonce(nonce1);
             await miningContract.connect(miner2).submitNonce(nonce2);
             
@@ -71,23 +71,49 @@ describe("BohriumMining", function () {
                 [roundId, miner2.address, nonce2]
             );
             
+            // Convert hashes to numbers like the contract does
+            const hashValue1 = BigInt(hash1);
+            const hashValue2 = BigInt(hash2);
+            
             // Determine which hash is lower
-            const expectedWinner = BigInt(hash1) < BigInt(hash2) ? miner1.address : miner2.address;
-            const expectedHash = BigInt(hash1) < BigInt(hash2) ? hash1 : hash2;
+            const expectedWinner = hashValue1 < hashValue2 ? miner1.address : miner2.address;
+            const expectedHashValue = hashValue1 < hashValue2 ? hashValue1 : hashValue2;
             
             // Verify the contract picked the correct winner
             expect(await miningContract.bestMiner()).to.equal(expectedWinner);
-            expect(await miningContract.bestHashValue()).to.equal(expectedHash);
+            expect(await miningContract.bestHashValue()).to.equal(expectedHashValue);
             
             // Wait for round to end
-            await time.increase(600); // 10 minutes
+            await time.increase(60);
             
-            // Submit a new hash to trigger round end and reward distribution
-            await miningContract.connect(miner1).submitNonce(99999);
+            // End the round
+            await miningContract.endRound();
             
             // Verify the winner got rewarded
             const balance = await bohriumToken.balanceOf(expectedWinner);
             expect(balance).to.equal(ethers.parseEther("10"));
+        });
+
+        it("should allow explicit round ending", async function () {
+            await miningContract.connect(miner1).submitNonce(12345);
+            
+            // Wait for round to end
+            await time.increase(60);
+            
+            // Explicitly end the round
+            await miningContract.endRound();
+            
+            // Check that round was reset
+            expect(await miningContract.bestMiner()).to.equal(ethers.ZeroAddress);
+            expect(await miningContract.bestHashValue()).to.equal(ethers.MaxUint256);
+        });
+
+        it("should not allow ending round before time", async function () {
+            await miningContract.connect(miner1).submitNonce(12345);
+            
+            // Try to end round early
+            await expect(miningContract.endRound())
+                .to.be.revertedWith("Round is still ongoing");
         });
     });
 
@@ -110,41 +136,58 @@ describe("BohriumMining", function () {
     });
 
     describe("Security Tests", function () {
-        it("should reset best hash and miner after round ends automatically", async function () {
+        it("should reset best hash and miner after explicit round end", async function () {
             await miningContract.connect(miner1).submitNonce(12345);
             
             // Wait for round to end
             await time.increase(60);
             
-            // Submit a new hash to trigger round check/reset
-            await miningContract.connect(miner2).submitNonce(54321);
+            // End the round explicitly
+            await miningContract.endRound();
             
-            // Check that previous round data was reset
-            expect(await miningContract.bestMiner()).to.equal(miner2.address);
-            const newHash = await miningContract.bestHashValue();
-            expect(newHash).to.not.equal(ethers.MaxUint256);
+            // Check that round data was reset
+            expect(await miningContract.bestMiner()).to.equal(ethers.ZeroAddress);
+            expect(await miningContract.bestHashValue()).to.equal(ethers.MaxUint256);
         });
 
         it("should not allow submitting hash with previous round data", async function () {
+            // Get initial round ID and submit first nonce
             const initialRoundId = await miningContract.roundId();
             await miningContract.connect(miner1).submitNonce(12345);
             
             // Wait for round to end
-            await time.increase(600);
+            await time.increase(60);
             
-            // Submit new hash to trigger round transition
-            await miningContract.connect(miner2).submitNonce(54321);
+            // End the round explicitly
+            await miningContract.endRound();
             
-            // Try to submit hash in new round with data from old round
+            // Verify round ID has increased
+            const newRoundId = await miningContract.roundId();
+            expect(newRoundId).to.be.greaterThan(initialRoundId);
+            
+            // Submit same nonce in new round
+            await miningContract.connect(miner1).submitNonce(12345);
+            
+            // Get both hashes
             const oldHash = ethers.solidityPackedKeccak256(
                 ["uint256", "address", "uint256"],
                 [initialRoundId, miner1.address, 12345]
             );
             
-            // Submit same nonce, should produce different hash due to new roundId
-            await miningContract.connect(miner1).submitNonce(12345);
-            const newBestHash = await miningContract.bestHashValue();
-            expect(newBestHash).to.not.equal(oldHash);
+            const newHash = ethers.solidityPackedKeccak256(
+                ["uint256", "address", "uint256"],
+                [newRoundId, miner1.address, 12345]
+            );
+            
+            // Convert to numeric values like the contract does
+            const oldHashValue = BigInt(oldHash);
+            const newHashValue = BigInt(newHash);
+            
+            // Verify the hashes are different
+            expect(newHashValue).to.not.equal(oldHashValue);
+            
+            // Verify the contract's stored hash matches our new calculated hash
+            expect(await miningContract.bestHashValue()).to.equal(newHashValue);
         });
 
         it("should maintain correct timing between rounds", async function () {
@@ -152,8 +195,8 @@ describe("BohriumMining", function () {
             await time.increase(61);
             const firstRoundEndTime = await time.latest();
             
-            // Submit hash to trigger new round
-            await miningContract.connect(miner1).submitNonce(12345);
+            // End round explicitly
+            await miningContract.endRound();
             
             // Check new round end time
             const nextRoundEnd = await miningContract.lastRoundEnd();
