@@ -2,6 +2,16 @@
 
 A decentralized mining system for the Bohrium (BOHR) token on Base network. This project includes smart contracts for the token and mining mechanism, along with mining scripts for participation.
 
+## Deployed Contracts
+
+### Base Sepolia Testnet
+- **Bohrium Token (BOHR)**: `0xa816f87D03cf2d517600D1FB90B58615023D0673` [View on BaseScan](https://sepolia.basescan.org/address/0xa816f87D03cf2d517600D1FB90B58615023D0673)
+- **Mining Contract**: `0x50C40138D1043C55aF22d6e7E18ECbF2be6b0177` [View on BaseScan](https://sepolia.basescan.org/address/0x50C40138D1043C55aF22d6e7E18ECbF2be6b0177)
+
+### Base Mainnet
+- **Bohrium Token (BOHR)**: `TBD`
+- **Mining Contract**: `TBD`
+
 ## Prerequisites
 
 - Node.js (v16 or later)
