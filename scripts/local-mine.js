@@ -1,12 +1,18 @@
 const { ethers } = require("ethers");
+const { COMMON_CONFIG, ENV_CONFIG } = require("./mineConfig");
 
-// Configuration
-const MINING_CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const MIN_ROUND_DURATION = 60;
-const NONCE_RANGE = 100000;
-const MINING_BATCH_SIZE = 1000;
-const TX_BUFFER = 3;
-const END_ROUND_WAIT = 5;
+// Get network from command line argument or default to local
+const network = process.argv[2] || 'local';
+if (!ENV_CONFIG[network]) {
+    console.error(`Invalid network: ${network}. Available networks: ${Object.keys(ENV_CONFIG).join(', ')}`);
+    process.exit(1);
+}
+
+// Merge configs
+const config = {
+    ...COMMON_CONFIG,
+    ...ENV_CONFIG[network]
+};
 
 const MINING_ABI = [
     "function submitNonce(uint256 nonce) external",
@@ -47,15 +53,19 @@ async function countdownLog(message, seconds) {
 }
 
 async function mine() {
-    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-    const wallet = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
-    const miningContract = new ethers.Contract(MINING_CONTRACT_ADDRESS, MINING_ABI, wallet);
-    
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const wallet = new ethers.Wallet(config.PRIVATE_KEY, provider);
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, wallet);
     const bohrTokenAddress = await miningContract.bohriumToken();
+    
+    console.log(`\n🌍 Network: ${network}`);
+    console.log("\n🚀 Starting Bohrium Mining...");
+    console.log(`📍 Mining Contract: ${config.MINING_CONTRACT_ADDRESS}`);
+    console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
+    
     const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, wallet);
     
-    console.log("\n🚀 Starting Bohrium Mining...");
-    console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
+
     await logBalances(provider, wallet, bohrToken);
 
     let lastRoundId = 0;
@@ -74,7 +84,7 @@ async function mine() {
             }
 
             // If round is old enough plus our wait period, end it
-            if (roundAge >= MIN_ROUND_DURATION + END_ROUND_WAIT) {
+            if (roundAge >= config.MIN_ROUND_DURATION + config.END_ROUND_WAIT) {
                 console.log("\n🏁 Ending round...");
                 const tx = await miningContract.endRound();
                 await tx.wait();
@@ -84,14 +94,14 @@ async function mine() {
             }
 
             // If we're in the end-round waiting period, just wait
-            if (roundAge >= MIN_ROUND_DURATION) {
-                const remainingWait = (MIN_ROUND_DURATION + END_ROUND_WAIT) - roundAge;
+            if (roundAge >= config.MIN_ROUND_DURATION) {
+                const remainingWait = (config.MIN_ROUND_DURATION + config.END_ROUND_WAIT) - roundAge;
                 await countdownLog("⏳ Waiting before ending round:", remainingWait);
                 continue;
             }
 
             // Calculate mining duration
-            const miningDuration = Math.max(0, MIN_ROUND_DURATION - roundAge - TX_BUFFER);
+            const miningDuration = Math.max(0, config.MIN_ROUND_DURATION - roundAge - config.TX_BUFFER);
             
             if (miningDuration > 0) {
                 const startTime = Date.now();
@@ -106,9 +116,11 @@ async function mine() {
                 );
                 console.log('\n✨ Found best nonce:', bestNonce);
                 
-                const tx = await miningContract.submitNonce(bestNonce);
+                const tx = await miningContract.submitNonce(bestNonce, {
+                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
+                });
                 process.stdout.write('📝 Confirming transaction...');
-                await tx.wait();
+                await tx.wait(config.CONFIRMATIONS);
                 console.log('\r✅ Nonce submitted successfully    ');
             }
 
@@ -132,8 +144,8 @@ async function findBestNonce(roundId, minerAddress, duration, onProgress) {
             lastProgressUpdate = Date.now();
         }
 
-        for (let i = 0; i < MINING_BATCH_SIZE; i++) {
-            const nonce = Math.floor(Math.random() * NONCE_RANGE);
+        for (let i = 0; i < config.MINING_BATCH_SIZE; i++) {
+            const nonce = Math.floor(Math.random() * config.NONCE_RANGE);
             const hash = ethers.keccak256(
                 ethers.AbiCoder.defaultAbiCoder().encode(
                     ["uint256", "address", "uint256"],
