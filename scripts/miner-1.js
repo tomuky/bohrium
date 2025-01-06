@@ -1,5 +1,5 @@
 const { ethers } = require("ethers");
-const { COMMON_CONFIG, ENV_CONFIG } = require("./mineConfig");
+const { COMMON_CONFIG, ENV_CONFIG } = require("./miner-config");
 
 // Get network from command line argument or default to local
 const network = process.argv[2] || 'local';
