@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 // Common configuration shared across all environments
 const COMMON_CONFIG = {
     MIN_ROUND_DURATION: 60, // amount of seconds per round
