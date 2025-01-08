@@ -48,7 +48,13 @@ contract BohriumMining {
     }
 
     function submitNonce(uint256 nonce) external {
-        bytes32 hash = keccak256(abi.encodePacked(roundId, msg.sender, nonce));
+        require(block.timestamp < roundEndTime, "Round has ended");
+        
+        bytes32 hash = keccak256(abi.encodePacked(
+            msg.sender,
+            bestHash, 
+            nonce
+        ));
         uint256 hashValue = uint256(hash);
 
         if (bestMiner == address(0) || hashValue < bestHashValue) {

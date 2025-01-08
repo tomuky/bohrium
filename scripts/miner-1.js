@@ -19,7 +19,8 @@ const MINING_ABI = [
     "function endRound() external",
     "function roundId() view returns (uint256)",
     "function roundStartTime() view returns (uint256)",
-    "function bohriumToken() view returns (address)"
+    "function bohriumToken() view returns (address)",
+    "function bestHash() view returns (bytes32)"
 ];
 
 const TOKEN_ABI = [
@@ -107,7 +108,7 @@ async function mine() {
                 const startTime = Date.now();
                 const endTime = startTime + (miningDuration * 1000);
                 
-                const bestNonce = await findBestNonce(roundId, wallet.address, miningDuration * 1000, 
+                const bestNonce = await findBestNonce(wallet.address, miningDuration * 1000, miningContract,
                     // Progress callback
                     (remainingTime) => {
                         const remaining = Math.ceil(remainingTime / 1000);
@@ -131,11 +132,14 @@ async function mine() {
     }
 }
 
-async function findBestNonce(roundId, minerAddress, duration, onProgress) {
+async function findBestNonce(minerAddress, duration, miningContract, onProgress) {
     let bestNonce = 0;
     let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     const endTime = Date.now() + duration;
     let lastProgressUpdate = Date.now();
+
+    // Get the current bestHash from the contract
+    const currentBestHash = await miningContract.bestHash();
 
     while (Date.now() < endTime) {
         // Update progress every 100ms
@@ -147,9 +151,9 @@ async function findBestNonce(roundId, minerAddress, duration, onProgress) {
         for (let i = 0; i < config.MINING_BATCH_SIZE; i++) {
             const nonce = Math.floor(Math.random() * config.NONCE_RANGE);
             const hash = ethers.keccak256(
-                ethers.AbiCoder.defaultAbiCoder().encode(
-                    ["uint256", "address", "uint256"],
-                    [roundId, minerAddress, nonce]
+                ethers.solidityPacked(
+                    ["address", "bytes32", "uint256"],
+                    [minerAddress, currentBestHash, nonce]
                 )
             );
 
