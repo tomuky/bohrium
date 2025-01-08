@@ -1,0 +1,19 @@
+:root {
+    --blue: #3898ff;
+    --background: #303030;
+    --darker-background: #222222;
+    --text-primary: #fff;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    color: var(--text-primary);
+    background: var(--background);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
