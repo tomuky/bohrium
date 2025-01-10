@@ -6,6 +6,7 @@ import { useBohrToken } from '../hooks/useBohrToken'
 import { useBohrBalance } from '../hooks/useBohrBalance'
 import { useAccount } from 'wagmi'
 import { useBohrMining } from '../hooks/useBohrMining'
+import LeftPaneItem from './LeftPaneItem'
 
 const LeftPane = () => {
     const { isMining } = useMining()
@@ -36,49 +37,15 @@ const LeftPane = () => {
                 </div>
             </div>
 
-            <div className={styles.item}>
-                <FaWallet className={styles.icon} />
-                <div className={styles.statContainer}>
-                    <span className={styles.label}>Wallet Balance</span>
-                    <div className={styles.multiValue}>
-                        <span className={styles.value}>{isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-'}</span>
-                    </div>
-                </div>
-            </div>
+            <LeftPaneItem icon={<FaWallet className={styles.icon} />} label="Wallet Balance" value={isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-'} />
 
-            <div className={styles.item}>
-                <FaDollarSign className={styles.icon} />
-                <div className={styles.statContainer}>
-                    <span className={styles.label}>BOHR Price</span>
-                    <span className={styles.value}>$ {bohrPrice?.toFixed(2) ?? '0.00'}</span>
-                </div>
-            </div>
+            <LeftPaneItem icon={<FaChartLine className={styles.icon} />} label="Your Hash Rate" value="- H/s" />
 
-            <div className={styles.item}>
-                <FaCoins className={styles.icon} />
-                <div className={styles.statContainer}>
-                    <span className={styles.label}>Total Supply</span>
-                    <span className={styles.value}>
-                        {isLoadingBohrToken ? 'Loading...' : bohrTotalSupply ? `${Number(bohrTotalSupply).toLocaleString()} BOHR` : '-'}
-                    </span>
-                </div>
-            </div>
+            <LeftPaneItem icon={<FaUsers className={styles.icon} />} label="Active Miners" value={activeMinerCount} />
 
-            <div className={styles.item}>
-                <FaUsers className={styles.icon} />
-                <div className={styles.statContainer}>
-                    <span className={styles.label}>Active Miners</span>
-                    <span className={styles.value}>{activeMinerCount}</span>
-                </div>
-            </div>
+            <LeftPaneItem icon={<FaDollarSign className={styles.icon} />} label="BOHR Price" value={bohrPrice?.toFixed(2) ?? '0.00'} />
 
-            <div className={styles.item}>
-                <FaChartLine className={styles.icon} />
-                <div className={styles.statContainer}>
-                    <span className={styles.label}>Hash Rate</span>
-                    <span className={styles.value}>500k H/s</span>
-                </div>
-            </div>
+            <LeftPaneItem icon={<FaCoins className={styles.icon} />} label="Total Supply" value={isLoadingBohrToken ? 'Loading...' : bohrTotalSupply ? `${Number(bohrTotalSupply).toLocaleString()} BOHR` : '-'} />
             
         </div>
     )
