@@ -3,7 +3,7 @@ import { useReadContract } from 'wagmi'
 import { formatUnits } from 'viem'
 
 // You'll need to replace this with your actual token contract address
-const BOHR_TOKEN_ADDRESS = '0x85dF140E5dC19e49D3866Bb4632387f2FDd04a34'
+const BOHR_TOKEN_ADDRESS = '0x9a65702Ed8ebD21de4F5e08F354D8064fDD0Cf9D'
 
 // Basic ERC20 ABI for totalSupply
 const BOHR_TOKEN_ABI = [{
