@@ -5,8 +5,8 @@ A decentralized mining system for the Bohrium (BOHR) token on Base network. This
 ## Deployed Contracts
 
 ### Base Sepolia Testnet
-- **Bohrium Token (BOHR)**: `0x85dF140E5dC19e49D3866Bb4632387f2FDd04a34` [View on BaseScan](https://sepolia.basescan.org/address/0x85dF140E5dC19e49D3866Bb4632387f2FDd04a34)
-- **Mining Contract**: `0x943e2e0eaB026B551648195a24D3d82dEbF8CC66` [View on BaseScan](https://sepolia.basescan.org/address/0x943e2e0eaB026B551648195a24D3d82dEbF8CC66)
+- **Bohrium Token (BOHR)**: `0x9a65702Ed8ebD21de4F5e08F354D8064fDD0Cf9D` [View on BaseScan](https://sepolia.basescan.org/address/0x9a65702Ed8ebD21de4F5e08F354D8064fDD0Cf9D)
+- **Mining Contract**: `0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87` [View on BaseScan](https://sepolia.basescan.org/address/0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87)
 
 ### Base Mainnet
 - **Bohrium Token (BOHR)**: `TBD`

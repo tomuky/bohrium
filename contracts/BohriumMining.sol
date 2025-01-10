@@ -20,6 +20,7 @@ contract BohriumMining {
     uint256 public bestHashValue;
     bytes32 public bestHash;
     
+    mapping(uint256 => uint256) public noncesSubmitted;
     event NewBestHash(address indexed miner, uint256 nonce, uint256 hashValue);
     event RoundEnded(uint256 indexed roundId, address winner, uint256 reward);
     event RoundStarted(uint256 indexed roundId, uint256 startTime, uint256 endTime);
@@ -56,6 +57,8 @@ contract BohriumMining {
             nonce
         ));
         uint256 hashValue = uint256(hash);
+
+        noncesSubmitted[roundId]++;
 
         if (bestMiner == address(0) || hashValue < bestHashValue) {
             bestMiner = msg.sender;
