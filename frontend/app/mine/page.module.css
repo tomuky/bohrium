@@ -5,8 +5,8 @@
 }
 
 .startMiningButton{
-    background-color: var(--blue);
-    color: var(--text-primary);
+    background-color: var(--text-primary);
+    color: var(--background);
     padding: 10px;
     border-radius: 10px;
     cursor: pointer;
@@ -16,7 +16,7 @@
 }
 
 .startMiningButton:hover{
-    background-color: var(--blue-hover);
+    background-color: var(--white-hover);
 }
 
 .stopMiningButton{

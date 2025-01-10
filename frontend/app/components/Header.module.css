@@ -10,9 +10,10 @@
 
 .title {
     font-size: 2rem;
-    color: var(--blue); 
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: var(--text-primary); 
     margin: 0;
-    font-weight: 500;
 }
 .left{
     display: flex;
