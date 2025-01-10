@@ -29,7 +29,7 @@ export default function Home() {
       </div>
 
       <video autoPlay muted loop className={styles.backgroundVideo}>
-        <source src="/videos/blue-static.mp4" type="video/mp4" />
+        <source src="/videos/blob-orb.mp4" type="video/mp4" />
       </video>
     </div>
   )
