@@ -1,0 +1,35 @@
+.console{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.startMiningButton{
+    background-color: var(--blue);
+    color: var(--text-primary);
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+}
+
+.startMiningButton:hover{
+    background-color: var(--blue-hover);
+}
+
+.stopMiningButton{
+    background-color: var(--secondary-button-color);
+    color: var(--text-primary);
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+}
+
+.stopMiningButton:hover{
+    background-color: var(--secondary-button-hover);
+}

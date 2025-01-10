@@ -1,19 +1,35 @@
 .header {
-    height: 80px;
-    background-color: var(--darker-background);
+    min-height: 80px;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 2rem;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--border);
 }
 
 .title {
-    font-size: 1.5rem;
+    font-size: 2rem;
     color: var(--blue); 
     margin: 0;
+    font-weight: 500;
+}
+.left{
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.logo {
+    font-size: 1.5rem;
+    border-radius: 100%;
+    color: var(--text-primary); 
+    margin: 0;
+    font-weight: 800;
+    background-color: var(--blue);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
