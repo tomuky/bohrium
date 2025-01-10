@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap');
+
+:root {
+    --blue: #3898ff;
+    --blue-hover: #2c78c9;
+    --red: #ff3838;
+    --red-hover: #c92c2c;
+    --background: #000000;
+    --background-hover: #1a1a1a;
+    --border: #2f3336;
+    --text-primary: #fff;
+    --secondary-button-color: #2f3336;
+    --secondary-button-hover: #3f4346;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+    color: var(--text-primary);
+    background: var(--background);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+}
+.container{
+    display: flex;
+    flex-direction: column;
+    width: 800px;
+    height: 100vh;
+    
+}
+.layout{
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+
+

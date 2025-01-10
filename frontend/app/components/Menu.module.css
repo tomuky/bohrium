@@ -1,0 +1,13 @@
+.menu{
+    width: 100%;
+    display: flex;
+    border-bottom: 1px solid var(--border);
+}
+.menuItem{
+    cursor: pointer;
+    padding: 20px;
+    border-right: 1px solid var(--border);
+}
+.menuItem:hover{
+    background-color: var(--background-hover);
+}
