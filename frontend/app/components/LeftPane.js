@@ -1,10 +1,12 @@
 'use client'
 import styles from './LeftPane.module.css'
 import { useMining } from '../contexts/MiningContext'
+import { useWallet } from '../contexts/WalletContext'
 import { FaDollarSign, FaUsers, FaChartLine, FaWallet, FaCoins } from 'react-icons/fa'
 
 const LeftPane = () => {
     const { isMining } = useMining()
+    const { balance } = useWallet()
 
     return (
         <div className={styles.leftPane}>
@@ -24,7 +26,7 @@ const LeftPane = () => {
                 <div className={styles.statContainer}>
                     <span className={styles.label}>Wallet Balance</span>
                     <div className={styles.multiValue}>
-                        <span className={styles.value}>134 BOHR</span>
+                        <span className={styles.value}>{balance ?? '-'} BOHR</span>
                     </div>
                 </div>
             </div>
@@ -33,7 +35,7 @@ const LeftPane = () => {
                 <FaDollarSign className={styles.icon} />
                 <div className={styles.statContainer}>
                     <span className={styles.label}>BOHR Price</span>
-                    <span className={styles.value}>$25.20</span>
+                    <span className={styles.value}>$ -</span>
                 </div>
             </div>
 

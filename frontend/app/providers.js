@@ -3,12 +3,14 @@ import '@rainbow-me/rainbowkit/styles.css'
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
-import { baseSepolia } from 'wagmi/chains'
+import { baseSepolia, base } from 'wagmi/chains'
+import { MiningProvider } from './contexts/MiningContext'
+import { WalletProvider } from './contexts/WalletContext'
 
 const config = getDefaultConfig({
   appName: 'Bohrium',
   projectId: 'b95c18e2f7c838c9e3ef9ae47e7bf081',
-  chains: [baseSepolia],
+  chains: [baseSepolia, base],
   ssr: true
 })
 
@@ -19,7 +21,11 @@ export function Providers({ children }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
-          {children}
+          <WalletProvider>
+            <MiningProvider>
+              {children}
+            </MiningProvider>
+          </WalletProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

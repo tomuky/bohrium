@@ -8,7 +8,9 @@ const Header = () => {
                 {/* <div className={styles.logo}>B</div> */}
                 <h1 className={styles.title}>BOHRIUM</h1>
             </div>
-            <ConnectButton />
+            <div className={styles.right}>
+                <ConnectButton chainStatus="full" />
+            </div>
         </div>
     )
 }
