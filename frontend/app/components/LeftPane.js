@@ -5,6 +5,7 @@ import { FaDollarSign, FaUsers, FaChartLine, FaWallet, FaCoins } from 'react-ico
 import { useBohrToken } from '../hooks/useBohrToken'
 import { useBohrBalance } from '../hooks/useBohrBalance'
 import { useAccount } from 'wagmi'
+import { useBohrMining } from '../hooks/useBohrMining'
 
 const LeftPane = () => {
     const { isMining } = useMining()
@@ -18,6 +19,9 @@ const LeftPane = () => {
         balance: bohrBalance, 
         isLoading: isLoadingBohrBalance 
     } = useBohrBalance(address)
+    const { activeMinerCount, currentRoundId } = useBohrMining()
+    console.log('currentRoundId', currentRoundId)
+    console.log('activeMinerCount', activeMinerCount)
     
     return (
         <div className={styles.leftPane}>
@@ -64,7 +68,7 @@ const LeftPane = () => {
                 <FaUsers className={styles.icon} />
                 <div className={styles.statContainer}>
                     <span className={styles.label}>Active Miners</span>
-                    <span className={styles.value}>13</span>
+                    <span className={styles.value}>{activeMinerCount}</span>
                 </div>
             </div>
 

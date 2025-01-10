@@ -25,6 +25,7 @@ export function useBohrBalance(address) {
         functionName: 'balanceOf',
         args: [address],
         watch: true,
+        pollingInterval: 10000
     })
 
     const { data: decimals } = useReadContract({

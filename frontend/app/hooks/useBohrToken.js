@@ -20,6 +20,7 @@ export function useBohrToken() {
         abi: BOHR_TOKEN_ABI,
         functionName: 'totalSupply',
         watch: true,
+        pollingInterval: 100000
     })
 
     const formattedTotalSupply = totalSupply 
