@@ -1,23 +1,28 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from 'react'
+import { ethers } from 'ethers'
 
 const WalletContext = createContext({})
 
+const BOHR_CONTRACT_ADDRESS = "0x85dF140E5dC19e49D3866Bb4632387f2FDd04a34"
+const BOHR_ABI = [
+    // Standard ERC20 balanceOf function
+    "function balanceOf(address owner) view returns (uint256)",
+    "function decimals() view returns (uint8)"
+]
+
 export function WalletProvider({ children }) {
-    const [balance, setBalance] = useState(0)
     const [address, setAddress] = useState(null)
     const [isConnected, setIsConnected] = useState(false)
 
     const connectWallet = async () => {
         if (typeof window.ethereum !== 'undefined') {
             try {
-                // Request account access
                 const accounts = await window.ethereum.request({ 
                     method: 'eth_requestAccounts' 
                 })
                 setAddress(accounts[0])
                 setIsConnected(true)
-                await updateBalance(accounts[0])
             } catch (error) {
                 console.error('Error connecting wallet:', error)
             }
@@ -26,47 +31,33 @@ export function WalletProvider({ children }) {
         }
     }
 
-    const updateBalance = async (walletAddress) => {
-        if (!walletAddress) return
-        try {
-            // This is a placeholder - you'll need to implement the actual
-            // balance checking logic for your BOHR token contract
-            const balance = await getBohrBalance(walletAddress)
-            setBalance(balance)
-        } catch (error) {
-            console.error('Error fetching balance:', error)
-        }
-    }
-
     // Listen for account changes
     useEffect(() => {
         if (window.ethereum) {
-            window.ethereum.on('accountsChanged', (accounts) => {
+            const handleAccountsChanged = (accounts) => {
                 if (accounts.length > 0) {
                     setAddress(accounts[0])
-                    updateBalance(accounts[0])
                 } else {
                     setAddress(null)
-                    setBalance(0)
                     setIsConnected(false)
                 }
-            })
-        }
+            }
 
-        return () => {
-            if (window.ethereum) {
-                window.ethereum.removeListener('accountsChanged', () => {})
+            window.ethereum.on('accountsChanged', handleAccountsChanged)
+
+            return () => {
+                if (window.ethereum) {
+                    window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+                }
             }
         }
     }, [])
 
     return (
         <WalletContext.Provider value={{
-            balance,
             address,
             isConnected,
-            connectWallet,
-            updateBalance
+            connectWallet
         }}>
             {children}
         </WalletContext.Provider>
@@ -74,12 +65,3 @@ export function WalletProvider({ children }) {
 }
 
 export const useWallet = () => useContext(WalletContext)
-
-// Placeholder function - replace with actual implementation
-async function getBohrBalance(address) {
-    // You'll need to implement this function to:
-    // 1. Connect to your BOHR token contract
-    // 2. Call the balanceOf method
-    // 3. Format the balance appropriately
-    return 0
-}

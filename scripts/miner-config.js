@@ -21,7 +21,7 @@ const ENV_CONFIG = {
     },
     baseSepolia: {
         RPC_URL: process.env.BASE_SEPOLIA_RPC_URL,
-        MINING_CONTRACT_ADDRESS: "0x50C40138D1043C55aF22d6e7E18ECbF2be6b0177", // testnet address
+        MINING_CONTRACT_ADDRESS: "0x943e2e0eaB026B551648195a24D3d82dEbF8CC66", // testnet address
         PRIVATE_KEY: process.env.PRIVATE_KEY,
         CONFIRMATIONS: 2,
         GAS_MULTIPLIER: 2

@@ -2,7 +2,7 @@
 import styles from './MainPane.module.css'
 import { useAccount } from 'wagmi'
 
-const MainPane = ({ children, isMining, setIsMining }) => {
+const MainPane = ({ children }) => {
     const { isConnected } = useAccount();
 
     if (!isConnected) {

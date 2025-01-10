@@ -1,13 +1,24 @@
 'use client'
 import styles from './LeftPane.module.css'
 import { useMining } from '../contexts/MiningContext'
-import { useWallet } from '../contexts/WalletContext'
 import { FaDollarSign, FaUsers, FaChartLine, FaWallet, FaCoins } from 'react-icons/fa'
+import { useBohrToken } from '../hooks/useBohrToken'
+import { useBohrBalance } from '../hooks/useBohrBalance'
+import { useAccount } from 'wagmi'
 
 const LeftPane = () => {
     const { isMining } = useMining()
-    const { balance } = useWallet()
-
+    const { address } = useAccount()
+    const { 
+        totalSupply: bohrTotalSupply, 
+        price: bohrPrice, 
+        isLoading: isLoadingBohrToken 
+    } = useBohrToken()
+    const { 
+        balance: bohrBalance, 
+        isLoading: isLoadingBohrBalance 
+    } = useBohrBalance(address)
+    
     return (
         <div className={styles.leftPane}>
 
@@ -26,7 +37,7 @@ const LeftPane = () => {
                 <div className={styles.statContainer}>
                     <span className={styles.label}>Wallet Balance</span>
                     <div className={styles.multiValue}>
-                        <span className={styles.value}>{balance ?? '-'} BOHR</span>
+                        <span className={styles.value}>{isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-'}</span>
                     </div>
                 </div>
             </div>
@@ -35,7 +46,7 @@ const LeftPane = () => {
                 <FaDollarSign className={styles.icon} />
                 <div className={styles.statContainer}>
                     <span className={styles.label}>BOHR Price</span>
-                    <span className={styles.value}>$ -</span>
+                    <span className={styles.value}>$ {bohrPrice?.toFixed(2) ?? '0.00'}</span>
                 </div>
             </div>
 
@@ -43,7 +54,9 @@ const LeftPane = () => {
                 <FaCoins className={styles.icon} />
                 <div className={styles.statContainer}>
                     <span className={styles.label}>Total Supply</span>
-                    <span className={styles.value}>21,045 BOHR</span>
+                    <span className={styles.value}>
+                        {isLoadingBohrToken ? 'Loading...' : bohrTotalSupply ? `${Number(bohrTotalSupply).toLocaleString()} BOHR` : '-'}
+                    </span>
                 </div>
             </div>
 
