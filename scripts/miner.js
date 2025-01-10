@@ -109,10 +109,11 @@ async function mine() {
                 const endTime = startTime + (miningDuration * 1000);
                 
                 const bestNonce = await findBestNonce(wallet.address, miningDuration * 1000, miningContract,
-                    // Progress callback
-                    (remainingTime) => {
+                    // Updated progress callback
+                    (remainingTime, hashRate) => {
                         const remaining = Math.ceil(remainingTime / 1000);
-                        process.stdout.write(`\r⛏️  Mining... ${remaining}s remaining   `);
+                        const hashRateFormatted = (hashRate / 1000).toFixed(2); // Convert to kH/s
+                        process.stdout.write(`\r⛏️  Mining... ${remaining}s remaining | Hash rate: ${hashRateFormatted} kH/s   `);
                     }
                 );
                 console.log('\n✨ Found best nonce:', bestNonce);
@@ -137,15 +138,25 @@ async function findBestNonce(minerAddress, duration, miningContract, onProgress)
     let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     const endTime = Date.now() + duration;
     let lastProgressUpdate = Date.now();
+    
+    // Add hash rate tracking
+    let hashCount = 0;
+    let lastHashRateUpdate = Date.now();
+    let currentHashRate = 0;
 
     // Get the current bestHash from the contract
     const currentBestHash = await miningContract.bestHash();
 
     while (Date.now() < endTime) {
-        // Update progress every 100ms
+        // Update progress and hash rate every 100ms
         if (Date.now() - lastProgressUpdate > 100) {
-            onProgress?.(endTime - Date.now());
-            lastProgressUpdate = Date.now();
+            const now = Date.now();
+            // Calculate hash rate
+            const timeDiff = (now - lastHashRateUpdate) / 1000; // convert to seconds
+            currentHashRate = Math.floor(hashCount / timeDiff);
+            
+            process.stdout.write(`\r⛏️  Mining... ${Math.ceil((endTime - now) / 1000)}s remaining | Hash rate: ${(currentHashRate / 1000).toFixed(2)} kH/s   `);
+            lastProgressUpdate = now;
         }
 
         for (let i = 0; i < config.MINING_BATCH_SIZE; i++) {
@@ -157,6 +168,7 @@ async function findBestNonce(minerAddress, duration, miningContract, onProgress)
                 )
             );
 
+            hashCount++;
             const hashValue = BigInt(hash);
             if (hashValue < bestHash) {
                 bestHash = hashValue;
@@ -164,10 +176,11 @@ async function findBestNonce(minerAddress, duration, miningContract, onProgress)
             }
         }
         
-        // Yield to event loop occasionally
         await new Promise(r => setImmediate(r));
     }
 
+    // Add a newline after mining is complete
+    process.stdout.write('\n');
     return bestNonce;
 }
 
