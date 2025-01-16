@@ -9,7 +9,7 @@ import { useBohrMining } from '../hooks/useBohrMining'
 import LeftPaneItem from './LeftPaneItem'
 
 const LeftPane = () => {
-    const { isMining } = useMining()
+    const { isMining, currentHashRate } = useMining()
     const { address } = useAccount()
     const { 
         totalSupply: bohrTotalSupply, 
@@ -21,8 +21,6 @@ const LeftPane = () => {
         isLoading: isLoadingBohrBalance 
     } = useBohrBalance(address)
     const { activeMinerCount, currentRoundId } = useBohrMining()
-    console.log('currentRoundId', currentRoundId)
-    console.log('activeMinerCount', activeMinerCount)
     
     return (
         <div className={styles.leftPane}>
@@ -39,7 +37,11 @@ const LeftPane = () => {
 
             <LeftPaneItem icon={<FaWallet className={styles.icon} />} label="Wallet Balance" value={isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-'} />
 
-            <LeftPaneItem icon={<FaChartLine className={styles.icon} />} label="Your Hash Rate" value="- H/s" />
+            <LeftPaneItem 
+                icon={<FaChartLine className={styles.icon} />} 
+                label="Your Hash Rate" 
+                value={isMining && currentHashRate ? `${Number(currentHashRate).toFixed(2)} kH/s` : '-'} 
+            />
 
             <LeftPaneItem icon={<FaUsers className={styles.icon} />} label="Active Miners" value={activeMinerCount} />
 

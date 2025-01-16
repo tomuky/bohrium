@@ -3,7 +3,6 @@
     width: 100%;
     flex-direction: column;
     gap: 10px;
-    margin-top: 10px;
     max-height: calc(100vh - 185px);
     overflow-y: auto;
     scrollbar-width: thin;
@@ -57,4 +56,13 @@
 .timestamp{
     font-size: 12px;
     color: var(--text-secondary);
+}
+
+.newRound{
+    display: flex;
+    justify-content: center;
+    margin:  0;
+    width: 100%;
+    color: var(--primary-text);
+    font-size: 12px;
 }
