@@ -53,34 +53,10 @@ export function MiningProvider({ children }) {
     // Map events to console items
     const createConsoleItem = (event) => {
         const { type, data = {}, timestamp } = event;
-        
-        // Special handling for mining updates - update the last mining item instead of creating new ones
-        // if (type === MINING_EVENTS.MINING) {
-        //     setMiningEndTime(data.endTime);
-            
-        //     setConsoleItems(prev => {
-        //         const newItems = [...prev];
-        //         const lastMiningIndex = newItems.findLastIndex(item => item.type === MINING_EVENTS.MINING);
-                
-        //         const newItem = {
-        //             icon: '/images/pickaxe.png',
-        //             text: 'Mining...',
-        //             type,
-        //             timestamp
-        //         };
-
-        //         if (lastMiningIndex !== -1) {
-        //             newItems[lastMiningIndex] = newItem;
-        //             return newItems;
-        //         }
-        //         return [...prev, newItem];
-        //     });
-        //     return null;
-        // }
 
         const eventMap = {
             [MINING_EVENTS.START]: {
-                icon: '/images/start.png',
+                icon: '/images/rocket.png',
                 text: 'Mining started'
             },
             [MINING_EVENTS.STOP]: {
@@ -102,10 +78,6 @@ export function MiningProvider({ children }) {
                 text: 'Best hash found',
                 pill: data.hash
             },
-            // [MINING_EVENTS.ROUND_END]: {
-            //     icon: '/images/end.png',
-            //     text: `Round ${data?.roundId || 'unknown'} ended`
-            // },
             [MINING_EVENTS.BALANCE_UPDATE]: {
                 icon: '/images/coins.png',
                 text: `BOHR: ${data.bohr}`,
@@ -125,12 +97,18 @@ export function MiningProvider({ children }) {
             },
             [MINING_EVENTS.ERROR]: {
                 icon: '/images/error.png',
-                text: data.message
+                text: data.message,
+                error: data.error
             },
             [MINING_EVENTS.REWARD]: {
                 icon: '/images/wand.png',
                 text: data.message,
                 pill: `+${data.reward} BOHR`
+            },
+            [MINING_EVENTS.TRANSACTION]: {
+                icon: '/images/spinner.png',
+                text: data.messages,
+                transactionHash: data.transactionHash
             }
         };
 

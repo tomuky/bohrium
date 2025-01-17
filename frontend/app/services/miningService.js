@@ -97,7 +97,7 @@ class MiningService {
                 await this.miningLoop();
             }
         } catch (error) {
-            this.emit(MINING_EVENTS.ERROR, { message: error.message });
+            this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error"  });
             this.stop();
         }
     }
@@ -127,10 +127,13 @@ class MiningService {
 
             // Check round age first
             if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) {
-                this.emit(MINING_EVENTS.SUBMIT, { message: "Ending round..." });
+                // this.emit(MINING_EVENTS.SUBMIT, { message: "Ending round..." });
                 const tx = await this.miningContract.endRound();
+                this.emit(MINING_EVENTS.TRANSACTION, { 
+                    messages: ["Ending round", "Round ended"],
+                    transactionHash: tx.hash 
+                });
                 await tx.wait();
-                //this.emit(MINING_EVENTS.ROUND_END, { roundId: roundId.toString() });
                 return;
             }
 
@@ -154,7 +157,7 @@ class MiningService {
                 
                 // Initial mining message
                 this.emit(MINING_EVENTS.MINING, { 
-                    message: "Mining...",
+                    message: "Mining",
                     endTime: endTime
                 });
 
@@ -172,19 +175,23 @@ class MiningService {
                 
                 this.emit(MINING_EVENTS.NONCE_FOUND, { 
                     nonce: bestNonce.toString(),
-                    hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 14) + "..."
+                    hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 24) + "..."
                 });
                 //this.emit(MINING_EVENTS.SUBMIT, { message: "Submitting nonce..." });
                 const tx = await this.miningContract.submitNonce(bestNonce, {
                     gasLimit: Math.floor(MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT)
                 });
                 
+                this.emit(MINING_EVENTS.TRANSACTION, { 
+                    messages: ["Submitting hash", "Submission confirmed"],
+                    transactionHash: tx.hash 
+                });
+                
                 await tx.wait(MINING_CONFIG.CONFIRMATIONS);
-                this.emit(MINING_EVENTS.CONFIRM, { message: "Submission confirmed" });
             }
 
         } catch (error) {
-            this.emit(MINING_EVENTS.ERROR, { message: error.message });
+            this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error" });
             await sleep(1000);
         }
     }
