@@ -175,10 +175,11 @@ class MiningService {
             // If we're in the end-round waiting period, just wait because it's too late to submit a nonce
             if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
                 const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) - roundAge;
-                // this.emit(MINING_EVENTS.WAITING, { 
-                //     message: "Waiting before ending round",
-                //     seconds: remainingWait 
-                // });
+                const endTime = Date.now() + (remainingWait * 1000);
+                this.emit(MINING_EVENTS.WAITING, { 
+                    message: "Waiting for round to end",
+                    endTime: endTime
+                });
                 await sleep(remainingWait * 1000);
                 return;
             }

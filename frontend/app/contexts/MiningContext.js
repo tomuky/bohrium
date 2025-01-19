@@ -93,7 +93,8 @@ export function MiningProvider({ children }) {
             },
             [MINING_EVENTS.WAITING]: {
                 icon: '/images/wait.png',
-                text: `${data.message} (${data.seconds}s)`
+                text: data.message,
+                endTime: data.endTime
             },
             [MINING_EVENTS.ERROR]: {
                 icon: '/images/error.png',
@@ -125,6 +126,8 @@ export function MiningProvider({ children }) {
     // Clear the console
     const clearConsole = () => setConsoleItems([]);
 
+
+    // not using this?
     useEffect(() => {
         if (!miningEndTime) return;
 

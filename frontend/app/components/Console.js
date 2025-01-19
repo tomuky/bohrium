@@ -5,6 +5,7 @@ import { useMining } from '../contexts/MiningContext'
 import NewRound from './ConsoleNewRound'
 import ConsoleMiningItem from './ConsoleMiningItem'
 import ConsoleTransactionItem from './ConsoleTransactionItem'
+import ConsoleWaiting from './ConsoleWaiting'
 
 const Console = () => {
     const { consoleItems } = useMining();
@@ -20,6 +21,11 @@ const Console = () => {
                         endTime={item.endTime}
                         icon={item.icon}
                         text={item.text}
+                    />
+                }else if(item.type==='waiting'){
+                    return <ConsoleWaiting 
+                        text={item.text}
+                        endTime={item.endTime}
                     />
                 }else if(item.type==='transaction'){
                     return <ConsoleTransactionItem 
