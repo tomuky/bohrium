@@ -22,8 +22,9 @@ export function useBohrMining() {
         address: BOHRIUM_MINING_ADDRESS,
         abi: MINING_ABI,
         functionName: 'roundId',
-        watch: true,
-        pollingInterval: 100000
+        query: {
+            refetchInterval: 1000
+        }
     })
 
     const { data: activeMinerCount } = useReadContract({
@@ -32,8 +33,9 @@ export function useBohrMining() {
         functionName: 'noncesSubmitted',
         args: [currentRoundId ? BigInt(Number(currentRoundId) - 1) : 0n], // get previous round's noncesSubmitted
         enabled: currentRoundId != null,
-        watch: true,
-        pollingInterval: 100000
+        query: {
+            refetchInterval: 5000
+        }
     })
 
     return {

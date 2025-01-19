@@ -19,8 +19,9 @@ export function useBohrToken() {
         address: BOHR_TOKEN_ADDRESS,
         abi: BOHR_TOKEN_ABI,
         functionName: 'totalSupply',
-        watch: true,
-        pollingInterval: 100000
+        query: {
+            refetchInterval: 5000
+        }
     })
 
     const formattedTotalSupply = totalSupply 

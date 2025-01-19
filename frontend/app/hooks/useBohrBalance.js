@@ -24,8 +24,9 @@ export function useBohrBalance(address) {
         abi: BOHR_TOKEN_ABI,
         functionName: 'balanceOf',
         args: [address],
-        watch: true,
-        pollingInterval: 10000
+        query: {
+            refetchInterval: 1000
+        }
     })
 
     const { data: decimals } = useReadContract({

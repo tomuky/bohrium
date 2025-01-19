@@ -61,28 +61,56 @@ class MiningService {
         this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
         
         // Setup transfer event listener
-        this.setupRewardListener();
+        await this.setupRewardListener();
     }
 
-    setupRewardListener() {
+    async setupRewardListener() {
         if (this.rewardListener) {
             this.bohrToken.removeListener('Transfer', this.rewardListener);
         }
 
-        this.rewardListener = async (from, to, amount) => {
-            const myAddress = await this.signer.getAddress();
-            // Only process incoming transfers from the mining contract
+        // Verify we have the correct addresses
+        const myAddress = await this.signer.getAddress();
+        const miningAddress = this.miningContract.target;
+        console.log('Setting up reward listener:', {
+            myAddress,
+            miningAddress,
+            tokenAddress: this.bohrToken.target
+        });
+
+        this.rewardListener = (from, to, amount) => {
+            console.log('Transfer event received:', {
+                from,
+                to,
+                amount: amount.toString(),
+                myAddress,
+                miningAddress
+            });
+
+            // Only process incoming transfers from the mining contract or zero address
             if (to.toLowerCase() === myAddress.toLowerCase() && 
-                from.toLowerCase() === this.miningContract.target.toLowerCase()) {
+                (from.toLowerCase() === miningAddress.toLowerCase() ||
+                 from.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
+                
+                // Convert amount to formatted balance immediately instead of awaiting
+                const formattedAmount = ethers.formatUnits(amount, 18); // Assuming 18 decimals
+                
                 this.emit(MINING_EVENTS.REWARD, {
                     message: 'Earned BOHR',
-                    reward: await formatBalance(amount),
-                    amount: amount
+                    reward: formattedAmount
                 });
             }
         };
 
-        this.bohrToken.on('Transfer', this.rewardListener);
+        // Add error handling for the event listener
+        this.bohrToken.on('Transfer', this.rewardListener)
+            .catch(error => {
+                console.error('Error in transfer listener:', error);
+                this.emit(MINING_EVENTS.ERROR, { 
+                    error: error.message, 
+                    message: "Error listening for rewards" 
+                });
+            });
     }
 
     async start() {
@@ -106,8 +134,15 @@ class MiningService {
         if (this.isRunning) {
             this.isRunning = false;
             this.emit(MINING_EVENTS.STOP);
+            
+            // Clean up listeners
             if (this.rewardListener && this.bohrToken) {
-                this.bohrToken.removeListener('Transfer', this.rewardListener);
+                try {
+                    this.bohrToken.removeListener('Transfer', this.rewardListener);
+                    this.rewardListener = null;
+                } catch (error) {
+                    console.error('Error removing transfer listener:', error);
+                }
             }
         }
     }
@@ -226,8 +261,13 @@ class MiningService {
                 // Calculate time span (in seconds)
                 const timeSpan = (now - Math.min(...this.hashHistory.map(entry => entry.timestamp))) / 1000;
                 
-                // Calculate current hash rate (in kH/s)
-                this.currentHashRate = (totalHashes / timeSpan) / 1000;
+                // Calculate current hash rate (in kH/s), with safeguards
+                if (this.hashHistory.length > 1 && timeSpan > 0) {
+                    this.currentHashRate = (totalHashes / timeSpan) / 1000;
+                } else {
+                    // Show 0 until we have enough data
+                    this.currentHashRate = 0;
+                }
                 
                 // Reset counters
                 hashCount = 0;
