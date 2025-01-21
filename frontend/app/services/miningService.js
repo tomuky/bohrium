@@ -72,19 +72,19 @@ class MiningService {
         // Verify we have the correct addresses
         const myAddress = await this.signer.getAddress();
         const miningAddress = this.miningContract.target;
-        console.log('Setting up reward listener:', {
-            myAddress,
-            miningAddress,
-            tokenAddress: this.bohrToken.target
-        });
 
-        this.rewardListener = (from, to, amount) => {
+        this.rewardListener = async (from, to, amount, event) => {
+            // Get block timestamp
+            const block = await this.provider.getBlock(event.blockNumber);
+            const timestamp = block.timestamp;
+
             console.log('Transfer event received:', {
                 from,
                 to,
                 amount: amount.toString(),
                 myAddress,
-                miningAddress
+                miningAddress,
+                timestamp
             });
 
             // Only process incoming transfers from the mining contract or zero address
@@ -92,12 +92,12 @@ class MiningService {
                 (from.toLowerCase() === miningAddress.toLowerCase() ||
                  from.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
                 
-                // Convert amount to formatted balance immediately instead of awaiting
-                const formattedAmount = ethers.formatUnits(amount, 18); // Assuming 18 decimals
+                const formattedAmount = ethers.formatUnits(amount, 18);
                 
                 this.emit(MINING_EVENTS.REWARD, {
                     message: 'Earned BOHR',
-                    reward: formattedAmount
+                    reward: formattedAmount,
+                    timestamp
                 });
             }
         };
@@ -162,13 +162,43 @@ class MiningService {
 
             // Check round age first
             if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) {
-                // this.emit(MINING_EVENTS.SUBMIT, { message: "Ending round..." });
-                const tx = await this.miningContract.endRound();
-                this.emit(MINING_EVENTS.TRANSACTION, { 
-                    messages: ["Ending round", "Round ended"],
-                    transactionHash: tx.hash 
+                
+                if (!this.isRunning) return;
+
+                this.emit(MINING_EVENTS.TRANSACTION, {
+                    message: "Preparing transaction to end round",
+                    icon: '/images/checklist.png'
                 });
-                await tx.wait();
+
+                const tx = await this.miningContract.endRound();
+                
+                this.emit(MINING_EVENTS.TRANSACTION, {
+                    message: "Transaction submitted",
+                    icon: '/images/send.png',
+                    hash: tx.hash
+                });           
+
+                try {
+                    const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
+                    this.emit(MINING_EVENTS.TRANSACTION, {
+                        message: "Transaction confirmed",
+                        icon: '/images/check.png',
+                        hash: tx.hash
+                    });
+                } catch (error) {
+                    this.emit(MINING_EVENTS.TRANSACTION, {
+                        message: "Transaction failed",
+                        icon: '/images/error.png',
+                        error: error.message
+                    });
+                    console.log('Transaction failed:', {
+                        hash: tx.hash,
+                        error: error.message,
+                        status: 'error'
+                    });
+                    throw error; // Re-throw to be caught by the outer try-catch
+                }
+
                 return;
             }
 
@@ -213,21 +243,43 @@ class MiningService {
                     nonce: bestNonce.toString(),
                     hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 24) + "..."
                 });
-                //this.emit(MINING_EVENTS.SUBMIT, { message: "Submitting nonce..." });
+
+                this.emit(MINING_EVENTS.TRANSACTION, {
+                    message: "Preparing transaction",
+                    icon: '/images/checklist.png'
+                });
+
                 const tx = await this.miningContract.submitNonce(bestNonce, {
                     gasLimit: Math.floor(MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT)
                 });
                 
-                this.emit(MINING_EVENTS.TRANSACTION, { 
-                    messages: ["Submitting hash", "Submission confirmed"],
-                    transactionHash: tx.hash 
+                this.emit(MINING_EVENTS.TRANSACTION, {
+                    message: "Transaction submitted",
+                    icon: '/images/send.png',
+                    hash: tx.hash
                 });
+
+                try {
+                    const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
+                    this.emit(MINING_EVENTS.TRANSACTION, {
+                        message: "Transaction confirmed",
+                        icon: '/images/check.png',
+                        hash: tx.hash
+                    });
+                } catch (error) {
+                    this.emit(MINING_EVENTS.TRANSACTION, {
+                        message: "Transaction failed",
+                        icon: '/images/error.png',
+                        error: error.message
+                    });
+                    throw error; // Re-throw to be caught by the outer try-catch
+                }
                 
-                await tx.wait(MINING_CONFIG.CONFIRMATIONS);
             }
 
         } catch (error) {
-            this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error" });
+            //this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error" });
+            console.log('Error in mining loop:', error);
             await sleep(1000);
         }
     }

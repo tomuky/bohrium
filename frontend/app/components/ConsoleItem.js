@@ -2,12 +2,8 @@
 import styles from './Console.module.css'
 import Image from 'next/image'
 
-const ConsoleItem = ({icon, text, pill, error}) => {
-
-    if(error){
-        console.log("Mining error", error);
-    }
-
+const ConsoleItem = ({icon, text, pill, error, hash}) => {
+    
     return (
         <div className={styles.item}>
             <div className={styles.itemContent}>
@@ -16,6 +12,17 @@ const ConsoleItem = ({icon, text, pill, error}) => {
                     {text}
                 </div>
                 {pill && <div className={styles.pill}>{pill}</div>}
+                {hash && (
+                    <a 
+                        href={`https://sepolia.basescan.org/tx/${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.txLink}
+                >
+                        [View tx]
+                    </a>
+                )}
+                {error && <div className={styles.error}>{error}</div>}
             </div>
         </div>
     )

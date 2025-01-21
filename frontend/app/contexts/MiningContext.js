@@ -1,11 +1,13 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { miningService } from '../services/miningService';
 import { MINING_EVENTS } from '../services/constants';
 
 const MiningContext = createContext({});
 
 export function MiningProvider({ children }) {
+    const { isConnected } = useAccount();
     const [isMining, setIsMining] = useState(false);
     const [consoleItems, setConsoleItems] = useState([]);
     const [walletError, setWalletError] = useState(null);
@@ -27,6 +29,12 @@ export function MiningProvider({ children }) {
 
     useEffect(() => {
         if (isMining) {
+            if (!isConnected) {
+                setWalletError('Wallet not connected');
+                setIsMining(false);
+                return;
+            }
+
             miningService.start().catch(error => {
                 setWalletError(error.message);
                 setIsMining(false);
@@ -34,7 +42,7 @@ export function MiningProvider({ children }) {
         } else {
             miningService.stop();
         }
-    }, [isMining]);
+    }, [isMining, isConnected]);
 
     // Add new useEffect for hash rate updates
     useEffect(() => {
@@ -52,7 +60,7 @@ export function MiningProvider({ children }) {
 
     // Map events to console items
     const createConsoleItem = (event) => {
-        const { type, data = {}, timestamp } = event;
+        const { type, data = {}, timestamp = Date.now() } = event;
 
         const eventMap = {
             [MINING_EVENTS.START]: {
@@ -107,9 +115,10 @@ export function MiningProvider({ children }) {
                 pill: `+${data.reward} BOHR`
             },
             [MINING_EVENTS.TRANSACTION]: {
-                icon: '/images/spinner.png',
-                text: data.messages,
-                transactionHash: data.transactionHash
+                icon: data.icon,
+                text: data.message,
+                hash: data.hash,
+                error: data.error
             }
         };
 

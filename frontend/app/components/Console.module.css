@@ -114,3 +114,8 @@
     color: #666;
     font-size: 0.9em;
 }
+
+.error {
+    color: red;
+    font-size: 0.9em;
+}

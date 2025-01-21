@@ -1,85 +1,46 @@
 'use client'
 import styles from './Console.module.css'   
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
-import { ethers } from 'ethers'
+import { useTransactionStatus } from '../hooks/useTransactionStatus'
+import { memo, useMemo } from 'react'
 
-const ConsoleTransactionItem = ({ text, transactionHash }) => {
-    const [status, setStatus] = useState('pending') // pending, confirmed, failed
-    const [confirmations, setConfirmations] = useState(0)
+const ConsoleTransactionItem = memo(({ text, transactionHash }) => {
+    const { isLoading, isError, isReverted, isSuccessful, receipt } = useTransactionStatus(transactionHash)
 
-    useEffect(() => {
-        const watchTransaction = async () => {
-            try {
-                const provider = new ethers.BrowserProvider(window.ethereum)
-                const tx = await provider.getTransaction(transactionHash)
-                if (!tx) return
+    console.log('~~~~~~~~~~')
+    console.log('transactionHash', transactionHash)
+    console.log('isError', isError)
+    console.log('isPending', isLoading)
+    console.log('isSuccess', isSuccessful)
+    console.log('status', receipt)
+    console.log('~~~~~~~~~~')
+    
+    const statusIcon = useMemo(() => {
+        if (isError || isReverted) return '/images/error.png'
+        if (isSuccessful) return '/images/check.png'
+        if (isLoading) return '/images/spinner.png'
+        return '/images/spinner.png'
+    }, [isLoading, isSuccessful, isError, isReverted])
 
-                // Watch for confirmations
-                tx.wait()
-                    .then((receipt) => {
-                        setStatus(receipt.status === 1 ? 'confirmed' : 'failed')
-                    })
-                    .catch(() => {
-                        setStatus('failed')
-                    })
-
-                // Subscribe to new blocks to count confirmations
-                const handleNewBlock = async () => {
-                    const currentBlock = await provider.getBlockNumber()
-                    const txBlock = await tx.blockNumber
-                    if (txBlock) {
-                        setConfirmations(currentBlock - txBlock + 1)
-                    }
-                }
-
-                provider.on('block', handleNewBlock)
-
-                return () => {
-                    provider.removeListener('block', handleNewBlock)
-                }
-            } catch (error) {
-                console.error('Error watching transaction:', error)
-                setStatus('failed')
-            }
-        }
-
-        if (transactionHash) {
-            watchTransaction()
-        }
-    }, [transactionHash])
-
-    const getStatusIcon = () => {
-        switch (status) {
-            case 'confirmed':
-                return '/images/check-white.png'
-            case 'failed':
-                return '/images/error.png'
-            default:
-                return '/images/spinner.png'
-        }
-    }
+    const message = useMemo(() => {
+        if (isError || isReverted) return "Transaction failed"
+        if (isSuccessful) return text[1]
+        if (isLoading) return text[0]
+        return text[0]
+    }, [isLoading, isSuccessful, isError, isReverted, text])
 
     return (
         <div className={styles.item}>
             <div className={styles.itemContent}>
                 <Image 
-                    src={getStatusIcon()} 
-                    alt={status} 
+                    src={statusIcon} 
+                    alt="transaction status" 
                     width={20} 
                     height={20} 
-                    className={status === 'pending' ? styles.spinning : ''} 
+                    className={ isLoading ? styles.spinning : '' } 
                 />
                 <div className={styles.itemText}>
-                    {status==='pending' && text[0]}
-                    {status==='confirmed' && text[1]}
-                    {status==='failed' && "Something went wrong"}
-
-                    {/* {status === 'pending' && confirmations > 0 && (
-                        <span className={styles.confirmations}>
-                            {` (${confirmations} confirmation${confirmations !== 1 ? 's' : ''})`}
-                        </span>
-                    )} */}
+                    {message}
                 </div>
                 <a 
                     href={`https://sepolia.basescan.org/tx/${transactionHash}`}
@@ -92,6 +53,9 @@ const ConsoleTransactionItem = ({ text, transactionHash }) => {
             </div>
         </div>
     )
-}
+})
+
+// Add a display name for better debugging
+ConsoleTransactionItem.displayName = 'ConsoleTransactionItem'
 
 export default ConsoleTransactionItem

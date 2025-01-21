@@ -46,12 +46,10 @@ export const MINING_CONFIG = {
 
 export const MINING_EVENTS = {
     START: 'start',
+    STOP: 'stop',
     ROUND_START: 'round_start',
     MINING: 'mining',
     NONCE_FOUND: 'nonce_found',
-    ROUND_END: 'round_end',
-    BALANCE_UPDATE: 'balance_update',
-    STOP: 'stop',
     SUBMIT: 'submit',
     CONFIRM: 'confirm',
     WAITING: 'waiting',
