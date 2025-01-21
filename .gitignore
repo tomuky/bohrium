@@ -26,3 +26,6 @@ node_modules
 /frontend/*.log
 /frontend/.DS_Store
 /frontend/.env
+
+.DS_Store
+**/.DS_Store  # This will ignore .DS_Store in all directories and subdirectories
