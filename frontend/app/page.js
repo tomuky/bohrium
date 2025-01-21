@@ -20,7 +20,7 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <h1>Do the work. Earn BOHR.</h1>
-        <p>BOHR is the first PoW token on Base</p>
+        <p>BOHR is the first proof-of-work token on Base</p>
         <Link href="/mine">
           <button className={styles.startButton}>
             START MINING
