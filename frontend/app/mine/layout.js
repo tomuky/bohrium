@@ -23,7 +23,7 @@ export default function MineLayout({ children }) {
             <Header/>
             <div className="desktopOnlyMessage">Using your browser to mine BOHR is only available on desktop</div>
             <div className="social-links">
-                <a href="https://x.com/bohrweb" target="_blank" rel="noopener noreferrer" className="social-link">
+                <a href="https://x.com/bohrsupply" target="_blank" rel="noopener noreferrer" className="social-link">
                     <img src="images/x.png" alt="X (Twitter) Logo" className="social-icon" />
                     Follow
                 </a>

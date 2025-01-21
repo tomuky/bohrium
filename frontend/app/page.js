@@ -28,7 +28,13 @@ export default function Home() {
         </Link>
       </div>
 
-      <video autoPlay muted loop className={styles.backgroundVideo}>
+      <video 
+        autoPlay 
+        muted 
+        loop 
+        playsInline
+        className={styles.backgroundVideo}
+      >
         <source src="/videos/blob-orb.mp4" type="video/mp4" />
       </video>
     </div>
