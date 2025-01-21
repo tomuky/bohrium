@@ -9,7 +9,7 @@ import { MiningProvider } from './contexts/MiningContext'
 const config = getDefaultConfig({
   appName: 'Bohrium',
   projectId: 'b95c18e2f7c838c9e3ef9ae47e7bf081',
-  chains: [baseSepolia, base],
+  chains: [baseSepolia],
   ssr: true
 })
 
