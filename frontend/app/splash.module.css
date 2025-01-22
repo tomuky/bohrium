@@ -23,10 +23,13 @@
   font-size: 2rem;
   font-weight: bold;
   letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .socialLinks {
-    font-size: 32px;
+    font-size: 24px;
     display: flex;
     gap: 1.5rem;
     align-items: center;
@@ -56,6 +59,7 @@
 .mainContent h1 {
   font-size: 3rem;
   margin-bottom: 1rem;
+  line-height: 1.2;
 }
 
 .mainContent p {
@@ -98,6 +102,13 @@
 @media (max-width: 768px) {
   .mainContent{
     margin-top: 10vh;
+  }
+  .socialLinks{
+    gap: 1rem;
+  }
+  .socialLinks img{
+    width: 18px;
+    height: 18px;
   }
 }
 

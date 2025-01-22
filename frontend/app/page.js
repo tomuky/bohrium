@@ -7,13 +7,22 @@ export default function Home() {
   return (
     <div className={styles.splashContainer}>
       <nav className={styles.topNav}>
-        <div className={styles.logo}>BOHRIUM</div>
+        <div className={styles.logo}>
+          <Image 
+            src="/images/bohr.png" 
+            alt="Bohrium Logo" 
+            width={36} 
+            height={36} 
+            style={{ marginRight: '6px' }}
+          />
+          BOHRIUM
+        </div>
         <div className={styles.socialLinks}>
           <Link href="https://x.com/bohrsupply" target="_blank">
-            <Image src="/images/x.png" alt="X" width={28} height={28} style={{ filter: 'invert(1)' }}/> 
+            <Image src="/images/x.png" alt="X" width={24} height={24} style={{ filter: 'invert(1)' }}/> 
           </Link>
           <Link href="https://github.com/tomuky/bohrium" target="_blank">
-            <Image src="/images/github.png" alt="GitHub" width={28} height={28} style={{ filter: 'invert(1)' }}/>
+            <Image src="/images/github.png" alt="GitHub" width={24} height={24} style={{ filter: 'invert(1)' }}/>
           </Link>
         </div>
       </nav>
