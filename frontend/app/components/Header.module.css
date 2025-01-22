@@ -20,6 +20,9 @@
     align-items: center;
     gap: .5rem;
 }
+.logo{
+    margin-right: 6px;
+}
 
 @media (max-width: 768px) {
     .title {
