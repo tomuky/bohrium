@@ -25,14 +25,15 @@ const LeftPane = () => {
     
     const metrics = [
         {
-            icon: <FaWallet className={styles.icon}/>,
-            label: "Wallet Balance",
-            value: isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-'
+            icon: <FaDollarSign className={styles.icon}/>,
+            label: "BOHR Price",
+            //value: bohrPrice?.toFixed(2) ?? '-'
+            value: '-'
         },
         {
-            icon: <FaChartLine className={styles.icon}/>,
-            label: "Your Hash Rate",
-            value: isMining && currentHashRate ? `${Number(currentHashRate).toFixed(2)} kH/s` : '-'
+            icon: <FaWallet className={styles.icon}/>,
+            label: "Wallet Balance",
+            value: !address ? '-' : (isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-')
         },
         {
             icon: <FaUsers className={styles.icon}/>,
@@ -40,9 +41,9 @@ const LeftPane = () => {
             value: activeMinerCount
         },
         {
-            icon: <FaDollarSign className={styles.icon}/>,
-            label: "BOHR Price",
-            value: bohrPrice?.toFixed(2) ?? '0.00'
+            icon: <FaChartLine className={styles.icon}/>,
+            label: "Your Hash Rate",
+            value: isMining && currentHashRate ? `${Number(currentHashRate).toFixed(2)} kH/s` : '-'
         },
         {
             icon: <FaCoins className={styles.icon}/>,

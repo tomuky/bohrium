@@ -25,7 +25,8 @@ export function useBohrBalance(address) {
         functionName: 'balanceOf',
         args: [address],
         query: {
-            refetchInterval: 1000
+            refetchInterval: 1000,
+            enabled: !!address
         }
     })
 
@@ -33,6 +34,9 @@ export function useBohrBalance(address) {
         address: BOHR_TOKEN_ADDRESS,
         abi: BOHR_TOKEN_ABI,
         functionName: 'decimals',
+        query: {
+            enabled: !!address
+        }
     })
 
     const formattedBalance = balance && decimals
