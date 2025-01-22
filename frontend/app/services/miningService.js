@@ -196,7 +196,7 @@ class MiningService {
                         error: error.message,
                         status: 'error'
                     });
-                    throw error; // Re-throw to be caught by the outer try-catch
+                    throw error;
                 }
 
                 return;
@@ -272,13 +272,22 @@ class MiningService {
                         icon: '/images/error.png',
                         error: error.message
                     });
-                    throw error; // Re-throw to be caught by the outer try-catch
+                    console.log('Transaction failed:', {
+                        hash: tx.hash,
+                        error: error.message,
+                        status: 'error'
+                    });
+                    throw error;
                 }
                 
             }
 
         } catch (error) {
-            //this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error" });
+            if (error.code === "ACTION_REJECTED") { // ethers v6 user rejection code
+                this.emit(MINING_EVENTS.USER_REJECTED);
+                this.stop();
+                return;
+            }
             console.log('Error in mining loop:', error);
             await sleep(1000);
         }

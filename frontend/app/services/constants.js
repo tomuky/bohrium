@@ -55,5 +55,6 @@ export const MINING_EVENTS = {
     WAITING: 'waiting',
     ERROR: 'error',
     TRANSACTION: 'transaction',
-    REWARD: 'reward'
+    REWARD: 'reward',
+    USER_REJECTED: 'user_rejected'
 };

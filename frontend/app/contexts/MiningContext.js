@@ -19,6 +19,12 @@ export function MiningProvider({ children }) {
             const newItem = createConsoleItem(event);
             if (newItem) {
                 setConsoleItems(prev => [...prev, newItem]);
+                
+                // Handle transaction rejection by stopping mining
+                if (event.type === MINING_EVENTS.USER_REJECTED) {
+                    console.log('stopping from user rejected')
+                    setIsMining(false);
+                }
             }
         });
 
@@ -119,7 +125,12 @@ export function MiningProvider({ children }) {
                 text: data.message,
                 hash: data.hash,
                 error: data.error
-            }
+            },
+            [MINING_EVENTS.USER_REJECTED]: {
+                icon: '/images/error.png',
+                text: 'Transaction rejected by user',
+                error: true
+            },
         };
 
         const eventConfig = eventMap[type];
