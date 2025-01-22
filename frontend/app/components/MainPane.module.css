@@ -1,4 +1,13 @@
 .mainPane {
     width: 70%;
     padding: 20px;
+    min-height: calc(100vh - 80px); /* Subtract header height */
+}
+
+@media (max-width: 768px) {
+    .mainPane {
+        width: 100%;
+        padding: 10px 20px;
+        min-height: 0;
+    }
 }

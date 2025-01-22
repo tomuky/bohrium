@@ -1,3 +1,17 @@
+.layout {
+    display: flex;
+    gap: 1rem;
+    padding: 0 1rem;
+}
+
+@media (max-width: 768px) {
+    .layout {
+        flex-direction: column;
+        padding: 0;
+        gap: 10px;
+    }
+}
+
 .console{
     display: flex;
     flex-direction: column;

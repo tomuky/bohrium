@@ -241,7 +241,7 @@ class MiningService {
                 
                 this.emit(MINING_EVENTS.NONCE_FOUND, { 
                     nonce: bestNonce.toString(),
-                    hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 24) + "..."
+                    hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 12) + "..."
                 });
 
                 this.emit(MINING_EVENTS.TRANSACTION, {
