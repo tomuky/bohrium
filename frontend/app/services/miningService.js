@@ -183,7 +183,7 @@ class MiningService {
                     this.emit(MINING_EVENTS.TRANSACTION, {
                         message: "Transaction confirmed",
                         icon: '/images/check.png',
-                        hash: tx.hash
+                        hash: receipt.hash
                     });
                 } catch (error) {
                     this.emit(MINING_EVENTS.TRANSACTION, {
@@ -264,7 +264,7 @@ class MiningService {
                     this.emit(MINING_EVENTS.TRANSACTION, {
                         message: "Transaction confirmed",
                         icon: '/images/check.png',
-                        hash: tx.hash
+                        hash: receipt.hash
                     });
                 } catch (error) {
                     this.emit(MINING_EVENTS.TRANSACTION, {
