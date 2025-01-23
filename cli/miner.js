@@ -11,7 +11,9 @@ const MINING_ABI = [
     "function roundId() view returns (uint256)",
     "function roundStartTime() view returns (uint256)",
     "function bohriumToken() view returns (address)",
-    "function bestHash() view returns (bytes32)"
+    "function bestHash() view returns (bytes32)",
+    "function REWARD_AMOUNT() view returns (uint256)",
+    "function currentReward() view returns (uint256)"
 ];
 
 const TOKEN_ABI = [
@@ -200,4 +202,11 @@ async function getBohrBalance(address) {
     return ethers.formatEther(balance);
 }
 
-module.exports = { mine, getETHBalance, getBohrBalance };
+async function getRewardAmount() {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, provider);
+    const rewardAmountWei = await miningContract.currentReward();
+    return ethers.formatEther(rewardAmountWei);
+}
+
+module.exports = { mine, getETHBalance, getBohrBalance, getRewardAmount };
