@@ -21,6 +21,9 @@ export default function Home() {
           <Link href="https://x.com/bohrsupply" target="_blank">
             <Image src="/images/x.png" alt="X" width={24} height={24} style={{ filter: 'invert(1)' }}/> 
           </Link>
+          <Link href="https://discord.gg/xyZW4Ck36V" target="_blank">
+            <Image src="/images/discord.png" alt="Discord" width={30} height={24}/>
+          </Link>
           <Link href="https://github.com/tomuky/bohrium" target="_blank">
             <Image src="/images/github.png" alt="GitHub" width={24} height={24} style={{ filter: 'invert(1)' }}/>
           </Link>
