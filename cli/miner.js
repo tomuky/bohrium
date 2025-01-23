@@ -1,9 +1,9 @@
 const { ethers } = require("ethers");
-const { COMMON_CONFIG, ENV_CONFIG, getNetworkConfig } = require("./config");
+const { getNetworkConfig } = require("./config");
+const { getWallet } = require("./wallet");
 
 // Replace the existing network selection and config merge with:
-const network = process.env.BOHRIUM_NETWORK;
-const config = getNetworkConfig(network);
+const config = getNetworkConfig();
 
 const MINING_ABI = [
     "function submitNonce(uint256 nonce) external",
@@ -44,19 +44,25 @@ async function countdownLog(message, seconds) {
     console.log(); // New line after countdown
 }
 
-async function mine(createdWallet) {
+async function mine() {
     const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    const wallet = createdWallet.connect(provider);
-    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, wallet);
+    const wallet = await getWallet();
+    if (!wallet) {
+        throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
+    }
+    
+    // Connect the wallet to the provider
+    const connectedWallet = wallet.connect(provider);
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
     const bohrTokenAddress = await miningContract.bohriumToken();
     
     console.log("\n🚀 Starting Bohrium Mining...");
     console.log(`📍 Mining Contract: ${config.MINING_CONTRACT_ADDRESS}`);
     console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
     
-    const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, wallet);
+    const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, connectedWallet);
     
-    await logBalances(provider, wallet, bohrToken);
+    await logBalances(provider, connectedWallet, bohrToken);
 
     let lastRoundId = 0;
 
@@ -69,7 +75,7 @@ async function mine(createdWallet) {
 
             if (roundId !== lastRoundId) {
                 console.log(`\n📊 Round ${roundId} Started`);
-                await logBalances(provider, wallet, bohrToken);
+                await logBalances(provider, connectedWallet, bohrToken);
                 lastRoundId = roundId;
             }
 
@@ -79,7 +85,7 @@ async function mine(createdWallet) {
                 const tx = await miningContract.endRound();
                 await tx.wait();
                 console.log("✅ Round ended successfully");
-                await logBalances(provider, wallet, bohrToken);
+                await logBalances(provider, connectedWallet, bohrToken);
                 continue;
             }
 
@@ -97,7 +103,7 @@ async function mine(createdWallet) {
                 const startTime = Date.now();
                 const endTime = startTime + (miningDuration * 1000);
                 
-                const bestNonce = await findBestNonce(wallet.address, miningDuration * 1000, miningContract,
+                const bestNonce = await findBestNonce(connectedWallet.address, miningDuration * 1000, miningContract,
                     // Updated progress callback
                     (remainingTime, hashRate) => {
                         const remaining = Math.ceil(remainingTime / 1000);
@@ -179,4 +185,19 @@ process.on('SIGINT', () => {
     process.exit();
 });
 
-module.exports = { mine };
+async function getETHBalance(address) {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const balance = await provider.getBalance(address);
+    return ethers.formatEther(balance);
+}
+
+async function getBohrBalance(address) {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, provider);
+    const bohrTokenAddress = await miningContract.bohriumToken();
+    const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, provider);
+    const balance = await bohrToken.balanceOf(address);
+    return ethers.formatEther(balance);
+}
+
+module.exports = { mine, getETHBalance, getBohrBalance };

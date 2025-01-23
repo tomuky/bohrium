@@ -4,6 +4,7 @@ const { Command } = require('commander');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const path = require('path');
+const { createWallet, getWallet } = require('./wallet');
 
 // Import mining script
 const miner = require(path.resolve(__dirname, './miner'));
@@ -109,7 +110,7 @@ program
     .description('Show current network')
     .action(() => {
         try {
-            const currentNetwork = process.env.BOHRIUM_NETWORK || config.DEFAULT_NETWORK;
+            const currentNetwork = config.getCurrentNetwork();
             console.log('\n🌐 Current network:', chalk.cyan(currentNetwork));
         } catch (error) {
             console.error(chalk.red('\n❌ Error getting network:', error.message));
@@ -124,8 +125,7 @@ program
     .action((network) => {
         try {
             config.validateNetwork(network);
-            // Store network preference in environment
-            process.env.BOHRIUM_NETWORK = network;
+            config.saveNetwork(network);
             console.log(chalk.green('\n✅ Network changed successfully!'));
             console.log('🌐 Current network:', chalk.cyan(network));
         } catch (error) {
@@ -134,6 +134,45 @@ program
             Object.keys(config.ENV_CONFIG).forEach(net => {
                 console.log(chalk.cyan(`- ${net}`));
             });
+        }
+    });
+
+// Comprehensive wallet info command
+program
+    .command('wallet')
+    .description('Show wallet information including address and balances')
+    .action(async () => {
+        try {
+            const wallet = getWallet();
+            if (!wallet) {
+                console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
+                console.log(chalk.cyan('bohrium create-wallet'));
+                return;
+            }
+
+            console.log(chalk.bold('\n📊 Wallet Information:'));
+            console.log('📬 Address:', chalk.cyan(wallet.address));
+            
+            const network = config.getCurrentNetwork();
+            console.log('🌐 Network:', chalk.cyan(network));
+
+            console.log(chalk.gray('\nFetching balances...'));
+            
+            try {
+                const ethBalance = await miner.getETHBalance(wallet.address);
+                console.log('💎 ETH Balance:', chalk.cyan(ethBalance));
+            } catch (error) {
+                console.log('💎 ETH Balance:', chalk.red('Error fetching ETH balance'));
+            }
+
+            try {
+                const bohrBalance = await miner.getBohrBalance(wallet.address);
+                console.log('🪙 BOHR Balance:', chalk.cyan(bohrBalance));
+            } catch (error) {
+                console.log('🪙 BOHR Balance:', chalk.red('Error fetching BOHR balance'));
+            }
+        } catch (error) {
+            console.error(chalk.red('\n❌ Error retrieving wallet information:', error.message));
         }
     });
 

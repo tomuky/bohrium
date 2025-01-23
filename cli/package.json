@@ -10,7 +10,14 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
-    "inquirer": "^12.3.2",
-    "ethers": "^6.11.1"
+    "ethers": "^6.11.1",
+    "inquirer": "8.2.6"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }

@@ -1,4 +1,6 @@
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 // Common configuration shared across all environments
 const COMMON_CONFIG = {
@@ -15,21 +17,18 @@ const ENV_CONFIG = {
     local: {
         RPC_URL: "http://127.0.0.1:8545",
         MINING_CONTRACT_ADDRESS: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", // local address
-        PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", // hardhat default
         CONFIRMATIONS: 1,
         GAS_MULTIPLIER: 1.5
     },
     baseSepolia: {
-        RPC_URL: process.env.BASE_SEPOLIA_RPC_URL,
+        RPC_URL: "https://sepolia.base.org",
         MINING_CONTRACT_ADDRESS: "0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87", // testnet address
-        PRIVATE_KEY: process.env.PRIVATE_KEY,
         CONFIRMATIONS: 2,
         GAS_MULTIPLIER: 2
     },
     baseMainnet: {
-        RPC_URL: process.env.BASE_MAINNET_RPC_URL,
+        RPC_URL: "https://mainnet.base.org",
         MINING_CONTRACT_ADDRESS: "0x...", // mainnet address
-        PRIVATE_KEY: process.env.PRIVATE_KEY,
         CONFIRMATIONS: 3,
         GAS_MULTIPLIER: 1.2
     }
@@ -37,6 +36,41 @@ const ENV_CONFIG = {
 
 // Default network
 const DEFAULT_NETWORK = 'baseSepolia';
+
+const SETTINGS_DIR = path.join(os.homedir(), '.bohrium');
+const SETTINGS_PATH = path.join(SETTINGS_DIR, 'settings.json');
+
+// Ensure settings directory exists
+function ensureSettingsDir() {
+    if (!fs.existsSync(SETTINGS_DIR)) {
+        fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+    }
+}
+
+// Get current network from settings file
+function getCurrentNetwork() {
+    ensureSettingsDir();
+    try {
+        if (fs.existsSync(SETTINGS_PATH)) {
+            const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'));
+            return settings.network || DEFAULT_NETWORK;
+        }
+    } catch (error) {
+        console.error('Error reading settings:', error);
+    }
+    return DEFAULT_NETWORK;
+}
+
+// Save network preference to settings file
+function saveNetwork(network) {
+    ensureSettingsDir();
+    const settings = fs.existsSync(SETTINGS_PATH)
+        ? JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))
+        : {};
+    
+    settings.network = network;
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+}
 
 // Add function to validate network
 function validateNetwork(network) {
@@ -46,9 +80,9 @@ function validateNetwork(network) {
     return network;
 }
 
-// Add function to get current network configuration
-function getNetworkConfig(network = DEFAULT_NETWORK) {
-    const validNetwork = validateNetwork(network);
+// Update getNetworkConfig to use settings
+function getNetworkConfig(network = null) {
+    const validNetwork = validateNetwork(network || getCurrentNetwork());
     return {
         ...COMMON_CONFIG,
         ...ENV_CONFIG[validNetwork],
@@ -61,5 +95,7 @@ module.exports = {
     ENV_CONFIG, 
     DEFAULT_NETWORK,
     getNetworkConfig,
-    validateNetwork 
+    validateNetwork,
+    getCurrentNetwork,
+    saveNetwork
 };

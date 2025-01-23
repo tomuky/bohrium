@@ -48,12 +48,28 @@ async function createWallet() {
     };
 }
 
-function getWallet() {
+async function getWallet() {
     if (!fs.existsSync(WALLET_PATH)) {
         return null;
     }
     const data = JSON.parse(fs.readFileSync(WALLET_PATH, 'utf8'));
-    return { address: data.address };
+    
+    // Get password from user
+    const { password } = await inquirer.prompt([
+        {
+            type: 'password',
+            name: 'password',
+            message: 'Enter your wallet password:',
+        }
+    ]);
+
+    try {
+        // Decrypt the wallet using the password
+        const wallet = await ethers.Wallet.fromEncryptedJson(data.keystore, password);
+        return wallet;
+    } catch (error) {
+        throw new Error('Invalid password or corrupted wallet file');
+    }
 }
 
 module.exports = {
