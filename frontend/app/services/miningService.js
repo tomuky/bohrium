@@ -216,7 +216,7 @@ class MiningService {
                 const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
                 const endTime = Date.now() + (remainingWait * 1000);
                 this.emit(MINING_EVENTS.WAITING, { 
-                    message: "Waiting for round to end",
+                    message: "Waiting for next round to start",
                     endTime: endTime
                 });
                 await sleep(remainingWait * 1000);
