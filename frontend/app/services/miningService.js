@@ -149,8 +149,8 @@ class MiningService {
 
     async miningLoop() {
         try {
-            const roundId = await this.miningContract.roundId(); // maybe only check this every 10 seconds
-            const roundStart = BigInt(await this.miningContract.roundStartTime()); // same here
+            const roundId = await this.miningContract.roundId();
+            const roundStart = BigInt(await this.miningContract.roundStartTime());
             const currentTime = BigInt(Math.floor(Date.now() / 1000));
             const roundAge = Number(currentTime - roundStart);
 
@@ -160,51 +160,60 @@ class MiningService {
                 this.lastRoundId = roundId;
             }
 
-            // Check round age first
+            // If round is old enough to end
             if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) {
-                
-                if (!this.isRunning) return;
-
-                this.emit(MINING_EVENTS.TRANSACTION, {
-                    message: "Preparing transaction to end round",
-                    icon: '/images/checklist.png'
+                // Wait for 10 seconds to see if someone else ends the round
+                this.emit(MINING_EVENTS.WAITING, { 
+                    message: "Waiting for round to end",
+                    endTime: Date.now() + 10000
                 });
-
-                const tx = await this.miningContract.endRound();
                 
-                this.emit(MINING_EVENTS.TRANSACTION, {
-                    message: "Transaction submitted",
-                    icon: '/images/send.png',
-                    hash: tx.hash
-                });           
+                await sleep(10000);
+                
+                // Check if we're still in the same round
+                const newRoundId = await this.miningContract.roundId();
+                if (newRoundId === roundId && this.isRunning) {
+                    // No one ended the round, so we'll do it
+                    this.emit(MINING_EVENTS.TRANSACTION, {
+                        message: "Preparing transaction to end round",
+                        icon: '/images/checklist.png'
+                    });
 
-                try {
-                    const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
+                    const tx = await this.miningContract.endRound();
+                    
                     this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Transaction confirmed",
-                        icon: '/images/check.png',
-                        hash: receipt.hash
-                    });
-                } catch (error) {
-                    this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Transaction failed",
-                        icon: '/images/error.png',
-                        error: error.message
-                    });
-                    console.log('Transaction failed:', {
-                        hash: tx.hash,
-                        error: error.message,
-                        status: 'error'
-                    });
-                    throw error;
+                        message: "Transaction submitted",
+                        icon: '/images/send.png',
+                        hash: tx.hash
+                    });           
+
+                    try {
+                        const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
+                        this.emit(MINING_EVENTS.TRANSACTION, {
+                            message: "Transaction confirmed",
+                            icon: '/images/check.png',
+                            hash: receipt.hash
+                        });
+                    } catch (error) {
+                        this.emit(MINING_EVENTS.TRANSACTION, {
+                            message: "Transaction failed",
+                            icon: '/images/error.png',
+                            error: error.message
+                        });
+                        console.log('Transaction failed:', {
+                            hash: tx.hash,
+                            error: error.message,
+                            status: 'error'
+                        });
+                        throw error;
+                    }
                 }
-
                 return;
             }
 
             // If we're in the end-round waiting period, just wait because it's too late to submit a nonce
             if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
-                const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) - roundAge;
+                const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
                 const endTime = Date.now() + (remainingWait * 1000);
                 this.emit(MINING_EVENTS.WAITING, { 
                     message: "Waiting for round to end",
