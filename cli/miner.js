@@ -13,7 +13,9 @@ const MINING_ABI = [
     "function bohriumToken() view returns (address)",
     "function bestHash() view returns (bytes32)",
     "function REWARD_AMOUNT() view returns (uint256)",
-    "function currentReward() view returns (uint256)"
+    "function currentReward() view returns (uint256)",
+    "function roundEndTime() view returns (uint256)",
+    "function roundDuration() view returns (uint256)",
 ];
 
 const TOKEN_ABI = [
@@ -72,56 +74,40 @@ async function mine() {
         try {
             const roundId = await miningContract.roundId();
             const roundStart = BigInt(await miningContract.roundStartTime());
+            const roundDuration = BigInt(await miningContract.roundDuration());
             const currentTime = BigInt(Math.floor(Date.now() / 1000));
             const roundAge = Number(currentTime - roundStart);
 
+            // Log new round information
             if (roundId !== lastRoundId) {
                 console.log(`\n📊 Round ${roundId} Started`);
                 await logBalances(provider, connectedWallet, bohrToken);
                 lastRoundId = roundId;
             }
 
-            // If round is old enough plus our wait period, end it
-            if (roundAge >= config.MIN_ROUND_DURATION + config.END_ROUND_WAIT) {
-                console.log("\n🏁 Ending round...");
-                const tx = await miningContract.endRound();
-                await tx.wait();
+            // If round duration has passed plus buffer, try to end it
+            if (roundAge >= Number(roundDuration) + config.END_ROUND_WAIT) {
+                console.log("\n🏁 Attempting to end round...");
+                const tx = await miningContract.endRound({
+                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
+                });
+                await tx.wait(config.CONFIRMATIONS);
                 console.log("✅ Round ended successfully");
                 await logBalances(provider, connectedWallet, bohrToken);
                 continue;
             }
 
-            // If we're in the end-round waiting period, just wait
-            if (roundAge >= config.MIN_ROUND_DURATION) {
-                const remainingWait = (config.MIN_ROUND_DURATION + config.END_ROUND_WAIT) - roundAge;
+            // If we're in the waiting period, show countdown
+            if (roundAge >= Number(roundDuration)) {
+                const remainingWait = (Number(roundDuration) + config.END_ROUND_WAIT) - roundAge;
                 await countdownLog("⏳ Waiting before ending round:", remainingWait);
                 continue;
             }
 
-            // Calculate mining duration
-            const miningDuration = Math.max(0, config.MIN_ROUND_DURATION - roundAge - config.TX_BUFFER);
-            
-            if (miningDuration > 0) {
-                const startTime = Date.now();
-                const endTime = startTime + (miningDuration * 1000);
-                
-                const bestNonce = await findBestNonce(connectedWallet.address, miningDuration * 1000, miningContract,
-                    // Updated progress callback
-                    (remainingTime, hashRate) => {
-                        const remaining = Math.ceil(remainingTime / 1000);
-                        const hashRateFormatted = (hashRate / 1000).toFixed(2); // Convert to kH/s
-                        process.stdout.write(`\r⛏️  Mining... ${remaining}s remaining | Hash rate: ${hashRateFormatted} kH/s   `);
-                    }
-                );
-                console.log('\n✨ Found best nonce:', bestNonce);
-                
-                const tx = await miningContract.submitNonce(bestNonce, {
-                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
-                });
-                process.stdout.write('📝 Confirming transaction...');
-                await tx.wait(config.CONFIRMATIONS);
-                console.log('\r✅ Nonce submitted successfully    ');
-            }
+            // Otherwise show current round status
+            const timeLeft = Number(roundDuration) - roundAge;
+            process.stdout.write(`\r⏳ Round ${roundId}: ${timeLeft}s remaining until round can be ended   `);
+            await sleep(1000);
 
         } catch (error) {
             console.error("\n❌ Error:", error.message);
@@ -209,4 +195,56 @@ async function getRewardAmount() {
     return ethers.formatEther(rewardAmountWei);
 }
 
-module.exports = { mine, getETHBalance, getBohrBalance, getRewardAmount };
+async function watchRounds() {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const wallet = await getWallet();
+    const connectedWallet = wallet.connect(provider);
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
+
+    let lastRoundId = 0;
+
+    while (true) {
+        try {
+            const roundId = await miningContract.roundId();
+            const roundStart = BigInt(await miningContract.roundStartTime());
+            const roundDuration = BigInt(await miningContract.roundDuration());
+            const currentTime = BigInt(Math.floor(Date.now() / 1000));
+            const roundAge = Number(currentTime - roundStart);
+
+            // Log new round information
+            if (roundId !== lastRoundId) {
+                console.log(`\n📊 Round ${roundId} Started`);
+                lastRoundId = roundId;
+            }
+
+            // If round duration has passed plus buffer, try to end it
+            if (roundAge >= Number(roundDuration) + config.END_ROUND_WAIT) {
+                console.log("\n🏁 Attempting to end round...");
+                const tx = await miningContract.endRound({
+                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
+                });
+                await tx.wait(config.CONFIRMATIONS);
+                console.log("✅ Round ended successfully");
+                continue;
+            }
+
+            // If we're in the waiting period, show countdown
+            if (roundAge >= Number(roundDuration)) {
+                const remainingWait = (Number(roundDuration) + config.END_ROUND_WAIT) - roundAge;
+                await countdownLog("⏳ Waiting before ending round:", remainingWait);
+                continue;
+            }
+
+            // Otherwise show current round status
+            const timeLeft = Number(roundDuration) - roundAge;
+            process.stdout.write(`\r⏳ Round ${roundId}: ${timeLeft}s remaining until round can be ended   `);
+            await sleep(1000);
+
+        } catch (error) {
+            console.error("\n❌ Error:", error.message);
+            await sleep(1000);
+        }
+    }
+}
+
+module.exports = { mine, getETHBalance, getBohrBalance, getRewardAmount, watchRounds };

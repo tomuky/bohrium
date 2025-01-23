@@ -263,4 +263,27 @@ program
         console.log(chalk.blue('Configuration saved.'));
     });
 
+// 10. Round Watcher command
+program
+    .command('round-watcher')
+    .description('Monitor mining rounds and attempt to end them when possible')
+    .action(async () => {
+        try {
+            const wallet = await getWallet();
+            if (!wallet) {
+                console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
+                console.log(chalk.cyan('bohrium create-wallet'));
+                return;
+            }
+
+            console.log(chalk.green('\n🔍 Starting Round Watcher...'));
+            console.log(chalk.cyan('Monitoring rounds with wallet:', wallet.address));
+            console.log(chalk.gray('Press Ctrl+C at any time to stop watching\n'));
+
+            await miner.watchRounds();
+        } catch (error) {
+            console.error(chalk.red('\n❌ Error in round watcher:', error.message));
+        }
+    });
+
 program.parse(process.argv);
