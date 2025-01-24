@@ -17,6 +17,9 @@ class MiningService {
         this.lastBohrBalance = BigInt(0); // Add this line to track the last balance
         this.bohrToken = null;
         this.rewardListener = null;
+        this.miningAccount = null;
+        this.sessionKey = null;
+        this.factory = null;
     }
 
     // Add event listener
@@ -113,11 +116,82 @@ class MiningService {
             });
     }
 
+    async loadOrCreateMiningAccount() {
+        if (!this.factory) {
+            this.factory = new ethers.Contract(
+                MINING_ACCOUNT_FACTORY_ADDRESS,
+                FACTORY_ABI,
+                this.signer
+            );
+        }
+        
+        // Try to load existing account
+        const userAddress = await this.signer.getAddress();
+        let miningAccountAddress = await this.factory.getMiningAccount(userAddress);
+        
+        // Create new account if none exists
+        if (miningAccountAddress === ethers.ZeroAddress) {
+            const tx = await this.factory.createMiningAccount();
+            const receipt = await tx.wait();
+            const event = receipt.logs.find(
+                log => log.eventName === 'MiningAccountCreated'
+            );
+            miningAccountAddress = event.args.account;
+        }
+        
+        this.miningAccount = new ethers.Contract(
+            miningAccountAddress,
+            MINING_ACCOUNT_ABI,
+            this.signer
+        );
+        
+        // Load session key from localStorage if it exists
+        await this.loadOrCreateSessionKey();
+    }
+    
+    async loadOrCreateSessionKey() {
+        const storageKey = `mining-session-${await this.signer.getAddress()}`;
+        const stored = localStorage.getItem(storageKey);
+        
+        if (stored) {
+            const { privateKey, expiry } = JSON.parse(stored);
+            
+            // Check if stored session is still valid
+            const sessionInfo = await this.miningAccount.sessionKeys(
+                new ethers.Wallet(privateKey).address
+            );
+            
+            if (sessionInfo.isValid && sessionInfo.expiry > Date.now() / 1000) {
+                this.sessionKey = new ethers.Wallet(privateKey);
+                return;
+            }
+        }
+        
+        // Create new session key
+        this.sessionKey = ethers.Wallet.createRandom();
+        
+        // Get approval for 24 hours
+        const duration = 24 * 60 * 60; // 24 hours
+        const tx = await this.miningAccount.setSessionKey(
+            this.sessionKey.address,
+            duration
+        );
+        await tx.wait();
+        
+        // Store in localStorage
+        localStorage.setItem(storageKey, JSON.stringify({
+            privateKey: this.sessionKey.privateKey,
+            expiry: Math.floor(Date.now() / 1000) + duration
+        }));
+    }
+
     async start() {
         if (this.isRunning) return;
         
         try {
             await this.connect();
+            await this.loadOrCreateMiningAccount();
+            
             this.isRunning = true;
             this.emit(MINING_EVENTS.START);
             
@@ -125,7 +199,10 @@ class MiningService {
                 await this.miningLoop();
             }
         } catch (error) {
-            this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error"  });
+            this.emit(MINING_EVENTS.ERROR, { 
+                error: error.message, 
+                message: "There was an error" 
+            });
             this.stop();
         }
     }
@@ -258,9 +335,7 @@ class MiningService {
                     icon: '/images/checklist.png'
                 });
 
-                const tx = await this.miningContract.submitNonce(bestNonce, {
-                    gasLimit: Math.floor(MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT)
-                });
+                const tx = await this.submitNonce(bestNonce);
                 
                 this.emit(MINING_EVENTS.TRANSACTION, {
                     message: "Transaction submitted",
@@ -369,6 +444,21 @@ class MiningService {
         }
 
         return { nonce: bestNonce, hash: bestHash };
+    }
+
+    async submitNonce(nonce) {
+        // Use session key if available, fall back to main wallet
+        const signer = this.sessionKey || this.signer;
+        
+        return this.miningAccount.connect(signer).submitNonce(
+            this.miningContract.address,
+            nonce,
+            {
+                gasLimit: Math.floor(
+                    MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT
+                )
+            }
+        );
     }
 }
 
