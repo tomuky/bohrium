@@ -160,8 +160,8 @@ class MiningService {
                 this.lastRoundId = roundId;
             }
 
-            // If round is old enough to end
-            if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) {
+            // If round is over
+            if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION) {
                 // Wait for 10 seconds to see if someone else ends the round
                 this.emit(MINING_EVENTS.WAITING, { 
                     message: "Waiting for round to end",
@@ -212,16 +212,16 @@ class MiningService {
             }
 
             // If we're in the end-round waiting period, just wait because it's too late to submit a nonce
-            if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
-                const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
-                const endTime = Date.now() + (remainingWait * 1000);
-                this.emit(MINING_EVENTS.WAITING, { 
-                    message: "Waiting for next round to start",
-                    endTime: endTime
-                });
-                await sleep(remainingWait * 1000);
-                return;
-            }
+            // if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
+            //     const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
+            //     const endTime = Date.now() + (remainingWait * 1000);
+            //     this.emit(MINING_EVENTS.WAITING, { 
+            //         message: "Waiting for next round to start",
+            //         endTime: endTime
+            //     });
+            //     await sleep(remainingWait * 1000);
+            //     return;
+            // }
 
             // Calculate mining duration
             const miningDuration = Math.max(0, MINING_CONFIG.MIN_ROUND_DURATION - roundAge - MINING_CONFIG.TX_BUFFER);

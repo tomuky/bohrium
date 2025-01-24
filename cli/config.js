@@ -8,7 +8,7 @@ const COMMON_CONFIG = {
     NONCE_RANGE: 100000, // amount of nonces to submit per round
     MINING_BATCH_SIZE: 1000, // amount of nonces to submit per transaction
     TX_BUFFER: 10, // amount of seconds to submit nonce before round ends
-    END_ROUND_WAIT: 5, // amount of seconds to wait after round ends before submitting next nonce
+    END_ROUND_WAIT: 10, // amount of seconds to wait after round ends before starting to mine next round
     BASE_GAS_LIMIT: 200000 // base gas limit for transactions
 };
 

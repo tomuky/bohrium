@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 const { Command } = require('commander');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
@@ -98,7 +96,7 @@ program
             if (startMining.begin) {
                 console.log(chalk.green('\n🎮 Starting mining process...'));
                 console.log(chalk.gray('Press Ctrl+C at any time to stop mining\n'));
-                await miner.mine();
+                await miner.mine(wallet);
             } else {
                 console.log(chalk.yellow('\nOK! You can start mining later using "bohrium mine"'));
             }
@@ -114,7 +112,7 @@ program
   .description('Start mining BOHR')
   .action(async () => {
     try {
-      const wallet = getWallet(); // Get the wallet created by create-wallet command
+      const wallet = await getWallet();
       if (!wallet) {
         console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
         console.log(chalk.cyan('bohrium create-wallet'));
@@ -280,7 +278,7 @@ program
             console.log(chalk.cyan('Monitoring rounds with wallet:', wallet.address));
             console.log(chalk.gray('Press Ctrl+C at any time to stop watching\n'));
 
-            await miner.watchRounds();
+            await miner.watchRounds(wallet);
         } catch (error) {
             console.error(chalk.red('\n❌ Error in round watcher:', error.message));
         }

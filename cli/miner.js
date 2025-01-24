@@ -48,9 +48,11 @@ async function countdownLog(message, seconds) {
     console.log(); // New line after countdown
 }
 
-async function mine() {
+async function mine(providedWallet = null) {
     const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    const wallet = await getWallet();
+    
+    // Use provided wallet or get a new one if not provided
+    const wallet = providedWallet || await getWallet();
     if (!wallet) {
         throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
     }
@@ -100,14 +102,34 @@ async function mine() {
             // If we're in the waiting period, show countdown
             if (roundAge >= Number(roundDuration)) {
                 const remainingWait = (Number(roundDuration) + config.END_ROUND_WAIT) - roundAge;
-                await countdownLog("⏳ Waiting before ending round:", remainingWait);
+                await countdownLog("⏳ Waiting for round to end:", remainingWait);
                 continue;
             }
 
-            // Otherwise show current round status
-            const timeLeft = Number(roundDuration) - roundAge;
-            process.stdout.write(`\r⏳ Round ${roundId}: ${timeLeft}s remaining until round can be ended   `);
-            await sleep(1000);
+            // Calculate mining duration
+            const miningDuration = Math.max(0, config.MIN_ROUND_DURATION - roundAge - config.TX_BUFFER);
+            
+            if (miningDuration > 0) {
+                const startTime = Date.now();
+                const endTime = startTime + (miningDuration * 1000);
+                
+                const bestNonce = await findBestNonce(connectedWallet.address, miningDuration * 1000, miningContract,
+                    // Updated progress callback
+                    (remainingTime, hashRate) => {
+                        const remaining = Math.ceil(remainingTime / 1000);
+                        const hashRateFormatted = (hashRate / 1000).toFixed(2); // Convert to kH/s
+                        process.stdout.write(`\r⛏️  Mining... ${remaining}s remaining | Hash rate: ${hashRateFormatted} kH/s   `);
+                    }
+                );
+                console.log('\n✨ Found best nonce:', bestNonce);
+                
+                const tx = await miningContract.submitNonce(bestNonce, {
+                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
+                });
+                process.stdout.write('📝 Confirming transaction...');
+                await tx.wait(config.CONFIRMATIONS);
+                console.log('\r✅ Nonce submitted successfully    ');
+            }
 
         } catch (error) {
             console.error("\n❌ Error:", error.message);
@@ -195,9 +217,15 @@ async function getRewardAmount() {
     return ethers.formatEther(rewardAmountWei);
 }
 
-async function watchRounds() {
+async function watchRounds(providedWallet = null) {
     const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    const wallet = await getWallet();
+    
+    // Use provided wallet or get a new one if not provided
+    const wallet = providedWallet || await getWallet();
+    if (!wallet) {
+        throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
+    }
+    
     const connectedWallet = wallet.connect(provider);
     const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
 
@@ -217,21 +245,14 @@ async function watchRounds() {
                 lastRoundId = roundId;
             }
 
-            // If round duration has passed plus buffer, try to end it
-            if (roundAge >= Number(roundDuration) + config.END_ROUND_WAIT) {
+            // If round duration has passed plus buffer
+            if (roundAge >= Number(roundDuration)) {
                 console.log("\n🏁 Attempting to end round...");
                 const tx = await miningContract.endRound({
                     gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
                 });
                 await tx.wait(config.CONFIRMATIONS);
                 console.log("✅ Round ended successfully");
-                continue;
-            }
-
-            // If we're in the waiting period, show countdown
-            if (roundAge >= Number(roundDuration)) {
-                const remainingWait = (Number(roundDuration) + config.END_ROUND_WAIT) - roundAge;
-                await countdownLog("⏳ Waiting before ending round:", remainingWait);
                 continue;
             }
 
