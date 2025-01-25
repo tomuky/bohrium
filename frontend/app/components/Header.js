@@ -1,8 +1,11 @@
+'use client'
 import styles from './Header.module.css'    
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
+import { useAccount } from 'wagmi'
 
 const Header = () => {
+    const { isConnected } = useAccount()
     return (
         <div className={styles.header}>
             <div className={styles.left}>
@@ -10,7 +13,7 @@ const Header = () => {
                 <h1 className={styles.title}>BOHRIUM</h1>
             </div>
             <div className={styles.right}>
-                <ConnectButton chainStatus="full" accountStatus="address" />
+                { isConnected ? <ConnectButton chainStatus="full" accountStatus="address" /> : null}
             </div>
         </div>
     )

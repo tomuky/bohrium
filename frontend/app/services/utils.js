@@ -11,3 +11,8 @@ export const sleep = (ms) => {
 export const getCurrentTimestamp = () => {
     return new Date().toISOString().replace('T', ' ').substring(0, 19);
 };
+
+export function formatAddress(address) {
+    if (!address) return ''
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+}

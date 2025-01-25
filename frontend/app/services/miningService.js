@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
 import { MINING_ABI, TOKEN_ABI, MINING_CONFIG, MINING_EVENTS } from './constants';
-import { formatBalance, sleep, getCurrentTimestamp } from './utils';
-import { getNetworkConfig, DEFAULT_NETWORK } from './config';
+import { sleep, getCurrentTimestamp } from './utils';
+import { getNetworkConfig } from './config';
+import { FACTORY_ABI, MINING_ACCOUNT_ABI } from './constants';
 
 class MiningService {
     constructor() {
@@ -18,8 +19,10 @@ class MiningService {
         this.bohrToken = null;
         this.rewardListener = null;
         this.miningAccount = null;
-        this.sessionKey = null;
         this.factory = null;
+        this.sessionSigner = null;
+        this.sessionWallet = null;
+        this.sessionKeyDeployed = false;
     }
 
     // Add event listener
@@ -41,30 +44,57 @@ class MiningService {
     }
 
     async connect() {
-        if (!window.ethereum) {
-            throw new Error('MetaMask is not installed');
-        }
+        try {
+            console.log('Connecting to mining service');
+            if (!window.ethereum) {
+                throw new Error('MetaMask is not installed');
+            }
 
-        this.provider = new ethers.BrowserProvider(window.ethereum);
-        this.signer = await this.provider.getSigner();
-        
-        // Get the current network
-        const chainId = (await this.provider.getNetwork()).chainId;
-        const networkConfig = getNetworkConfig(Number(chainId));
-        
-        // Initialize contracts
-        this.miningContract = new ethers.Contract(
-            networkConfig.contracts.mining,
-            MINING_ABI,
-            this.signer
-        );
-        
-        // Initialize token contract
-        const bohrTokenAddress = await this.miningContract.bohriumToken();
-        this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
-        
-        // Setup transfer event listener
-        await this.setupRewardListener();
+            this.provider = new ethers.BrowserProvider(window.ethereum);
+            console.log('Provider initialized');
+
+            this.signer = await this.provider.getSigner();
+            const address = await this.signer.getAddress();
+            console.log('Signer initialized:', address);
+
+            const chainId = (await this.provider.getNetwork()).chainId;
+            console.log('Chain ID:', chainId);
+            
+            const networkConfig = getNetworkConfig(Number(chainId));
+            
+            // Initialize factory contract first
+            this.factory = new ethers.Contract(
+                networkConfig.contracts.factory, // Make sure this exists in networkConfig
+                FACTORY_ABI, // Need to import this
+                this.signer
+            );
+
+            // Initialize mining contract
+            this.miningContract = new ethers.Contract(
+                networkConfig.contracts.mining,
+                MINING_ABI,
+                this.signer
+            );
+            
+            // Initialize token contract
+            const bohrTokenAddress = await this.miningContract.bohriumToken();
+            this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
+            
+            // Load mining account
+            await this.loadMiningAccount();
+            
+            // Setup transfer event listener
+            await this.setupRewardListener();
+
+            // Create and deploy session key if needed
+            await this.setupSessionKey();
+            
+            // Setup transfer event listener
+            await this.setupRewardListener();
+        } catch (error) {
+            console.error('Error in connect():', error);
+            throw error;
+        }
     }
 
     async setupRewardListener() {
@@ -72,8 +102,8 @@ class MiningService {
             this.bohrToken.removeListener('Transfer', this.rewardListener);
         }
 
-        // Verify we have the correct addresses
-        const myAddress = await this.signer.getAddress();
+        // Get mining account address instead of signer address
+        const myAddress = this.miningAccount.target;
         const miningAddress = this.miningContract.target;
 
         this.rewardListener = async (from, to, amount, event) => {
@@ -116,81 +146,35 @@ class MiningService {
             });
     }
 
-    async loadOrCreateMiningAccount() {
-        if (!this.factory) {
-            this.factory = new ethers.Contract(
-                MINING_ACCOUNT_FACTORY_ADDRESS,
-                FACTORY_ABI,
+    async loadMiningAccount() {
+        try {
+            const userAddress = await this.signer.getAddress();
+            console.log('Loading mining account for:', userAddress);
+            
+            const miningAccountAddress = await this.factory.userToMiningAccount(userAddress);
+            console.log('Mining account address:', miningAccountAddress);
+            
+            if (miningAccountAddress === ethers.ZeroAddress) {
+                throw new Error('No mining account found. Please create and fund a mining account first.');
+            }
+            
+            this.miningAccount = new ethers.Contract(
+                miningAccountAddress,
+                MINING_ACCOUNT_ABI,
                 this.signer
             );
+        } catch (error) {
+            console.error('Error in loadMiningAccount:', error);
+            throw error;
         }
-        
-        // Try to load existing account
-        const userAddress = await this.signer.getAddress();
-        let miningAccountAddress = await this.factory.getMiningAccount(userAddress);
-        
-        // Create new account if none exists
-        if (miningAccountAddress === ethers.ZeroAddress) {
-            const tx = await this.factory.createMiningAccount();
-            const receipt = await tx.wait();
-            const event = receipt.logs.find(
-                log => log.eventName === 'MiningAccountCreated'
-            );
-            miningAccountAddress = event.args.account;
-        }
-        
-        this.miningAccount = new ethers.Contract(
-            miningAccountAddress,
-            MINING_ACCOUNT_ABI,
-            this.signer
-        );
-        
-        // Load session key from localStorage if it exists
-        await this.loadOrCreateSessionKey();
-    }
-    
-    async loadOrCreateSessionKey() {
-        const storageKey = `mining-session-${await this.signer.getAddress()}`;
-        const stored = localStorage.getItem(storageKey);
-        
-        if (stored) {
-            const { privateKey, expiry } = JSON.parse(stored);
-            
-            // Check if stored session is still valid
-            const sessionInfo = await this.miningAccount.sessionKeys(
-                new ethers.Wallet(privateKey).address
-            );
-            
-            if (sessionInfo.isValid && sessionInfo.expiry > Date.now() / 1000) {
-                this.sessionKey = new ethers.Wallet(privateKey);
-                return;
-            }
-        }
-        
-        // Create new session key
-        this.sessionKey = ethers.Wallet.createRandom();
-        
-        // Get approval for 24 hours
-        const duration = 24 * 60 * 60; // 24 hours
-        const tx = await this.miningAccount.setSessionKey(
-            this.sessionKey.address,
-            duration
-        );
-        await tx.wait();
-        
-        // Store in localStorage
-        localStorage.setItem(storageKey, JSON.stringify({
-            privateKey: this.sessionKey.privateKey,
-            expiry: Math.floor(Date.now() / 1000) + duration
-        }));
     }
 
     async start() {
         if (this.isRunning) return;
+        console.log('Starting mining service')
         
         try {
             await this.connect();
-            await this.loadOrCreateMiningAccount();
             
             this.isRunning = true;
             this.emit(MINING_EVENTS.START);
@@ -207,10 +191,77 @@ class MiningService {
         }
     }
 
-    stop() {
+    async setupSessionKey() {
+        // Create a new random session key if we don't have one
+        if (!this.sessionSigner) {
+            const sessionKey = ethers.Wallet.createRandom();
+            this.sessionSigner = sessionKey.connect(this.provider);
+            this.sessionWallet = sessionKey.address;
+        }
+
+        // Check if session key is already authorized by checking the sessionKeys mapping
+        const sessionKeyInfo = await this.miningAccount.sessionKeys(this.sessionWallet);
+        const isAuthorized = sessionKeyInfo.isValid && 
+                            sessionKeyInfo.expiry > Math.floor(Date.now() / 1000);
+
+        if (!isAuthorized) {
+            // Estimate gas needed for 1 hour of mining
+            const gasPrice = await this.provider.getFeeData();
+            const estimatedGasPerOp = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
+            const opsPerHour = Math.ceil(3600 / (MINING_CONFIG.MIN_ROUND_DURATION + 30)); // +30s buffer
+            const estimatedGasNeeded = estimatedGasPerOp * opsPerHour;
+            const ethNeeded = (gasPrice.gasPrice * BigInt(estimatedGasNeeded));
+
+            // Authorize session key and fund it
+            const tx = await this.miningAccount.authorizeSessionKeyWithFunding(
+                this.sessionWallet,
+                ethNeeded,
+                {
+                    value: ethNeeded
+                }
+            );
+            await tx.wait();
+            this.sessionKeyDeployed = true;
+        } else {
+            this.sessionKeyDeployed = true;
+        }
+    }
+
+    async stop() {
         if (this.isRunning) {
             this.isRunning = false;
             this.emit(MINING_EVENTS.STOP);
+
+            // Return remaining ETH to mining account
+            if (this.sessionKeyDeployed) {
+                try {
+                    const balance = await this.provider.getBalance(this.sessionWallet);
+                    const gasPrice = await this.provider.getFeeData();
+                    const gasLimit = 21000; // Simple ETH transfer
+                    const gasCost = gasPrice.gasPrice * BigInt(gasLimit);
+                    // Add 10% buffer to gas cost for safety
+                    const gasBuffer = (gasCost * BigInt(110)) / BigInt(100);
+                    
+                    if (balance > gasBuffer) {
+                        const amountToReturn = balance - gasBuffer;
+                        const tx = await this.sessionSigner.sendTransaction({
+                            to: this.miningAccount.target,
+                            value: amountToReturn,
+                            gasLimit
+                        });
+                        await tx.wait();
+                        
+                        // Any remaining dust after the transfer will be negligible
+                    } else {
+                        console.log('Balance too low to return funds safely', {
+                            balance: balance.toString(),
+                            requiredWithBuffer: gasBuffer.toString()
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error returning funds:', error);
+                }
+            }
             
             // Clean up listeners
             if (this.rewardListener && this.bohrToken) {
@@ -225,20 +276,31 @@ class MiningService {
     }
 
     async miningLoop() {
+        console.log('Mining loop started');
         try {
             const roundId = await this.miningContract.roundId();
+            console.log('Current round ID:', roundId.toString());
+            
             const roundStart = BigInt(await this.miningContract.roundStartTime());
             const currentTime = BigInt(Math.floor(Date.now() / 1000));
             const roundAge = Number(currentTime - roundStart);
+            console.log('Round details:', {
+                roundStart: roundStart.toString(),
+                currentTime: currentTime.toString(),
+                roundAge,
+                minRoundDuration: MINING_CONFIG.MIN_ROUND_DURATION
+            });
 
             // Check if we're in a new round
             if (roundId !== this.lastRoundId) {
+                console.log('New round detected');
                 this.emit(MINING_EVENTS.ROUND_START, { roundId: roundId.toString() });
                 this.lastRoundId = roundId;
             }
 
             // If round is over
             if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION) {
+                console.log('Round duration exceeded, preparing to end round');
                 // Wait for 10 seconds to see if someone else ends the round
                 this.emit(MINING_EVENTS.WAITING, { 
                     message: "Waiting for round to end",
@@ -250,13 +312,13 @@ class MiningService {
                 // Check if we're still in the same round
                 const newRoundId = await this.miningContract.roundId();
                 if (newRoundId === roundId && this.isRunning) {
-                    // No one ended the round, so we'll do it
                     this.emit(MINING_EVENTS.TRANSACTION, {
                         message: "Preparing transaction to end round",
                         icon: '/images/checklist.png'
                     });
 
-                    const tx = await this.miningContract.endRound();
+                    // Use endRound helper method that handles session key
+                    const tx = await this.endRound();
                     
                     this.emit(MINING_EVENTS.TRANSACTION, {
                         message: "Transaction submitted",
@@ -288,21 +350,16 @@ class MiningService {
                 return;
             }
 
-            // If we're in the end-round waiting period, just wait because it's too late to submit a nonce
-            // if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
-            //     const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
-            //     const endTime = Date.now() + (remainingWait * 1000);
-            //     this.emit(MINING_EVENTS.WAITING, { 
-            //         message: "Waiting for next round to start",
-            //         endTime: endTime
-            //     });
-            //     await sleep(remainingWait * 1000);
-            //     return;
-            // }
-
             // Calculate mining duration
             const miningDuration = Math.max(0, MINING_CONFIG.MIN_ROUND_DURATION - roundAge - MINING_CONFIG.TX_BUFFER);
+            console.log('Mining duration calculated:', {
+                miningDuration,
+                roundAge,
+                txBuffer: MINING_CONFIG.TX_BUFFER
+            });
+
             if (miningDuration > 0) {
+                console.log('Starting mining process for duration:', miningDuration);
                 // Start mining with countdown updates
                 const startTime = Date.now();
                 const endTime = startTime + (miningDuration * 1000);
@@ -335,6 +392,7 @@ class MiningService {
                     icon: '/images/checklist.png'
                 });
 
+                // Use submitNonce helper method that handles session key
                 const tx = await this.submitNonce(bestNonce);
                 
                 this.emit(MINING_EVENTS.TRANSACTION, {
@@ -364,21 +422,25 @@ class MiningService {
                     throw error;
                 }
                 
+            } else {
+                console.log('Skipping mining - duration is zero or negative');
             }
 
         } catch (error) {
-            if (error.code === "ACTION_REJECTED") { // ethers v6 user rejection code
+            console.error('Error in mining loop:', error);
+            if (error.code === "ACTION_REJECTED") {
+                console.log('User rejected transaction');
                 this.emit(MINING_EVENTS.USER_REJECTED);
                 this.stop();
                 return;
             }
-            console.log('Error in mining loop:', error);
             await sleep(1000);
         }
     }
 
     async findBestNonce(duration) {
-        const minerAddress = await this.signer.getAddress();
+        // Use mining account address instead of signer
+        const minerAddress = this.miningAccount.target;
         let bestNonce = 0;
         let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         const endTime = Date.now() + duration;
@@ -447,12 +509,22 @@ class MiningService {
     }
 
     async submitNonce(nonce) {
-        // Use session key if available, fall back to main wallet
-        const signer = this.sessionKey || this.signer;
-        
+        const signer = this.sessionKeyDeployed ? this.sessionSigner : this.signer;
         return this.miningAccount.connect(signer).submitNonce(
-            this.miningContract.address,
+            this.miningContract.target,
             nonce,
+            {
+                gasLimit: Math.floor(
+                    MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT
+                )
+            }
+        );
+    }
+
+    async endRound() {
+        const signer = this.sessionKeyDeployed ? this.sessionSigner : this.signer;
+        return this.miningAccount.connect(signer).endRound(
+            this.miningContract.target,
             {
                 gasLimit: Math.floor(
                     MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT

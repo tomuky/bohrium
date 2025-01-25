@@ -5,7 +5,7 @@ export const NETWORKS = {
         chainId: 31337, // Hardhat's default chain ID
         rpcUrl: 'http://127.0.0.1:8545',
         contracts: {
-            mining: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+            mining: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
         }
     },
     baseSepolia: {
@@ -13,7 +13,9 @@ export const NETWORKS = {
         chainId: 84532,
         rpcUrl: 'https://sepolia.base.org',
         contracts: {
-            mining: '0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87'
+            mining: '0xdd2f9Ab374cC9ddc613Cef7b0b0BC9648cd3fcc2',
+            factory: '0xfC51F752b193A055cDb23D8B62F0aAb659fDcD7D',
+            bohr: '0x1B0b313D7B50eC0799d0EED4C53ac1cFc8ebEbBb'
         }
     },
     baseMainnet: {

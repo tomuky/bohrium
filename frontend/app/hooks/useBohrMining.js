@@ -1,7 +1,8 @@
 'use client'
 import { useReadContract } from 'wagmi'
+import { DEFAULT_NETWORK } from '../services/config'
 
-const BOHRIUM_MINING_ADDRESS = '0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87'
+const BOHRIUM_MINING_ADDRESS = DEFAULT_NETWORK.contracts.mining
 
 const MINING_ABI = [{
     "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],

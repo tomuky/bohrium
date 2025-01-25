@@ -1,8 +1,9 @@
 'use client'
 import { useReadContract } from 'wagmi'
 import { formatUnits } from 'viem'
+import { DEFAULT_NETWORK } from '../services/config'
 
-const BOHR_TOKEN_ADDRESS = '0x9a65702Ed8ebD21de4F5e08F354D8064fDD0Cf9D'
+const BOHR_TOKEN_ADDRESS = DEFAULT_NETWORK.contracts.bohr
 
 const BOHR_TOKEN_ABI = [{
     "inputs": [{"internalType": "address", "name": "account", "type": "address"}],

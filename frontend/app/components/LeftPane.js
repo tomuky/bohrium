@@ -8,6 +8,7 @@ import { useAccount } from 'wagmi'
 import { useBohrMining } from '../hooks/useBohrMining'
 import LeftPaneItem from './LeftPaneItem'
 import LeftPaneMiningStatus from './LeftPaneMiningStatus'
+import Account from './Account'
 
 const LeftPane = () => {
     const { isMining, currentHashRate } = useMining()
@@ -30,11 +31,11 @@ const LeftPane = () => {
             //value: bohrPrice?.toFixed(2) ?? '-'
             value: '-'
         },
-        {
-            icon: <FaWallet className={styles.icon}/>,
-            label: "Wallet Balance",
-            value: !address ? '-' : (isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-')
-        },
+        // {
+        //     icon: <FaWallet className={styles.icon}/>,
+        //     label: "Wallet Balance",
+        //     value: !address ? '-' : (isLoadingBohrBalance ? 'Loading...' : bohrBalance ? `${Number(bohrBalance).toLocaleString()} BOHR` : '-')
+        // },
         {
             icon: <FaUsers className={styles.icon}/>,
             label: "Active Miners",
@@ -54,6 +55,9 @@ const LeftPane = () => {
     
     return (
         <div className={styles.leftPane}>
+
+            <Account />
+
             <div className={styles.metricsGrid}>
                 <LeftPaneMiningStatus isMining={isMining} />
                 {metrics.map((metric, index) => (
@@ -65,6 +69,7 @@ const LeftPane = () => {
                     />
                 ))}
             </div>
+
         </div>
     )
 }

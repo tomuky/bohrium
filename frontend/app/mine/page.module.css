@@ -1,7 +1,5 @@
 .layout {
     display: flex;
-    gap: 1rem;
-    padding: 0 1rem;
 }
 
 @media (max-width: 768px) {

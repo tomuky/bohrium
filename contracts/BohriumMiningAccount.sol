@@ -7,6 +7,7 @@ interface IERC20 {
 
 interface IBohriumMining {
     function submitNonce(uint256 nonce) external;
+    function endRound() external;
 }
 
 contract BohriumMiningAccount {
@@ -57,6 +58,23 @@ contract BohriumMiningAccount {
         emit SessionKeyRevoked(key);
     }
     
+    function authorizeSessionKeyWithFunding(address key, uint256 fundingAmount) external payable onlyOwner {
+        // Require sent ETH matches funding amount
+        require(msg.value == fundingAmount, "Incorrect ETH amount");
+        
+        // Set session key with 1 hour duration
+        sessionKeys[key] = SessionKey({
+            isValid: true,
+            expiry: block.timestamp + 1 hours,
+            lastUsed: block.timestamp
+        });
+        emit SessionKeySet(key, block.timestamp + 1 hours);
+
+        // Forward ETH to session key wallet
+        (bool success, ) = key.call{value: fundingAmount}("");
+        require(success, "ETH transfer failed");
+    }
+    
     function submitNonce(address miningContract, uint256 nonce) external {
         bool isAuthorized = msg.sender == owner;
         
@@ -70,6 +88,21 @@ contract BohriumMiningAccount {
         
         require(isAuthorized, "Unauthorized");
         IBohriumMining(miningContract).submitNonce(nonce);
+    }
+    
+    function endRound(address miningContract) external {
+        bool isAuthorized = msg.sender == owner;
+        
+        if (!isAuthorized) {
+            SessionKey storage key = sessionKeys[msg.sender];
+            isAuthorized = key.isValid && block.timestamp < key.expiry;
+            if (isAuthorized) {
+                key.lastUsed = block.timestamp;
+            }
+        }
+        
+        require(isAuthorized, "Unauthorized");
+        IBohriumMining(miningContract).endRound();
     }
     
     // Allow owner to withdraw ETH
