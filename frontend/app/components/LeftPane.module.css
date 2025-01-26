@@ -10,14 +10,14 @@
 .metricsGrid{
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+    padding: 0.5rem;
 }
 
 .item {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 18px;
+    gap: 12px;
+    padding: 12px;
     transition: all 0.2s ease;
 }
 
@@ -26,24 +26,24 @@
 }
 
 .icon {
-    font-size: 1.5rem;
-    color: #64748b;
+    font-size: 1.25rem;
+    color: var(--label-text);
 }
 
 .statContainer {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .label {
     font-size: 0.875rem;
-    color: #64748b;
+    color: var(--label-text);
     text-transform: uppercase;
 }
 
 .value {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
     margin-left: 0;
 }
@@ -155,14 +155,14 @@
         display: grid;
         grid-template-columns: repeat(2, 1fr); /* 2 columns */
         grid-template-rows: repeat(3, auto);   /* 3 rows */
-        gap: 0.35rem;
+        gap: 0.25rem;
     }
 
     .item {
-        padding: 10px;
+        padding: 8px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
     }
     .statusDotContainer {
         width: 19px;
