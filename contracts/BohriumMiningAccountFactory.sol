@@ -5,6 +5,7 @@ import "./BohriumMiningAccount.sol";
 
 contract BohriumMiningAccountFactory {
     mapping(address => address) public userToMiningAccount;
+    mapping(address => address) public miningAccountToUser;
     
     event MiningAccountCreated(address indexed user, address indexed account);
     
@@ -13,12 +14,17 @@ contract BohriumMiningAccountFactory {
         
         BohriumMiningAccount account = new BohriumMiningAccount(msg.sender);
         userToMiningAccount[msg.sender] = address(account);
-        
+        miningAccountToUser[address(account)] = msg.sender;
+
         emit MiningAccountCreated(msg.sender, address(account));
         return address(account);
     }
     
     function getMiningAccount(address user) external view returns (address) {
         return userToMiningAccount[user];
+    }
+
+    function getUser(address miningAccount) external view returns (address) {
+        return miningAccountToUser[miningAccount];
     }
 }

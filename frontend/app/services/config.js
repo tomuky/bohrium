@@ -13,9 +13,9 @@ export const NETWORKS = {
         chainId: 84532,
         rpcUrl: 'https://sepolia.base.org',
         contracts: {
-            mining: '0xdd2f9Ab374cC9ddc613Cef7b0b0BC9648cd3fcc2',
-            factory: '0xfC51F752b193A055cDb23D8B62F0aAb659fDcD7D',
-            bohr: '0x1B0b313D7B50eC0799d0EED4C53ac1cFc8ebEbBb'
+            mining: '0x4A928F88699ea495348C1B74E15c4EbA206913a1',
+            factory: '0x7F8410d2C671a851f8A24Db0bD9bb1A3585a050F',
+            bohr: '0x681E015A7A1e955872169FE7c418ac2764e896bC'
         }
     },
     baseMainnet: {

@@ -7,8 +7,8 @@ module.exports = buildModule("BohriumMining", (m) => {
     // Deploy factory
     const factory = m.contract("BohriumMiningAccountFactory");
     
-    // Deploy mining contract with token
-    const mining = m.contract("BohriumMining", [token]);
+    // Deploy mining contract with token and factory
+    const mining = m.contract("BohriumMining", [token, factory]);
     
     // Transfer ownership of token to mining contract
     const transferOwnership = m.call(token, "transferOwnership", [mining]);

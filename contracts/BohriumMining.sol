@@ -5,9 +5,14 @@ interface IBohriumToken {
     function mint(address to, uint256 amount) external;
 }
 
+interface IBohriumMiningAccountFactory {
+    function getMiningAccount(address user) external view returns (address);
+    function getUser(address miningAccount) external view returns (address);
+}
+
 contract BohriumMining {
     IBohriumToken public bohriumToken;
-
+    IBohriumMiningAccountFactory public miningAccountFactory;
     uint256 public initialReward = 10 * 10**18; // Initial reward (10 BOH)
     uint256 public halvingInterval = 365 * 24 * 60 * 60; // Halve every 1 year
     uint256 public lastHalvingTimestamp;
@@ -26,8 +31,9 @@ contract BohriumMining {
     event RoundStarted(uint256 indexed roundId, uint256 startTime, uint256 endTime);
     event RewardHalved(uint256 newReward);
 
-    constructor(address _bohriumTokenAddress) {
+    constructor(address _bohriumTokenAddress, address _miningAccountFactoryAddress) {
         bohriumToken = IBohriumToken(_bohriumTokenAddress);
+        miningAccountFactory = IBohriumMiningAccountFactory(_miningAccountFactoryAddress);
         lastHalvingTimestamp = block.timestamp;
         startNewRound();
     }
@@ -74,8 +80,18 @@ contract BohriumMining {
         // If there was a miner, mint their reward
         if (bestMiner != address(0)) {
             uint256 reward = currentReward();
-            bohriumToken.mint(bestMiner, reward);
-            emit RoundEnded(roundId, bestMiner, reward);
+            
+            // Get the user's main wallet address from the mining account
+            address userMainWallet = miningAccountFactory.getUser(bestMiner);
+            
+            // If no mining account is found, use the bestMiner address itself
+            if (userMainWallet == address(0)) {
+                userMainWallet = bestMiner;
+            }
+
+            // Mint BOHR directly to the user wallet
+            bohriumToken.mint(userMainWallet, reward);
+            emit RoundEnded(roundId, userMainWallet, reward);
         } else {
             emit RoundEnded(roundId, address(0), 0);
         }

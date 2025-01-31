@@ -10,32 +10,17 @@ import AccountMiner from './AccountMiner'
 const Account = () => {
     const { isConnected } = useAccount()
     const { isMining, currentHashRate } = useMining()
-    const { openConnectModal } = useConnectModal()
-    const { 
-        miningAccountAddress,
-        hasAccount, 
-        formattedAddress, 
-        ethBalance, 
-        bohrBalance,
-        create,
-        isCreating 
-    } = useMiningAccount()
-
-    console.log('currentHashRate', currentHashRate)
-
+    const { hasAccount, bohrBalance } = useMiningAccount()
+    
     return (
         <div className={styles.accountArea}>
             {!hasAccount && (
                 <AccountCreateMiner 
                     isConnected={isConnected} 
-                    create={create} 
-                    isCreating={isCreating} 
                 />
             )}
             {isConnected && hasAccount && (
                 <AccountMiner 
-                    formattedAddress={formattedAddress} 
-                    ethBalance={ethBalance} 
                     bohrBalance={bohrBalance} 
                     currentHashRate={currentHashRate} 
                     isMining={isMining} 

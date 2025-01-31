@@ -1,20 +1,13 @@
 import styles from './Account.module.css'
+import Image from 'next/image'
 
 const AccountMiner = ({ formattedAddress, ethBalance, bohrBalance, currentHashRate, isMining }) => {
     return (
         <div className={styles.accountInfo}>
             <div className={styles.minerHeader}>
                 <Image src="/images/miner.png" alt="Miner" width={32} height={32} className={styles.minerIcon} />
-                <div className={styles.address}>{formattedAddress}</div>
             </div>
             <div className={styles.balanceContainer}>
-                <div className={styles.balance}>
-                    <div className={styles.balanceLeft}>
-                        <Image src="/images/eth.png" alt="ETH" width={20} height={20} className={styles.icon} />
-                        <span className={styles.label}>ETH Balance</span>
-                    </div>
-                    <span className={styles.amount}>{ethBalance}</span>
-                </div>
                 <div className={styles.balance}>
                     <div className={styles.balanceLeft}>
                         <Image src="/images/bohr.png" alt="BOHR" width={20} height={20} className={styles.icon} />
@@ -38,4 +31,4 @@ const AccountMiner = ({ formattedAddress, ethBalance, bohrBalance, currentHashRa
     )
 }
 
-export default AccountMiner
+export default AccountMiner;

@@ -1,8 +1,7 @@
 import { ethers } from 'ethers';
-import { MINING_ABI, TOKEN_ABI, MINING_CONFIG, MINING_EVENTS } from './constants';
+import { MINING_ABI, FACTORY_ABI, MINING_ACCOUNT_ABI, TOKEN_ABI, MINING_CONFIG, MINING_EVENTS } from './constants';
 import { sleep, getCurrentTimestamp } from './utils';
 import { getNetworkConfig } from './config';
-import { FACTORY_ABI, MINING_ACCOUNT_ABI } from './constants';
 
 class MiningService {
     constructor() {
@@ -89,8 +88,6 @@ class MiningService {
             // Create and deploy session key if needed
             await this.setupSessionKey();
             
-            // Setup transfer event listener
-            await this.setupRewardListener();
         } catch (error) {
             console.error('Error in connect():', error);
             throw error;
@@ -102,8 +99,7 @@ class MiningService {
             this.bohrToken.removeListener('Transfer', this.rewardListener);
         }
 
-        // Get mining account address instead of signer address
-        const myAddress = this.miningAccount.target;
+        const myAddress = await this.signer.getAddress();
         const miningAddress = this.miningContract.target;
 
         this.rewardListener = async (from, to, amount, event) => {
@@ -115,13 +111,12 @@ class MiningService {
                 from,
                 to,
                 amount: amount.toString(),
-                myAddress,
-                miningAddress,
+                myAddress: await myAddress,
                 timestamp
             });
 
             // Only process incoming transfers from the mining contract or zero address
-            if (to.toLowerCase() === myAddress.toLowerCase() && 
+            if (to.toLowerCase() === (await myAddress).toLowerCase() && 
                 (from.toLowerCase() === miningAddress.toLowerCase() ||
                  from.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
                 
@@ -151,7 +146,7 @@ class MiningService {
             const userAddress = await this.signer.getAddress();
             console.log('Loading mining account for:', userAddress);
             
-            const miningAccountAddress = await this.factory.userToMiningAccount(userAddress);
+            const miningAccountAddress = await this.factory.getMiningAccount(userAddress);
             console.log('Mining account address:', miningAccountAddress);
             
             if (miningAccountAddress === ethers.ZeroAddress) {
@@ -422,8 +417,6 @@ class MiningService {
                     throw error;
                 }
                 
-            } else {
-                console.log('Skipping mining - duration is zero or negative');
             }
 
         } catch (error) {
