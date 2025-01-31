@@ -10,7 +10,13 @@ import AccountMiner from './AccountMiner'
 const Account = () => {
     const { isConnected } = useAccount()
     const { isMining, currentHashRate } = useMining()
-    const { hasAccount, bohrBalance } = useMiningAccount()
+    const { 
+        hasAccount, 
+        bohrBalance, 
+        ethBalance,
+        miningAccountAddress,
+        canMine 
+    } = useMiningAccount()
     
     return (
         <div className={styles.accountArea}>
@@ -21,9 +27,12 @@ const Account = () => {
             )}
             {isConnected && hasAccount && (
                 <AccountMiner 
+                    miningAccountAddress={miningAccountAddress}
+                    ethBalance={ethBalance}
                     bohrBalance={bohrBalance} 
                     currentHashRate={currentHashRate} 
-                    isMining={isMining} 
+                    isMining={isMining}
+                    canMine={canMine}
                 />
             )}
         </div>

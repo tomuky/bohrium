@@ -6,6 +6,7 @@ import { DEFAULT_NETWORK } from '../services/config'
 import { formatUnits } from 'viem'
 import { useState } from 'react'
 import { FACTORY_ABI, TOKEN_ABI } from '../services/constants'
+import { ethers } from 'ethers'
 
 export function useMiningAccount() {
     const { address } = useAccount()
@@ -21,8 +22,8 @@ export function useMiningAccount() {
     })
 
     const { data: ethBalanceData } = useBalance({
-        address: address,
-        enabled: !!address && address !== ZeroAddress,
+        address: miningAccountAddress,
+        enabled: !!miningAccountAddress && miningAccountAddress !== ZeroAddress,
         query: {
             refetchInterval: 5000
         }
@@ -32,8 +33,8 @@ export function useMiningAccount() {
         address: DEFAULT_NETWORK.contracts.bohr,
         abi: TOKEN_ABI,
         functionName: 'balanceOf',
-        args: [address],
-        enabled: !!address && address !== ZeroAddress,
+        args: [miningAccountAddress],
+        enabled: !!miningAccountAddress && miningAccountAddress !== ZeroAddress,
         query: {
             refetchInterval: 5000
         }
@@ -66,13 +67,18 @@ export function useMiningAccount() {
          throw error         
         }
     }
- 
+
+    // Add canMine calculation
+    const minBalance = ethers.parseEther("0.01")
+    const canMine = ethBalanceData?.value >= minBalance
+
     return {
         miningAccountAddress,
         hasAccount: miningAccountAddress && miningAccountAddress !== ZeroAddress,
         formattedAddress: miningAccountAddress ? formatAddress(miningAccountAddress) : '',
         ethBalance: ethBalanceData?.formatted ?? '0',
         bohrBalance: bohrBalance ? formatUnits(bohrBalance, 18) : '0',
+        canMine,
         create,
         isCreating,
         isCreated,

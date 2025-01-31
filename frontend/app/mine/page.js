@@ -2,15 +2,20 @@
 import styles from './page.module.css'
 import Console from '../components/Console';
 import { useMining } from '../contexts/MiningContext';
+import { useMiningAccount } from '../hooks/useMiningAccount';
 import Image from 'next/image';
 
 const Mine = () => {    
     const { isMining, setIsMining, clearConsole } = useMining();
+    const { canMine } = useMiningAccount();
 
     return (
         <div className={styles.console}>
             <div className={styles.buttonContainer}>
-                {!isMining && <div className={styles.startMiningButton} onClick={() => setIsMining(true)}>
+                {!isMining && <div 
+                    className={`${styles.startMiningButton} ${!canMine ? styles.disabled : ''}`} 
+                    onClick={() => canMine && setIsMining(true)}
+                >
                     START MINING
                 </div>}
                 {isMining && <div className={styles.stopMiningButton} onClick={() => setIsMining(false)}>

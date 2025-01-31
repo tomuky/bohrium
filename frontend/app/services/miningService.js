@@ -99,24 +99,16 @@ class MiningService {
             this.bohrToken.removeListener('Transfer', this.rewardListener);
         }
 
-        const myAddress = await this.signer.getAddress();
         const miningAddress = this.miningContract.target;
+        const miningAccountAddress = this.miningAccount.target;
 
         this.rewardListener = async (from, to, amount, event) => {
             // Get block timestamp
             const block = await this.provider.getBlock(event.blockNumber);
             const timestamp = block.timestamp;
 
-            // console.log('Transfer event received:', {
-            //     from,
-            //     to,
-            //     amount: amount.toString(),
-            //     myAddress: await myAddress,
-            //     timestamp
-            // });
-
-            // Only process incoming transfers from the mining contract or zero address
-            if (to.toLowerCase() === (await myAddress).toLowerCase() && 
+            // Only process incoming transfers to the mining account from the mining contract or zero address
+            if (to.toLowerCase() === miningAccountAddress.toLowerCase() && 
                 (from.toLowerCase() === miningAddress.toLowerCase() ||
                  from.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
                 
@@ -200,20 +192,11 @@ class MiningService {
                             sessionKeyInfo.expiry > Math.floor(Date.now() / 1000);
 
         if (!isAuthorized) {
-            // Estimate gas needed for 1 hour of mining
-            const gasPrice = await this.provider.getFeeData();
-            const estimatedGasPerOp = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
-            const opsPerHour = Math.ceil(3600 / (MINING_CONFIG.MIN_ROUND_DURATION + 30)); // +30s buffer
-            const estimatedGasNeeded = estimatedGasPerOp * opsPerHour;
-            const ethNeeded = (gasPrice.gasPrice * BigInt(estimatedGasNeeded));
-
-            // Authorize session key and fund it
-            const tx = await this.miningAccount.authorizeSessionKeyWithFunding(
+            // Set up session key with gas limit
+            const tx = await this.miningAccount.setSessionKeyWithGasLimit(
                 this.sessionWallet,
-                ethNeeded,
-                {
-                    value: ethNeeded
-                }
+                3600, // 1 hour duration
+                MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER // Use our configured gas limits
             );
             await tx.wait();
             this.sessionKeyDeployed = true;
@@ -226,37 +209,6 @@ class MiningService {
         if (this.isRunning) {
             this.isRunning = false;
             this.emit(MINING_EVENTS.STOP);
-
-            // Return remaining ETH to mining account
-            if (this.sessionKeyDeployed) {
-                try {
-                    const balance = await this.provider.getBalance(this.sessionWallet);
-                    const gasPrice = await this.provider.getFeeData();
-                    const gasLimit = 21000; // Simple ETH transfer
-                    const gasCost = gasPrice.gasPrice * BigInt(gasLimit);
-                    // Add 10% buffer to gas cost for safety
-                    const gasBuffer = (gasCost * BigInt(110)) / BigInt(100);
-                    
-                    if (balance > gasBuffer) {
-                        const amountToReturn = balance - gasBuffer;
-                        const tx = await this.sessionSigner.sendTransaction({
-                            to: this.miningAccount.target,
-                            value: amountToReturn,
-                            gasLimit
-                        });
-                        await tx.wait();
-                        
-                        // Any remaining dust after the transfer will be negligible
-                    } else {
-                        console.log('Balance too low to return funds safely', {
-                            balance: balance.toString(),
-                            requiredWithBuffer: gasBuffer.toString()
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error returning funds:', error);
-                }
-            }
             
             // Clean up listeners
             if (this.rewardListener && this.bohrToken) {

@@ -15,6 +15,7 @@ contract BohriumMiningAccount {
         bool isValid;
         uint256 expiry;
         uint256 lastUsed;
+        uint256 gasLimit;  // Maximum gas allowed per transaction
     }
     
     address public immutable owner;
@@ -48,7 +49,8 @@ contract BohriumMiningAccount {
         sessionKeys[key] = SessionKey({
             isValid: true,
             expiry: block.timestamp + duration,
-            lastUsed: block.timestamp
+            lastUsed: block.timestamp,
+            gasLimit: 500000  // Add default gas limit
         });
         emit SessionKeySet(key, block.timestamp + duration);
     }
@@ -58,51 +60,78 @@ contract BohriumMiningAccount {
         emit SessionKeyRevoked(key);
     }
     
-    function authorizeSessionKeyWithFunding(address key, uint256 fundingAmount) external payable onlyOwner {
-        // Require sent ETH matches funding amount
-        require(msg.value == fundingAmount, "Incorrect ETH amount");
+    function setSessionKeyWithGasLimit(
+        address key, 
+        uint256 duration,
+        uint256 gasLimit
+    ) external onlyOwner {
+        require(duration <= 30 days, "Max duration 30 days");
+        require(gasLimit <= 500000, "Gas limit too high"); // Reasonable maximum
         
-        // Set session key with 1 hour duration
         sessionKeys[key] = SessionKey({
             isValid: true,
-            expiry: block.timestamp + 1 hours,
-            lastUsed: block.timestamp
+            expiry: block.timestamp + duration,
+            lastUsed: block.timestamp,
+            gasLimit: gasLimit
         });
-        emit SessionKeySet(key, block.timestamp + 1 hours);
-
-        // Forward ETH to session key wallet
-        (bool success, ) = key.call{value: fundingAmount}("");
-        require(success, "ETH transfer failed");
+        
+        emit SessionKeySet(key, block.timestamp + duration);
     }
     
-    function submitNonce(address miningContract, uint256 nonce) external {
+    function submitNonce(
+        address miningContract, 
+        uint256 nonce,
+        uint256 maxGas
+    ) external {
         bool isAuthorized = msg.sender == owner;
+        uint256 gasToUse;
         
         if (!isAuthorized) {
             SessionKey storage key = sessionKeys[msg.sender];
             isAuthorized = key.isValid && block.timestamp < key.expiry;
-            if (isAuthorized) {
-                key.lastUsed = block.timestamp;
-            }
+            require(isAuthorized, "Unauthorized");
+            require(maxGas <= key.gasLimit, "Gas limit exceeded");
+            gasToUse = maxGas;
+            key.lastUsed = block.timestamp;
+        } else {
+            gasToUse = maxGas;
         }
         
-        require(isAuthorized, "Unauthorized");
-        IBohriumMining(miningContract).submitNonce(nonce);
+        // Call mining contract with specified gas limit
+        (bool success, ) = miningContract.call{gas: gasToUse}(
+            abi.encodeWithSelector(
+                IBohriumMining.submitNonce.selector,
+                nonce
+            )
+        );
+        require(success, "Mining call failed");
     }
     
-    function endRound(address miningContract) external {
+    function endRound(
+        address miningContract,
+        uint256 maxGas
+    ) external {
         bool isAuthorized = msg.sender == owner;
+        uint256 gasToUse;
         
         if (!isAuthorized) {
             SessionKey storage key = sessionKeys[msg.sender];
             isAuthorized = key.isValid && block.timestamp < key.expiry;
-            if (isAuthorized) {
-                key.lastUsed = block.timestamp;
-            }
+            require(isAuthorized, "Unauthorized");
+            require(maxGas <= key.gasLimit, "Gas limit exceeded");
+            gasToUse = maxGas;
+            key.lastUsed = block.timestamp;
+        } else {
+            gasToUse = maxGas;
         }
         
-        require(isAuthorized, "Unauthorized");
-        IBohriumMining(miningContract).endRound();
+        // Call mining contract with specified gas limit
+        (bool success, ) = miningContract.call{gas: gasToUse}(
+            abi.encodeWithSelector(
+                IBohriumMining.endRound.selector
+            )
+        );
+        require(success, "Mining call failed");
     }
     
     // Allow owner to withdraw ETH

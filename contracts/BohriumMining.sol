@@ -81,17 +81,9 @@ contract BohriumMining {
         if (bestMiner != address(0)) {
             uint256 reward = currentReward();
             
-            // Get the user's main wallet address from the mining account
-            address userMainWallet = miningAccountFactory.getUser(bestMiner);
-            
-            // If no mining account is found, use the bestMiner address itself
-            if (userMainWallet == address(0)) {
-                userMainWallet = bestMiner;
-            }
-
-            // Mint BOHR directly to the user wallet
-            bohriumToken.mint(userMainWallet, reward);
-            emit RoundEnded(roundId, userMainWallet, reward);
+            // Mint BOHR directly to the mining account address
+            bohriumToken.mint(bestMiner, reward);
+            emit RoundEnded(roundId, bestMiner, reward);
         } else {
             emit RoundEnded(roundId, address(0), 0);
         }
