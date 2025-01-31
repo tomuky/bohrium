@@ -2,6 +2,8 @@ import styles from './Account.module.css'
 import Image from 'next/image'
 import { formatAddress } from '../services/utils'
 import { useState } from 'react'
+import DepositModal from './DepositModal'
+import WithdrawModal from './WithdrawModal'
 
 const AccountMiner = ({ 
     miningAccountAddress, 
@@ -13,6 +15,8 @@ const AccountMiner = ({
     canMine 
 }) => {
     const [showTooltip, setShowTooltip] = useState(false);
+    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+    const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
     const handleCopyClick = () => {
         const address = formattedAddress || miningAccountAddress;
@@ -74,9 +78,27 @@ const AccountMiner = ({
                         Fund your mining account with ETH to start mining
                     </div>
                 )}
-                <button className={styles.actionButton}>DEPOSIT</button>
-                <button className={styles.actionButton}>WITHDRAW</button>
+                <button 
+                    className={styles.actionButton}
+                    onClick={() => setIsDepositModalOpen(true)}
+                >
+                    DEPOSIT
+                </button>
+                <button 
+                    className={styles.actionButton}
+                    onClick={() => setIsWithdrawModalOpen(true)}
+                >
+                    WITHDRAW
+                </button>
             </div>
+            <DepositModal 
+                isOpen={isDepositModalOpen}
+                onClose={() => setIsDepositModalOpen(false)}
+            />
+            <WithdrawModal 
+                isOpen={isWithdrawModalOpen}
+                onClose={() => setIsWithdrawModalOpen(false)}
+            />
         </div>
     )
 }

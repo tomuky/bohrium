@@ -213,3 +213,14 @@
     transform: translateX(-50%);
     white-space: nowrap;
 }
+
+/* Remove spinner arrows from number inputs */
+.accountInfo input[type="number"]::-webkit-inner-spin-button,
+.accountInfo input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.accountInfo input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
