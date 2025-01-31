@@ -146,36 +146,6 @@ export function MiningProvider({ children }) {
     // Clear the console
     const clearConsole = () => setConsoleItems([]);
 
-
-    // not using this?
-    useEffect(() => {
-        if (!miningEndTime) return;
-
-        const timer = setInterval(() => {
-            const remaining = Math.ceil((miningEndTime - Date.now()) / 1000);
-            
-            setConsoleItems(prev => {
-                const newItems = [...prev];
-                const lastMiningIndex = newItems.findLastIndex(item => item.type === MINING_EVENTS.MINING);
-                
-                if (lastMiningIndex !== -1) {
-                    newItems[lastMiningIndex] = {
-                        ...newItems[lastMiningIndex],
-                        text: remaining > 0 ? `Mining... (-${remaining}s)` : 'Mining...'
-                    };
-                }
-                return newItems;
-            });
-
-            if (remaining <= 0) {
-                clearInterval(timer);
-                setMiningEndTime(null);
-            }
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [miningEndTime]);
-
     return (
         <MiningContext.Provider value={{ 
             isMining, 

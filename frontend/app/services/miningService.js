@@ -44,20 +44,20 @@ class MiningService {
 
     async connect() {
         try {
-            console.log('Connecting to mining service');
+            //console.log('Connecting to mining service');
             if (!window.ethereum) {
                 throw new Error('MetaMask is not installed');
             }
 
             this.provider = new ethers.BrowserProvider(window.ethereum);
-            console.log('Provider initialized');
+            //console.log('Provider initialized');
 
             this.signer = await this.provider.getSigner();
             const address = await this.signer.getAddress();
-            console.log('Signer initialized:', address);
+            //console.log('Signer initialized:', address);
 
             const chainId = (await this.provider.getNetwork()).chainId;
-            console.log('Chain ID:', chainId);
+            //console.log('Chain ID:', chainId);
             
             const networkConfig = getNetworkConfig(Number(chainId));
             

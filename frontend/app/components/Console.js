@@ -5,6 +5,7 @@ import { useMining } from '../contexts/MiningContext'
 import NewRound from './ConsoleNewRound'
 import ConsoleMiningItem from './ConsoleMiningItem'
 import ConsoleTransactionItem from './ConsoleTransactionItem'
+import ConsoleRewardItem from './ConsoleRewardItem'
 import ConsoleWaiting from './ConsoleWaiting'
 import { memo } from 'react'
 
@@ -27,6 +28,14 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
             key={`waiting-${item.endTime}-${index}`}
             text={item.text}
             endTime={item.endTime}
+        />
+    } else if(item.type === 'reward') {
+        return <ConsoleRewardItem 
+            key={`${item.timestamp}-${index}`}
+            icon={item.icon}
+            text={item.text}
+            pill={item.pill}
+            timestamp={item.timestamp}
         />
     } else {
         return <ConsoleItem

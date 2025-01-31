@@ -6,7 +6,7 @@ import { useMiningAccount } from '../hooks/useMiningAccount'
 const AccountCreateMiner = () => {
     const { isConnected } = useAccount()
     const { create, isCreating, isCreated, createError, txData } = useMiningAccount()
-    console.log('txData', txData)
+    //console.log('txData', txData)
 
     return (
         <div 
