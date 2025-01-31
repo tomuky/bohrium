@@ -34,7 +34,6 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
             icon={item.icon}
             text={item.text}
             pill={item.pill}
-            error={item.error}
             timestamp={item.timestamp}
         />
     }

@@ -87,7 +87,7 @@ class MiningService {
 
             // Create and deploy session key if needed
             await this.setupSessionKey();
-            
+
         } catch (error) {
             console.error('Error in connect():', error);
             throw error;
@@ -107,13 +107,13 @@ class MiningService {
             const block = await this.provider.getBlock(event.blockNumber);
             const timestamp = block.timestamp;
 
-            console.log('Transfer event received:', {
-                from,
-                to,
-                amount: amount.toString(),
-                myAddress: await myAddress,
-                timestamp
-            });
+            // console.log('Transfer event received:', {
+            //     from,
+            //     to,
+            //     amount: amount.toString(),
+            //     myAddress: await myAddress,
+            //     timestamp
+            // });
 
             // Only process incoming transfers from the mining contract or zero address
             if (to.toLowerCase() === (await myAddress).toLowerCase() && 
@@ -144,10 +144,10 @@ class MiningService {
     async loadMiningAccount() {
         try {
             const userAddress = await this.signer.getAddress();
-            console.log('Loading mining account for:', userAddress);
+            //console.log('Loading mining account for:', userAddress);
             
             const miningAccountAddress = await this.factory.getMiningAccount(userAddress);
-            console.log('Mining account address:', miningAccountAddress);
+            //console.log('Mining account address:', miningAccountAddress);
             
             if (miningAccountAddress === ethers.ZeroAddress) {
                 throw new Error('No mining account found. Please create and fund a mining account first.');
@@ -271,31 +271,31 @@ class MiningService {
     }
 
     async miningLoop() {
-        console.log('Mining loop started');
+        //console.log('Mining loop started');
         try {
             const roundId = await this.miningContract.roundId();
-            console.log('Current round ID:', roundId.toString());
+            //console.log('Current round ID:', roundId.toString());
             
             const roundStart = BigInt(await this.miningContract.roundStartTime());
             const currentTime = BigInt(Math.floor(Date.now() / 1000));
             const roundAge = Number(currentTime - roundStart);
-            console.log('Round details:', {
-                roundStart: roundStart.toString(),
-                currentTime: currentTime.toString(),
-                roundAge,
-                minRoundDuration: MINING_CONFIG.MIN_ROUND_DURATION
-            });
+            // console.log('Round details:', {
+            //     roundStart: roundStart.toString(),
+            //     currentTime: currentTime.toString(),
+            //     roundAge,
+            //     minRoundDuration: MINING_CONFIG.MIN_ROUND_DURATION
+            // });
 
             // Check if we're in a new round
             if (roundId !== this.lastRoundId) {
-                console.log('New round detected');
+                //console.log('New round detected');
                 this.emit(MINING_EVENTS.ROUND_START, { roundId: roundId.toString() });
                 this.lastRoundId = roundId;
             }
 
             // If round is over
             if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION) {
-                console.log('Round duration exceeded, preparing to end round');
+                //console.log('Round duration exceeded, preparing to end round');
                 // Wait for 10 seconds to see if someone else ends the round
                 this.emit(MINING_EVENTS.WAITING, { 
                     message: "Waiting for round to end",
@@ -347,14 +347,8 @@ class MiningService {
 
             // Calculate mining duration
             const miningDuration = Math.max(0, MINING_CONFIG.MIN_ROUND_DURATION - roundAge - MINING_CONFIG.TX_BUFFER);
-            console.log('Mining duration calculated:', {
-                miningDuration,
-                roundAge,
-                txBuffer: MINING_CONFIG.TX_BUFFER
-            });
 
             if (miningDuration > 0) {
-                console.log('Starting mining process for duration:', miningDuration);
                 // Start mining with countdown updates
                 const startTime = Date.now();
                 const endTime = startTime + (miningDuration * 1000);

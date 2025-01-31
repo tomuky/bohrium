@@ -58,7 +58,7 @@ export function useMiningAccount() {
                 abi: FACTORY_ABI,
                 functionName: 'createMiningAccount'
             });
-            console.log('txData', txData)
+            //console.log('txData', txData)
             setTransactionHash(txData)
 
         } catch (error) {

@@ -2,7 +2,7 @@
 import styles from './Console.module.css'
 import Image from 'next/image'
 
-const ConsoleItem = ({icon, text, pill, error, hash}) => {
+const ConsoleItem = ({icon, text, pill, hash}) => {
     
     return (
         <div className={styles.item}>
@@ -22,7 +22,6 @@ const ConsoleItem = ({icon, text, pill, error, hash}) => {
                         [View tx]
                     </a>
                 )}
-                {error && <div className={styles.error}>{error}</div>}
             </div>
         </div>
     )
