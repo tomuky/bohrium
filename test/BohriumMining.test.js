@@ -8,15 +8,11 @@ console.clear();
 
 describe("Bohrium Mining System", function () {
     async function deployMiningSystemFixture() {
-        const [owner, user1, user2] = await ethers.getSigners();
+        const [owner, miner1, miner2] = await ethers.getSigners();
 
         // Deploy token
         const BohriumToken = await ethers.getContractFactory("BohriumToken");
         const token = await BohriumToken.deploy();
-
-        // Deploy factory
-        const Factory = await ethers.getContractFactory("BohriumMiningAccountFactory");
-        const factory = await Factory.deploy();
 
         // Deploy mining contract
         const Mining = await ethers.getContractFactory("BohriumMining");
@@ -25,7 +21,7 @@ describe("Bohrium Mining System", function () {
         // Transfer token ownership to mining contract
         await token.transferOwnership(await mining.getAddress());
 
-        return { token, factory, mining, owner, user1, user2 };
+        return { token, mining, owner, miner1, miner2 };
     }
 
     describe("Initial Setup", function () {
@@ -39,242 +35,128 @@ describe("Bohrium Mining System", function () {
             const { mining, token } = await loadFixture(deployMiningSystemFixture);
             expect(await mining.bohriumToken()).to.equal(await token.getAddress());
         });
-    });
 
-    describe("Mining Account Creation", function () {
-        it("Should create a mining account for a user", async function () {
-            const { factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccountAddress = await factory.userToMiningAccount(user1.address);
-            expect(miningAccountAddress).to.not.equal(ethers.ZeroAddress);
+        it("should set initial difficulty", async function () {
+            const { mining } = await loadFixture(deployMiningSystemFixture);
+            const difficulty = await mining.currentDifficulty();
+            expect(difficulty).to.equal(ethers.MaxUint256 >> 16n);
         });
     });
 
-    describe("Mining Mechanics - Core", function () {
-        it("should allow miners to submit nonces", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
+    describe("Mining Mechanics", function () {
+        it("should reject hashes that don't meet difficulty", async function () {
+            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
             
-            // Create and fund mining account
-            await factory.connect(user1).createMiningAccount();
-            const miningAccountAddress = await factory.userToMiningAccount(user1.address);
-            const miningAccount = await ethers.getContractAt("BohriumMiningAccount", miningAccountAddress);
-
-            await user1.sendTransaction({
-                to: miningAccountAddress,
-                value: ethers.parseEther("1.0")
-            });
-
-            const nonce = 12345;
-            await miningAccount.connect(user1).submitNonce(
-                await mining.getAddress(),
-                nonce
-            );
-
-            // Verify the nonce was recorded
-            const roundId = await mining.roundId();
-            const noncesSubmitted = await mining.noncesSubmitted(roundId);
-            expect(noncesSubmitted).to.be.gt(0);
-        });
-        
-        it("should calculate hashes consistently with the contract", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            
-            // Create and fund mining account
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            const nonce = 12345;
-            const initialBestHash = await mining.bestHash();
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), nonce);
-            
-            // Calculate hash the same way the contract does
-            const calculatedHash = ethers.keccak256(
-                ethers.solidityPacked(
-                    ["address", "bytes32", "uint256"],
-                    [await miningAccount.getAddress(), initialBestHash, nonce]
-                )
-            );
-            
-            // Get the actual hash from the contract
-            const actualBestHash = await mining.bestHash();
-            expect(actualBestHash).to.equal(calculatedHash);
+            // Using a very high nonce to ensure hash is above difficulty
+            const highNonce = ethers.MaxUint256;
+            await expect(
+                mining.connect(miner1).submitBlock(highNonce)
+            ).to.be.revertedWith("Hash doesn't meet difficulty");
         });
 
-        it("should reward the miner with the lowest computed hash", async function () {
-            const { mining, factory, token, user1, user2 } = await loadFixture(deployMiningSystemFixture);
+        it("should accept valid blocks and mint rewards", async function () {
+            const { mining, token, miner1 } = await loadFixture(deployMiningSystemFixture);
             
-            // Setup mining accounts for both users
-            await factory.connect(user1).createMiningAccount();
-            await factory.connect(user2).createMiningAccount();
+            // Temporarily increase the difficulty to make it easier to find a valid hash
+            const difficulty = ethers.MaxUint256 >> 4n; // Much easier difficulty for testing
+            await mining.setCurrentDifficulty(difficulty); // We'll need to add this function to the contract
             
-            const miningAccount1 = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-            const miningAccount2 = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user2.address)
-            );
-
-            // Fund accounts
-            await user1.sendTransaction({
-                to: await miningAccount1.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-            await user2.sendTransaction({
-                to: await miningAccount2.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            const nonce1 = 123;
-            const nonce2 = 321;
+            // Find a valid nonce (with a reasonable limit)
+            let nonce = 0;
+            let validNonce = null;
+            const maxAttempts = 100;
             
-            // Get initial best hash before any submissions
-            const initialBestHash = await mining.bestHash();
+            while (validNonce === null && nonce < maxAttempts) {
+                const hash = ethers.keccak256(
+                    ethers.solidityPacked(
+                        ["address", "bytes32", "uint256", "uint256"],
+                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce]
+                    )
+                );
+                if (BigInt(hash) <= difficulty) {
+                    validNonce = nonce;
+                    break;
+                }
+                nonce++;
+            }
             
-            // Submit nonces
-            await miningAccount1.connect(user1).submitNonce(await mining.getAddress(), nonce1);
-            await miningAccount2.connect(user2).submitNonce(await mining.getAddress(), nonce2);
+            // If we couldn't find a valid nonce, use a predetermined one for testing
+            if (validNonce === null) {
+                console.log("Could not find valid nonce, using test value");
+                validNonce = 0;
+            }
             
-            // Calculate hashes the same way the contract does
-            const hash1 = ethers.keccak256(
-                ethers.solidityPacked(
-                    ["address", "bytes32", "uint256"],
-                    [await miningAccount1.getAddress(), initialBestHash, nonce1]
-                )
-            );
-            const hash2 = ethers.keccak256(
-                ethers.solidityPacked(
-                    ["address", "bytes32", "uint256"],
-                    [await miningAccount2.getAddress(), initialBestHash, nonce2]
-                )
-            );
-            
-            const hashValue1 = BigInt(hash1);
-            const hashValue2 = BigInt(hash2);
-            
-            const expectedWinner = hashValue1 < hashValue2 ? 
-                await miningAccount1.getAddress() : 
-                await miningAccount2.getAddress();
-            
-            // Wait for round to end and distribute rewards
-            await time.increase(60);
-            await mining.endRound();
-            
-            // Check winner's balance
-            const balance = await token.balanceOf(expectedWinner);
+            await mining.connect(miner1).submitBlock(validNonce);
+            const balance = await token.balanceOf(miner1.address);
             expect(balance).to.equal(ethers.parseEther("10"));
         });
 
-        it("should track the best hash correctly", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
+        it("should update block height after successful mining", async function () {
+            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
             
-            await factory.connect(user1).createMiningAccount();
-            const miningAccountAddress = await factory.userToMiningAccount(user1.address);
-            const MiningAccount = await ethers.getContractFactory("BohriumMiningAccount");
-            const miningAccount = MiningAccount.attach(miningAccountAddress);
-
-            await user1.sendTransaction({
-                to: miningAccountAddress,
-                value: ethers.parseEther("1.0")
-            });
-
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), 12345);
-            expect(await mining.bestMiner()).to.equal(miningAccountAddress);
+            // Set an easier difficulty for testing
+            const difficulty = ethers.MaxUint256 >> 4n;
+            await mining.setCurrentDifficulty(difficulty);
+            
+            // Find a valid nonce (simplified for testing)
+            let nonce = 0;
+            let validNonce = null;
+            
+            while (validNonce === null && nonce < 100) {
+                const hash = ethers.keccak256(
+                    ethers.solidityPacked(
+                        ["address", "bytes32", "uint256", "uint256"],
+                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce]
+                    )
+                );
+                if (BigInt(hash) <= difficulty) {
+                    validNonce = nonce;
+                    break;
+                }
+                nonce++;
+            }
+            
+            // If we couldn't find a valid nonce, use a predetermined one for testing
+            if (validNonce === null) {
+                validNonce = 0;
+            }
+            
+            const initialHeight = await mining.blockHeight();
+            await mining.connect(miner1).submitBlock(validNonce);
+            expect(await mining.blockHeight()).to.equal(initialHeight + 1n);
         });
     });
 
-    describe("Mining Mechanics - Round Management", function () {
-        it("should not allow ending round before time", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
+    // hard to test
+    describe("Difficulty Adjustment", function () {
+        it("should adjust difficulty after DIFFICULTY_ADJUSTMENT_INTERVAL blocks", async function () {
+            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const ADJUSTMENT_INTERVAL = 360; // 6 hours worth of blocks
             
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), 12345);
-            await expect(mining.endRound()).to.be.revertedWith("Round minimum duration not met");
-        });
-
-        it("should allow explicit round ending", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
+            // Set a known difficulty
+            await mining.setCurrentDifficulty(1000);
+            const initialDifficulty = await mining.currentDifficulty();
             
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), 12345);
-            await time.increase(60);
-            await mining.endRound();
+            // Mine blocks until just before adjustment
+            for (let i = 0; i < ADJUSTMENT_INTERVAL - 1; i++) {
+                await mining.connect(miner1).submitBlock(0);
+                await time.increase(30); // Half the target time (60s) to make difficulty increase
+            }
             
-            expect(await mining.bestMiner()).to.equal(ethers.ZeroAddress);
-            expect(await mining.bestHashValue()).to.equal(ethers.MaxUint256);
+            // Mine the final block that triggers adjustment
+            await mining.connect(miner1).submitBlock(0);
+            
+            const newDifficulty = await mining.currentDifficulty();
+            console.log("Initial difficulty:", initialDifficulty.toString());
+            console.log("New difficulty:", newDifficulty.toString());
+            
+            expect(newDifficulty).to.not.equal(initialDifficulty);
+            // Since blocks came in 2x faster than target, difficulty should roughly double
+            expect(newDifficulty).to.be.gt(initialDifficulty);
         });
     });
 
-    describe("Session Keys", function () {
-        it("Should set and use session keys", async function () {
-            const { factory, mining, user1 } = await loadFixture(deployMiningSystemFixture);
-
-            // Create mining account
-            await factory.connect(user1).createMiningAccount();
-            const miningAccountAddress = await factory.userToMiningAccount(user1.address);
-            
-            const MiningAccount = await ethers.getContractFactory("BohriumMiningAccount");
-            const miningAccount = MiningAccount.attach(miningAccountAddress);
-
-            const sessionKey = ethers.Wallet.createRandom();
-            const duration = 24 * 60 * 60;
-            
-            await miningAccount.connect(user1).setSessionKey(sessionKey.address, duration);
-
-            // Fund accounts
-            await user1.sendTransaction({
-                to: miningAccountAddress,
-                value: ethers.parseEther("1.0")
-            });
-
-            const sessionKeyWithProvider = new ethers.Wallet(sessionKey.privateKey, ethers.provider);
-            await user1.sendTransaction({
-                to: sessionKeyWithProvider.address,
-                value: ethers.parseEther("1.0")
-            });
-            
-            const nonce = 12345;
-            await miningAccount.connect(sessionKeyWithProvider).submitNonce(
-                await mining.getAddress(),
-                nonce
-            );
-
-            const roundId = await mining.roundId();
-            const noncesSubmitted = await mining.noncesSubmitted(roundId);
-            expect(noncesSubmitted).to.be.gt(0);
-        });
-    });
-
-    describe("Reward System", function () {
+    describe("Reward Halving", function () {
         it("should halve rewards after one year", async function () {
             const { mining } = await loadFixture(deployMiningSystemFixture);
             await time.increase(365 * 24 * 60 * 60);
@@ -290,186 +172,60 @@ describe("Bohrium Mining System", function () {
         });
     });
 
-    describe("Session Key Security", function () {
-        it("should not allow setting session keys longer than 30 days", async function () {
-            const { factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            const sessionKey = ethers.Wallet.createRandom();
-            const thirtyOneDays = 31 * 24 * 60 * 60;
+    describe("Mining Edge Cases", function () {
+        it("should handle multiple miners finding blocks close together", async function () {
+            const { mining, token, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
             
+            // Set an easier difficulty for testing
+            const difficulty = ethers.MaxUint256 >> 4n;
+            await mining.setCurrentDifficulty(difficulty);
+            
+            // Both miners find valid nonces
+            let nonce1 = 0, nonce2 = 1000; // Start from different points
+            let validNonce1 = null, validNonce2 = null;
+            
+            // Find valid nonces for both miners
+            while (validNonce1 === null && nonce1 < 100) {
+                const hash = ethers.keccak256(
+                    ethers.solidityPacked(
+                        ["address", "bytes32", "uint256", "uint256"],
+                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce1]
+                    )
+                );
+                if (BigInt(hash) <= difficulty) {
+                    validNonce1 = nonce1;
+                }
+                nonce1++;
+            }
+            
+            while (validNonce2 === null && nonce2 < 100) {
+                const hash = ethers.keccak256(
+                    ethers.solidityPacked(
+                        ["address", "bytes32", "uint256", "uint256"],
+                        [miner2.address, await mining.lastBlockHash(), difficulty, nonce2]
+                    )
+                );
+                if (BigInt(hash) <= difficulty) {
+                    validNonce2 = nonce2;
+                }
+                nonce2++;
+            }
+            
+            // If we couldn't find valid nonces, use predetermined ones for testing
+            if (validNonce1 === null) validNonce1 = 0;
+            if (validNonce2 === null) validNonce2 = 0;
+            
+            // First miner submits
+            await mining.connect(miner1).submitBlock(validNonce1);
+            
+            // Second miner tries to submit for same block height (should fail)
             await expect(
-                miningAccount.connect(user1).setSessionKey(sessionKey.address, thirtyOneDays)
-            ).to.be.revertedWith("Max duration 30 days");
-        });
-
-        it("should not allow using expired session keys", async function () {
-            const { factory, mining, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            const sessionKey = ethers.Wallet.createRandom();
-            const duration = 1 * 60 * 60; // 1 hour
+                mining.connect(miner2).submitBlock(validNonce2)
+            ).to.be.reverted; // Hash won't match because lastBlockHash changed
             
-            await miningAccount.connect(user1).setSessionKey(sessionKey.address, duration);
-            
-            // Fund the session key
-            const sessionKeyWithProvider = new ethers.Wallet(sessionKey.privateKey, ethers.provider);
-            await user1.sendTransaction({
-                to: sessionKeyWithProvider.address,
-                value: ethers.parseEther("1.0")
-            });
-
-            // Advance time beyond expiration
-            await time.increase(duration + 1);
-
-            await expect(
-                miningAccount.connect(sessionKeyWithProvider).submitNonce(await mining.getAddress(), 12345)
-            ).to.be.revertedWith("Unauthorized");
-        });
-
-        it("should allow owner to revoke session key", async function () {
-            const { factory, mining, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            const sessionKey = ethers.Wallet.createRandom();
-            await miningAccount.connect(user1).setSessionKey(sessionKey.address, 24 * 60 * 60);
-            
-            const sessionKeyWithProvider = new ethers.Wallet(sessionKey.privateKey, ethers.provider);
-            await user1.sendTransaction({
-                to: sessionKeyWithProvider.address,
-                value: ethers.parseEther("1.0")
-            });
-
-            await miningAccount.connect(user1).revokeSessionKey(sessionKey.address);
-
-            await expect(
-                miningAccount.connect(sessionKeyWithProvider).submitNonce(await mining.getAddress(), 12345)
-            ).to.be.revertedWith("Unauthorized");
-        });
-    });
-
-    describe("Mining System Edge Cases", function () {
-        it("should handle multiple nonce submissions in same block", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            const miningAddress = await mining.getAddress();
-            const roundId = await mining.roundId();
-
-            // Submit one at a time first to verify counter works
-            await miningAccount.connect(user1).submitNonce(miningAddress, 12345);
-            expect(await mining.noncesSubmitted(roundId)).to.equal(1);
-
-            await miningAccount.connect(user1).submitNonce(miningAddress, 12346);
-            expect(await mining.noncesSubmitted(roundId)).to.equal(2);
-
-            await miningAccount.connect(user1).submitNonce(miningAddress, 12347);
-            expect(await mining.noncesSubmitted(roundId)).to.equal(3);
-        });
-
-        it("should handle round transitions correctly", async function () {
-            const { mining, factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            const initialRoundId = await mining.roundId();
-            
-            // Submit nonce and end round
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), 12345);
-            await time.increase(60);
-            await mining.endRound();
-            
-            // Verify new round started correctly
-            const newRoundId = await mining.roundId();
-            expect(newRoundId).to.equal(initialRoundId + 1n);  // Using BigInt addition
-            expect(await mining.bestMiner()).to.equal(ethers.ZeroAddress);
-            expect(await mining.bestHashValue()).to.equal(ethers.MaxUint256);
-            
-            // Verify can submit in new round
-            await miningAccount.connect(user1).submitNonce(await mining.getAddress(), 12346);
-            const newNoncesSubmitted = await mining.noncesSubmitted(newRoundId);
-            expect(newNoncesSubmitted).to.equal(1);
-        });
-    });
-
-    describe("Mining Account Factory Security", function () {
-        it("should not allow creating multiple accounts for same user", async function () {
-            const { factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            
-            await factory.connect(user1).createMiningAccount();
-            await expect(
-                factory.connect(user1).createMiningAccount()
-            ).to.be.revertedWith("Account exists");
-        });
-    });
-
-    describe("Mining Account Withdrawals", function () {
-        it("should allow owner to withdraw ETH", async function () {
-            const { factory, user1 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            const depositAmount = ethers.parseEther("1.0");
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: depositAmount
-            });
-
-            const initialBalance = await ethers.provider.getBalance(user1.address);
-            await miningAccount.connect(user1).withdrawETH(depositAmount);
-            
-            const finalBalance = await ethers.provider.getBalance(user1.address);
-            expect(finalBalance).to.be.gt(initialBalance - ethers.parseEther("0.1")); // Accounting for gas
-        });
-
-        it("should not allow non-owner to withdraw", async function () {
-            const { factory, user1, user2 } = await loadFixture(deployMiningSystemFixture);
-            await factory.connect(user1).createMiningAccount();
-            const miningAccount = await ethers.getContractAt(
-                "BohriumMiningAccount",
-                await factory.userToMiningAccount(user1.address)
-            );
-
-            await user1.sendTransaction({
-                to: await miningAccount.getAddress(),
-                value: ethers.parseEther("1.0")
-            });
-
-            await expect(
-                miningAccount.connect(user2).withdrawETH(ethers.parseEther("1.0"))
-            ).to.be.revertedWith("Only owner");
+            // Verify only first miner got reward
+            expect(await token.balanceOf(miner1.address)).to.equal(ethers.parseEther("10"));
+            expect(await token.balanceOf(miner2.address)).to.equal(0);
         });
     });
 });

@@ -2,34 +2,22 @@
 import styles from './Console.module.css'
 import ConsoleItem from './ConsoleItem'
 import { useMining } from '../contexts/MiningContext'
-import NewRound from './ConsoleNewRound'
 import ConsoleMiningItem from './ConsoleMiningItem'
-import ConsoleTransactionItem from './ConsoleTransactionItem'
 import ConsoleRewardItem from './ConsoleRewardItem'
-import ConsoleWaiting from './ConsoleWaiting'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 
 // Memoize the item renderer function
-const ConsoleItemRenderer = memo(({ item, index }) => {
-    if(item.type === 'round_start') {
-        return <NewRound 
-            key={`${item.roundId}-${index}`}
-            roundId={item.roundId} 
-        />
-    } else if(item.type === 'mining') {
+const ConsoleItemRenderer = memo(({ item, index, isLatestMining }) => {
+    if(item.type === 'mining') {
         return <ConsoleMiningItem 
             key={`mining-${item.endTime}-${index}`}
             endTime={item.endTime}
             icon={item.icon}
             text={item.text}
+            type={item.type}
+            isLatest={isLatestMining}
         />
-    } else if(item.type === 'waiting') {
-        return <ConsoleWaiting 
-            key={`waiting-${item.endTime}-${index}`}
-            text={item.text}
-            endTime={item.endTime}
-        />
-    } else if(item.type === 'reward') {
+    } else if(item.type === 'nonce_found') {
         return <ConsoleRewardItem 
             key={`${item.timestamp}-${index}`}
             icon={item.icon}
@@ -50,17 +38,28 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
 
 ConsoleItemRenderer.displayName = 'ConsoleItemRenderer';
 
-// Memoize the entire Console component
+// Memoize the Console component
 const Console = memo(() => {
     const { consoleItems } = useMining();
 
+    // Find the latest mining item's endTime - memoized to prevent recalculation on every render
+    const latestMiningEndTime = useMemo(() => {
+        return consoleItems.reduce((latest, item) => {
+            if (item.type === 'mining' && (!latest || item.endTime > latest)) {
+                return item.endTime;
+            }
+            return latest;
+        }, null);
+    }, [consoleItems]);
+
     return (
         <div className={styles.list}>
-            {[...consoleItems].reverse().map((item, index) => (
+            {[...consoleItems].map((item, index) => (
                 <ConsoleItemRenderer 
                     key={`${item.type}-${index}`}
                     item={item}
                     index={index}
+                    isLatestMining={item.type === 'mining' && item.endTime === latestMiningEndTime}
                 />
             ))}
         </div>
