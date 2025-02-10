@@ -25,6 +25,7 @@ class MiningService {
         this.rewardListener = null;
         this.currentDifficulty = null;
         this.currentBlockHeight = 0;
+        this.currentCheckingHash = null;
     }
 
     // Add event listener
@@ -170,6 +171,8 @@ class MiningService {
 
     async miningLoop() {
         try {
+
+            
             this.currentDifficulty = await this.miningContract.currentDifficulty();
             let lastBlockHash = await this.miningContract.lastBlockHash();
             this.currentBlockHeight = await this.miningContract.blockHeight();
@@ -181,8 +184,8 @@ class MiningService {
                 lastBlockHash = await this.miningContract.lastBlockHash();
                 this.currentBlockHeight = height;
                 this.emit('new_block', {
-                    message: "New block mined",
-                    icon: '/images/block.png',
+                    message: "New block found",
+                    icon: '/images/new-block.png',
                     blockHeight: this.currentBlockHeight,
                     lastBlockHash
                 });
@@ -193,12 +196,12 @@ class MiningService {
 
             const handleDifficultyChange = async (newDifficulty, event) => {
                 this.currentDifficulty = newDifficulty;
-                this.emit('difficulty_change', {
-                    message: "Difficulty adjusted",
-                    icon: '/images/params.png',
-                    pill: this.currentDifficulty.toString(16).substring(0,12) + "...",
-                    newDifficulty: this.currentDifficulty.toString(16).substring(0,12) + "..."
-                });
+                // this.emit('difficulty_change', {
+                //     message: "Difficulty adjusted",
+                //     icon: '/images/params.png',
+                //     pill: this.currentDifficulty.toString(16).substring(0,12) + "...",
+                //     newDifficulty: this.currentDifficulty.toString(16).substring(0,12) + "..."
+                // });
                 if (resolveParameterChange) {
                     resolveParameterChange();
                 }
@@ -296,9 +299,18 @@ class MiningService {
         
         // Initialize bestHash to max value
         this.bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        console.log('Initial bestHash:', this.bestHash.toString(16));
         
         while (this.isRunning) {
+            // Check if mining parameters have changed
+            const currentDiff = await this.miningContract.currentDifficulty();
+            const currentLastBlockHash = await this.miningContract.lastBlockHash();
+            
+            // If parameters changed, return null to trigger a restart of mining loop
+            if (currentDiff !== targetDifficulty || currentLastBlockHash !== lastBlockHash) {
+                console.log('Mining parameters changed, restarting mining loop');
+                return null;
+            }
+
             const now = Date.now();
             if (now - lastHashRateUpdate >= this.hashRateUpdateInterval) {
                 this.updateHashRate(hashCount, now);
@@ -331,14 +343,10 @@ class MiningService {
                     // });
                 }
                 
-                // Log every 1000 iterations
-                // if (i % 1000 === 0) { 
-                //     console.log('Comparison at iteration', i, {
-                //         hashValue: hashValue.toString(16),
-                //         targetDifficulty: targetDifficulty.toString(16),
-                //         comparisonResult: hashValue <= targetDifficulty
-                //     });
-                // }
+                // Update current checking hash every 1000 iterations
+                if (i % 1000 === 0) {
+                    this.currentCheckingHash = hashValue.toString(16);
+                }
 
                 // Check if this hash meets the difficulty target
                 if (hashValue <= targetDifficulty) {
@@ -419,6 +427,11 @@ class MiningService {
     // Add getter method
     getBlockHeight() {
         return this.currentBlockHeight;
+    }
+
+    // Add getter for currentCheckingHash
+    getCurrentCheckingHash() {
+        return this.currentCheckingHash;
     }
 }
 

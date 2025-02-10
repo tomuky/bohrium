@@ -13,6 +13,7 @@ export function MiningProvider({ children }) {
     const [bestHash, setBestHash] = useState(null);
     const [currentDifficulty, setCurrentDifficulty] = useState(null);
     const [blockHeight, setBlockHeight] = useState(null);
+    const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
@@ -61,6 +62,7 @@ export function MiningProvider({ children }) {
             setBestHash(null);
             setCurrentDifficulty(null);
             setBlockHeight(null);
+            setCurrentCheckingHash(null);
             return;
         }
 
@@ -69,6 +71,7 @@ export function MiningProvider({ children }) {
             setBestHash(miningService.getBestHash());
             setCurrentDifficulty(miningService.getDifficulty());
             setBlockHeight(miningService.getBlockHeight());
+            setCurrentCheckingHash(miningService.getCurrentCheckingHash());
         }, 1000);
 
         return () => clearInterval(metricsInterval);
@@ -131,7 +134,8 @@ export function MiningProvider({ children }) {
             currentHashRate,
             bestHash,
             currentDifficulty,
-            blockHeight
+            blockHeight,
+            currentCheckingHash
         }}>
             {children}
         </MiningContext.Provider>

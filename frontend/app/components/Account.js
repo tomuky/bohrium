@@ -6,7 +6,14 @@ import { useAccount } from 'wagmi'
 
 const Account = () => {
     const { isConnected } = useAccount()
-    const { currentHashRate, bestHash, currentDifficulty, blockHeight } = useMining()
+    const { 
+        currentHashRate, 
+        bestHash, 
+        currentDifficulty, 
+        blockHeight,
+        currentCheckingHash,
+        isMining
+    } = useMining()
     
     return (
         <div className={styles.accountArea}>
@@ -18,6 +25,14 @@ const Account = () => {
                 <div className={styles.metricCard}>
                     <h3>Current Hash Rate</h3>
                     <p>{isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}</p>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Checking Hash</h3>
+                    <p>
+                        {isConnected && isMining && currentCheckingHash 
+                            ? `0x${currentCheckingHash.substring(0, 10)}...` 
+                            : '-'}
+                    </p>
                 </div>
                 <div className={styles.metricCard}>
                     <h3>Best Hash</h3>
