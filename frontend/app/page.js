@@ -19,13 +19,13 @@ export default function Home() {
         </div>
         <div className={styles.socialLinks}>
           <Link href="https://x.com/bohrsupply" target="_blank">
-            <Image src="/images/x.png" alt="X" width={24} height={24} style={{ filter: 'invert(1)' }}/> 
+            <Image src="/images/x.png" alt="X" width={24} height={24}/> 
           </Link>
           <Link href="https://discord.gg/xyZW4Ck36V" target="_blank">
             <Image src="/images/discord.png" alt="Discord" width={30} height={24}/>
           </Link>
           <Link href="https://github.com/tomuky/bohrium" target="_blank">
-            <Image src="/images/github.png" alt="GitHub" width={24} height={24} style={{ filter: 'invert(1)' }}/>
+            <Image src="/images/github.png" alt="GitHub" width={24} height={24}/>
           </Link>
         </div>
       </nav>
@@ -34,8 +34,11 @@ export default function Home() {
         <h1>Do the work. Earn BOHR.</h1>
         <p>BOHR is the first proof-of-work token on Base</p>
         <Link href="/mine">
-          <button className={styles.startButton}>
-            START MINING
+          <button 
+            className={styles.startButton} 
+            disabled={true}
+          >
+            COMING SOON
           </button>
         </Link>
       </div>
