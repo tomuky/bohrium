@@ -7,7 +7,7 @@ import ConsoleRewardItem from './ConsoleRewardItem'
 import { memo, useMemo } from 'react'
 
 // Memoize the item renderer function
-const ConsoleItemRenderer = memo(({ item, index, isLatestMining }) => {
+const ConsoleItemRenderer = memo(({ item, index }) => {
     if(item.type === 'mining') {
         return <ConsoleMiningItem 
             key={`mining-${item.endTime}-${index}`}
@@ -15,7 +15,6 @@ const ConsoleItemRenderer = memo(({ item, index, isLatestMining }) => {
             icon={item.icon}
             text={item.text}
             type={item.type}
-            isLatest={isLatestMining}
         />
     } else if(item.type === 'nonce_found') {
         return <ConsoleRewardItem 
@@ -42,16 +41,6 @@ ConsoleItemRenderer.displayName = 'ConsoleItemRenderer';
 const Console = memo(() => {
     const { consoleItems } = useMining();
 
-    // Find the latest mining item's endTime - memoized to prevent recalculation on every render
-    const latestMiningEndTime = useMemo(() => {
-        return consoleItems.reduce((latest, item) => {
-            if (item.type === 'mining' && (!latest || item.endTime > latest)) {
-                return item.endTime;
-            }
-            return latest;
-        }, null);
-    }, [consoleItems]);
-
     return (
         <div className={styles.list}>
             {[...consoleItems].map((item, index) => (
@@ -59,7 +48,6 @@ const Console = memo(() => {
                     key={`${item.type}-${index}`}
                     item={item}
                     index={index}
-                    isLatestMining={item.type === 'mining' && item.endTime === latestMiningEndTime}
                 />
             ))}
         </div>
