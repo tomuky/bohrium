@@ -72,7 +72,7 @@ export function MiningProvider({ children }) {
             setCurrentDifficulty(miningService.getDifficulty());
             setBlockHeight(miningService.getBlockHeight());
             setCurrentCheckingHash(miningService.getCurrentCheckingHash());
-        }, 1000);
+        }, 100);
 
         return () => clearInterval(metricsInterval);
     }, [isMining]);

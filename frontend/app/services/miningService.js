@@ -169,26 +169,34 @@ class MiningService {
         }
     }
 
+    async updateMiningParameters(emitNewBlock = false) {
+        // Update all mining parameters
+        this.currentDifficulty = await this.miningContract.currentDifficulty();
+        const lastBlockHash = await this.miningContract.lastBlockHash();
+        this.currentBlockHeight = await this.miningContract.blockHeight();
+
+        if (emitNewBlock) {
+            this.emit('new_block', {
+                message: "New block found",
+                icon: '/images/new-block.png',
+                blockHeight: this.currentBlockHeight,
+                lastBlockHash
+            });
+        }
+
+        return { lastBlockHash };
+    }
+
     async miningLoop() {
         try {
-
+            // Get initial parameters
+            const { lastBlockHash } = await this.updateMiningParameters();
             
-            this.currentDifficulty = await this.miningContract.currentDifficulty();
-            let lastBlockHash = await this.miningContract.lastBlockHash();
-            this.currentBlockHeight = await this.miningContract.blockHeight();
-            
+            let resolveParameterChange; 
             let parameterChangePromise;
-            let resolveParameterChange;
-
+            
             const handleNewBlock = async (miner, height, nonce, reward, timeTaken, event) => {
-                lastBlockHash = await this.miningContract.lastBlockHash();
-                this.currentBlockHeight = height;
-                this.emit('new_block', {
-                    message: "New block found",
-                    icon: '/images/new-block.png',
-                    blockHeight: this.currentBlockHeight,
-                    lastBlockHash
-                });
+                await this.updateMiningParameters(true);
                 if (resolveParameterChange) {
                     resolveParameterChange();
                 }
@@ -196,12 +204,6 @@ class MiningService {
 
             const handleDifficultyChange = async (newDifficulty, event) => {
                 this.currentDifficulty = newDifficulty;
-                // this.emit('difficulty_change', {
-                //     message: "Difficulty adjusted",
-                //     icon: '/images/params.png',
-                //     pill: this.currentDifficulty.toString(16).substring(0,12) + "...",
-                //     newDifficulty: this.currentDifficulty.toString(16).substring(0,12) + "..."
-                // });
                 if (resolveParameterChange) {
                     resolveParameterChange();
                 }
@@ -224,11 +226,6 @@ class MiningService {
                 console.log('best nonce: ', nonce);
                 console.log('best hash: ', hash);
 
-                // Create new promise for parameter change
-                parameterChangePromise = new Promise(resolve => {
-                    resolveParameterChange = resolve;
-                });
-
                 try {
                     this.emit('preparing_transaction', {
                         message: "Preparing transaction",
@@ -242,6 +239,7 @@ class MiningService {
                         icon: '/images/send.png'
                     });
 
+                    // Create new promise for parameter change
                     parameterChangePromise = new Promise(resolve => {
                         resolveParameterChange = resolve;
                     });
@@ -255,11 +253,8 @@ class MiningService {
                             icon: '/images/check.png'
                         });
                         
+                        await this.updateMiningParameters(true);
                         await parameterChangePromise;
-                        
-                        this.currentDifficulty = await this.miningContract.currentDifficulty();
-                        lastBlockHash = await this.miningContract.lastBlockHash();
-                        this.currentBlockHeight = await this.miningContract.blockHeight();
                     }
                 } catch (error) {
                     if (error.code === "ACTION_REJECTED") {
@@ -335,12 +330,6 @@ class MiningService {
                 // Update best hash for display purposes
                 if (hashValue < this.bestHash) {
                     this.bestHash = hashValue;
-                    // console.log('New best hash found:', {
-                    //     bestHash: this.bestHash.toString(16),
-                    //     targetDifficulty: targetDifficulty.toString(16),
-                    //     percentageOfTarget: ((Number(this.bestHash) / Number(targetDifficulty)) * 100).toFixed(2) + '%',
-                    //     nonce
-                    // });
                 }
                 
                 // Update current checking hash every 1000 iterations

@@ -18,10 +18,10 @@ const Account = () => {
     return (
         <div className={styles.accountArea}>
             <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
+                {/* <div className={styles.metricCard}>
                     <h3>BOHR Balance</h3>
                     <p>{isConnected ? '0.00 BOHR' : '-'}</p>
-                </div>
+                </div> */}
                 <div className={styles.metricCard}>
                     <h3>Current Hash Rate</h3>
                     <p>{isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}</p>
@@ -39,12 +39,12 @@ const Account = () => {
                     <p>{isConnected && bestHash ? `0x${bestHash.substring(0, 10)}...` : '-'}</p>
                 </div>
                 <div className={styles.metricCard}>
-                    <h3>Block Height</h3>
-                    <p>{blockHeight ?? '-'}</p>
-                </div>
-                <div className={styles.metricCard}>
                     <h3>Target Difficulty</h3>
                     <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 10)}...` : '-'}</p>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Block Height</h3>
+                    <p>{blockHeight ?? '-'}</p>
                 </div>
             </div>
         </div>
