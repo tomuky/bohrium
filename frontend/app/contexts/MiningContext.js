@@ -14,6 +14,7 @@ export function MiningProvider({ children }) {
     const [currentDifficulty, setCurrentDifficulty] = useState(null);
     const [blockHeight, setBlockHeight] = useState(null);
     const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
+    const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
@@ -63,18 +64,23 @@ export function MiningProvider({ children }) {
             setCurrentDifficulty(null);
             setBlockHeight(null);
             setCurrentCheckingHash(null);
+            setProgress(0);
             return;
         }
 
+        // Main metrics interval (slower updates)
         const metricsInterval = setInterval(() => {
             setCurrentHashRate(miningService.currentHashRate);
             setBestHash(miningService.getBestHash());
             setCurrentDifficulty(miningService.getDifficulty());
             setBlockHeight(miningService.getBlockHeight());
+            setProgress(miningService.getProgress());
             setCurrentCheckingHash(miningService.getCurrentCheckingHash());
-        }, 100);
+        }, 1000);
 
-        return () => clearInterval(metricsInterval);
+        return () => {
+            clearInterval(metricsInterval);
+        };
     }, [isMining]);
 
     const createConsoleItem = (event) => {
@@ -125,6 +131,21 @@ export function MiningProvider({ children }) {
 
     const clearConsole = () => setConsoleItems([]);
 
+    const calculateProgress = (bestHash, difficulty) => {
+        // Convert hex strings to BigInts
+        const maxHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        const bestHashBig = BigInt(`0x${bestHash}`);
+        const difficultyBig = BigInt(`0x${difficulty}`);
+        
+        // Calculate progress - lower hashes are better, so we want the percentage of how close
+        // we are to the difficulty target (which is our goal)
+        const distance = bestHashBig > difficultyBig ? BigInt(0) : difficultyBig - bestHashBig;
+        const total = difficultyBig;
+        
+        // Convert to percentage, capped at 100%
+        return Math.min(100, Number((BigInt(100) * distance * BigInt(100) / total) / BigInt(100)));
+    };
+
     return (
         <MiningContext.Provider value={{ 
             isMining, 
@@ -135,7 +156,8 @@ export function MiningProvider({ children }) {
             bestHash,
             currentDifficulty,
             blockHeight,
-            currentCheckingHash
+            currentCheckingHash,
+            progress
         }}>
             {children}
         </MiningContext.Provider>

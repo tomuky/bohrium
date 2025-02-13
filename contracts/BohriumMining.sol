@@ -80,19 +80,35 @@ contract BohriumMining {
     }
     
     function adjustDifficulty(uint256 timeElapsed) internal {
+        // Cap the maximum time considered to 5 minutes to prevent extreme adjustments
+        timeElapsed = timeElapsed > 300 seconds ? 300 seconds : timeElapsed;
+        
         // Target is 120 seconds (2 minutes)
         if (timeElapsed < 120) {
-            // Block was too fast - increase difficulty by 10%
-            currentDifficulty = currentDifficulty * 90 / 100;
+            // Block was too fast - increase difficulty
+            // Calculate percentage deviation from target (0-100%)
+            uint256 deviation = ((120 - timeElapsed) * 100) / 120;
+            // Max 10% adjustment, scaled by deviation
+            uint256 adjustment = 100 - ((deviation * 10) / 100);
+            currentDifficulty = currentDifficulty * adjustment / 100;
         } else if (timeElapsed > 120) {
-            // Block was too slow - decrease difficulty by 10%
-            currentDifficulty = currentDifficulty * 110 / 100;
+            // Block was too slow - decrease difficulty
+            // Calculate percentage deviation from target (0-100%)
+            uint256 deviation = ((timeElapsed - 120) * 100) / 120;
+            // Max 10% adjustment, scaled by deviation
+            uint256 adjustment = 100 + ((deviation * 10) / 100);
+            currentDifficulty = currentDifficulty * adjustment / 100;
         }
         
         // Safety bounds
-        if (currentDifficulty == 0) currentDifficulty = 1;
-        if (currentDifficulty > type(uint256).max >> 1) {
-            currentDifficulty = type(uint256).max >> 1;
+        uint256 maxDifficulty = type(uint256).max >> 1;
+        uint256 minDifficulty = type(uint256).max >> 32;
+        
+        if (currentDifficulty < minDifficulty) {
+            currentDifficulty = minDifficulty;
+        }
+        if (currentDifficulty > maxDifficulty) {
+            currentDifficulty = maxDifficulty;
         }
         
         emit DifficultyAdjusted(currentDifficulty);

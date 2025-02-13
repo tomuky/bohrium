@@ -12,7 +12,8 @@ const Account = () => {
         currentDifficulty, 
         blockHeight,
         currentCheckingHash,
-        isMining
+        isMining,
+        progress
     } = useMining()
     
     return (
@@ -41,6 +42,22 @@ const Account = () => {
                 <div className={styles.metricCard}>
                     <h3>Target Difficulty</h3>
                     <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 10)}...` : '-'}</p>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Progress to Target</h3>
+                    <div>
+                        {isConnected && bestHash && currentDifficulty ? (
+                            <>
+                                <div className={styles.progressBar}>
+                                    <div 
+                                        className={styles.progressFill} 
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
+                                <p>{progress.toFixed(0)}%</p>
+                            </>
+                        ) : '-'}
+                    </div>
                 </div>
                 <div className={styles.metricCard}>
                     <h3>Block Height</h3>
