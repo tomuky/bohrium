@@ -15,3 +15,12 @@
 .icon:hover {
     opacity: 1; /* Optional: makes the icon fully opaque on hover */
 }
+
+.desktopOnly{
+    display: flex;
+}
+@media (max-width: 768px) {
+    .desktopOnly{
+        display: none;
+    }
+}

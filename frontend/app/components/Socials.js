@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 const Socials = () => {
     return (
-        <div className={styles.area}>
+        <div className={`${styles.area} ${styles.desktopOnly}`}>
             <div className={styles.item}>
                 <Link href="https://discord.gg/xyZW4Ck36V">
                     <Image src="/images/discord.png" alt="Discord" width={30} height={24} className={styles.icon} />

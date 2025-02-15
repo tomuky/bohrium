@@ -144,19 +144,15 @@
 @media (max-width: 768px) {
     .leftPane {
         width: 100%;
-        padding: 10px;
+        padding: 10px 10px 0 10px;
         gap: 10px;
         border-right: none;
-        border-bottom: 1px solid var(--border);
+        /* border-bottom: 1px solid var(--border); */
+        border: none;
         min-height: 0
     }
 
-    .metricsGrid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr); /* 2 columns */
-        grid-template-rows: repeat(3, auto);   /* 3 rows */
-        gap: 0.25rem;
-    }
+    
 
     .item {
         padding: 8px;

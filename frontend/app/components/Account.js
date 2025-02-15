@@ -43,7 +43,7 @@ const Account = () => {
                         ) : '-'}
                     </div>
                 </div>
-                <div className={styles.metricCard}>
+                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
                     <h3>Checking Hash</h3>
                     <p>
                         {isConnected && isMining && currentCheckingHash 
@@ -51,15 +51,15 @@ const Account = () => {
                             : '-'}
                     </p>
                 </div>
-                <div className={styles.metricCard}>
+                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
                     <h3>Best Hash</h3>
                     <p>{isConnected && bestHash ? `0x${bestHash.substring(0, 20)}...` : '-'}</p>
                 </div>
-                <div className={styles.metricCard}>
+                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
                     <h3>Target Difficulty</h3>
                     <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 20)}...` : '-'}</p>
                 </div>
-                <div className={styles.metricCard}>
+                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
                     <h3>Block Height</h3>
                     <p>{blockHeight ?? '-'}</p>
                 </div>
