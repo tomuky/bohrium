@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { miningService } from '../services/miningService';
+
 const MiningContext = createContext({});
 
 export function MiningProvider({ children }) {
@@ -130,21 +131,6 @@ export function MiningProvider({ children }) {
     };
 
     const clearConsole = () => setConsoleItems([]);
-
-    const calculateProgress = (bestHash, difficulty) => {
-        // Convert hex strings to BigInts
-        const maxHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        const bestHashBig = BigInt(`0x${bestHash}`);
-        const difficultyBig = BigInt(`0x${difficulty}`);
-        
-        // Calculate progress - lower hashes are better, so we want the percentage of how close
-        // we are to the difficulty target (which is our goal)
-        const distance = bestHashBig > difficultyBig ? BigInt(0) : difficultyBig - bestHashBig;
-        const total = difficultyBig;
-        
-        // Convert to percentage, capped at 100%
-        return Math.min(100, Number((BigInt(100) * distance * BigInt(100) / total) / BigInt(100)));
-    };
 
     return (
         <MiningContext.Provider value={{ 
