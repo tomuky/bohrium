@@ -28,22 +28,6 @@ const Account = () => {
                     <p>{isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}</p>
                 </div>
                 <div className={styles.metricCard}>
-                    <h3>Checking Hash</h3>
-                    <p>
-                        {isConnected && isMining && currentCheckingHash 
-                            ? `0x${currentCheckingHash.substring(0, 10)}...` 
-                            : '-'}
-                    </p>
-                </div>
-                <div className={styles.metricCard}>
-                    <h3>Best Hash</h3>
-                    <p>{isConnected && bestHash ? `0x${bestHash.substring(0, 10)}...` : '-'}</p>
-                </div>
-                <div className={styles.metricCard}>
-                    <h3>Target Difficulty</h3>
-                    <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 10)}...` : '-'}</p>
-                </div>
-                <div className={styles.metricCard}>
                     <h3>Progress to Target</h3>
                     <div>
                         {isConnected && bestHash && currentDifficulty ? (
@@ -58,6 +42,22 @@ const Account = () => {
                             </>
                         ) : '-'}
                     </div>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Checking Hash</h3>
+                    <p>
+                        {isConnected && isMining && currentCheckingHash 
+                            ? `0x${currentCheckingHash.substring(0, 20)}...` 
+                            : '-'}
+                    </p>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Best Hash</h3>
+                    <p>{isConnected && bestHash ? `0x${bestHash.substring(0, 20)}...` : '-'}</p>
+                </div>
+                <div className={styles.metricCard}>
+                    <h3>Target Difficulty</h3>
+                    <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 20)}...` : '-'}</p>
                 </div>
                 <div className={styles.metricCard}>
                     <h3>Block Height</h3>
