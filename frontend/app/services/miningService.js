@@ -184,10 +184,19 @@ class MiningService {
                         lastBlockHash: this.latestBlockHash,
                         pill: `#${this.currentBlockHeight}`
                     });
+                    
+                    const newDifficulty = await this.miningContract.currentDifficulty();
+                    if(newDifficulty !== this.currentDifficulty) {
+                        this.emit('difficulty_change', {
+                            message: "Difficulty changed",
+                            icon: '/images/params.png',
+                            difficulty: newDifficulty
+                        });
+                    }
 
                     // Update mining parameters
                     this.latestBlockHash = currentLastBlockHash;
-                    this.currentDifficulty = await this.miningContract.currentDifficulty();
+                    this.currentDifficulty = newDifficulty;
                     this.currentBlockHeight = await this.miningContract.blockHeight();
                     this.startTime = Date.now();
 
