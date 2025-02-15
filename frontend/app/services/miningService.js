@@ -122,11 +122,20 @@ class MiningService {
             });
     }
 
-    async start() {
+    async start(restart = false) {
         if (this.isRunning) return; // already running
         
         try {
-            await this.connect(); // setup signers and contracts
+            if(!restart) {
+                await this.connect(); // setup signers and contracts
+
+                this.emit('start',{ // Emit start event to frontend
+                    icon: '/images/rocket.png',
+                    text: 'Mining started'
+                });
+                
+                this.startParameterCheck(); // Start mining parameters checking timer
+            }
             
             this.isRunning = true;
             this.bestHash = null;
@@ -138,12 +147,7 @@ class MiningService {
             this.currentBlockHeight = await this.miningContract.blockHeight();
             this.startTime = Date.now();
             
-            this.emit('start',{ // Emit start event to frontend
-                icon: '/images/rocket.png',
-                text: 'Mining started'
-            });
             
-            this.startParameterCheck(); // Start mining parameters checking timer
             
             while (this.isRunning) { // Main mining loop
                 await this.miningLoop();
@@ -187,13 +191,17 @@ class MiningService {
                     this.currentBlockHeight = await this.miningContract.blockHeight();
                     this.startTime = Date.now();
 
-                    // Flag for restart
-                    this.shouldRestartMining = true;
+                    if(!this.isRunning) {
+                        this.isRunning = true;
+                        this.start(true); // restart mining
+                    }else{
+                        this.shouldRestartMining = true; // flag for restart
+                    }
                 }
             } catch (error) {
                 console.error('Error checking mining parameters:', error);
             }
-        }, 1000); // check every second
+        }, 2000); // check every 2 seconds  
     }
 
     async stop() {
@@ -283,19 +291,25 @@ class MiningService {
                 await this.findValidNonce();
                 
                 if (this.bestNonce) {
+                    // Stop mining immediately when we find a valid nonce
+                    this.isRunning = false;
+                    
                     try {
                         await this.submitBestHash();
                         
-                        // Reset mining state for next iteration
+                        // Reset mining state after successful submission
                         this.bestNonce = null;
                         this.bestHash = null;
                         this.startTime = Date.now();
                         this.progress = 0;
                     } catch (error) {
                         if (error.code === "ACTION_REJECTED") {
+                            // User rejected transaction - keep mining stopped
                             break;
                         }
+                        // For other errors, restart mining
                         console.error('Error submitting hash:', error);
+                        this.isRunning = true;
                     }
                 }
             }
