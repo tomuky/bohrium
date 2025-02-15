@@ -9,6 +9,7 @@ class MiningService {
         this.listeners = new Set();
         this.provider = null;
         this.signer = null;
+        this.signerAddress = null;
         this.miningContract = null;
         this.bestHash = null;
 
@@ -17,20 +18,19 @@ class MiningService {
         this.hashRateWindowSize = 10;
         this.hashRateUpdateInterval = 1000;
         this.hashRateWindowMs = 10000; // 10 second window
-        this.hashRateUpdateInterval = 1000;
 
-        this.lastBohrBalance = BigInt(0);
         this.bohrToken = null;
         this.rewardListener = null;
+
         this.currentDifficulty = null;
+        this.latestBlockHash = null;
         this.currentBlockHeight = 0;
+        this.startTime = null;
+
         this.currentCheckingHash = null;
         this.progress = 0;
-        this.startTime = null;
         this.parameterCheckInterval = null;
         this.shouldRestartMining = false;
-        this.latestDifficulty = null;
-        this.latestBlockHash = null;
     }
 
     // Add event listener
@@ -59,6 +59,7 @@ class MiningService {
 
             this.provider = new ethers.BrowserProvider(window.ethereum);
             this.signer = await this.provider.getSigner();
+            this.signerAddress = await this.signer.getAddress();
             const chainId = (await this.provider.getNetwork()).chainId;
             const networkConfig = getNetworkConfig(Number(chainId));
 
@@ -74,11 +75,6 @@ class MiningService {
             this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
             
             await this.setupRewardListener();
-
-            // Initialize mining parameters
-            this.currentBlockHeight = await this.miningContract.blockHeight();
-            this.currentDifficulty = await this.miningContract.currentDifficulty();
-            this.latestBlockHash = await this.miningContract.lastBlockHash();
 
         } catch (error) {
             throw error;
@@ -133,16 +129,21 @@ class MiningService {
             await this.connect(); // setup signers and contracts
             
             this.isRunning = true;
-            this.bestHash = null; // initiate best hash
+            this.bestHash = null;
             this.bestNonce = null;
-            this.startTime = Date.now(); // initiate start time for progress bar calculation
+
+            // Update mining parameters
+            this.latestBlockHash = await this.miningContract.lastBlockHash();
+            this.currentDifficulty = await this.miningContract.currentDifficulty();
+            this.currentBlockHeight = await this.miningContract.blockHeight();
+            this.startTime = Date.now();
             
             this.emit('start',{ // Emit start event to frontend
                 icon: '/images/rocket.png',
                 text: 'Mining started'
             });
             
-            this.startParameterCheck(); // Start parameter checking timer
+            this.startParameterCheck(); // Start mining parameters checking timer
             
             while (this.isRunning) { // Main mining loop
                 await this.miningLoop();
@@ -152,6 +153,7 @@ class MiningService {
                 error: error.message, 
                 message: "There was an error" 
             });
+            console.log('Mining error:', error);
             this.stop();
         }
     }
@@ -165,16 +167,25 @@ class MiningService {
         this.parameterCheckInterval = setInterval(async () => {
             try {
                 // Get current params from contract
-                const currentDiff = await this.miningContract.currentDifficulty();
                 const currentLastBlockHash = await this.miningContract.lastBlockHash();
-                
+
                 // Compare with current values before updating the latest values
-                if (currentDiff !== this.currentDifficulty || currentLastBlockHash !== this.latestBlockHash) {
+                if (currentLastBlockHash !== this.latestBlockHash) {
                     console.log('Mining parameters changed, flagging for restart');
-                
-                    // Store the values for use in mining loop
-                    this.latestDifficulty = currentDiff;
+
+                    this.emit('new_block', {
+                        message: "New block",
+                        icon: '/images/new-block.png',
+                        blockHeight: this.currentBlockHeight,
+                        lastBlockHash: this.latestBlockHash,
+                        pill: `#${this.currentBlockHeight}`
+                    });
+
+                    // Update mining parameters
                     this.latestBlockHash = currentLastBlockHash;
+                    this.currentDifficulty = await this.miningContract.currentDifficulty();
+                    this.currentBlockHeight = await this.miningContract.blockHeight();
+                    this.startTime = Date.now();
 
                     // Flag for restart
                     this.shouldRestartMining = true;
@@ -217,23 +228,6 @@ class MiningService {
         }
     }
 
-    async updateMiningParameters(emitNewBlock = false) {
-        // Update all mining parameters
-        this.currentDifficulty = await this.miningContract.currentDifficulty();
-        this.latestBlockHash = await this.miningContract.lastBlockHash();
-        this.currentBlockHeight = await this.miningContract.blockHeight();
-        this.startTime = Date.now();
-
-        if (emitNewBlock) {
-            this.emit('new_block', {
-                message: "New block found",
-                icon: '/images/new-block.png',
-                blockHeight: this.currentBlockHeight,
-                lastBlockHash: this.latestBlockHash
-            });
-        }
-    }
-
     async submitBestHash() {
         try {
             this.emit('preparing_transaction', {
@@ -245,12 +239,8 @@ class MiningService {
             this.emit('transaction', {
                 message: "Transaction submitted",
                 hash: tx.hash,
-                icon: '/images/send.png'
-            });
-
-            // Create new promise for parameter change
-            const parameterChangePromise = new Promise(resolve => {
-                this.resolveParameterChange = resolve;
+                icon: '/images/send.png',
+                pill: `${tx.hash.substring(0, 8)}...`
             });
 
             const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
@@ -261,9 +251,7 @@ class MiningService {
                     hash: receipt.hash,
                     icon: '/images/check.png'
                 });
-                
-                await this.updateMiningParameters(true);
-                await parameterChangePromise;
+                return true; // needed?
             }
         } catch (error) {
             if (error.code === "ACTION_REJECTED") {
@@ -283,40 +271,8 @@ class MiningService {
 
     async miningLoop() {
         try {
-            // Get initial parameters
-            await this.updateMiningParameters();
-            
-            let resolveParameterChange; 
-            let parameterChangePromise;
-            
-            // Create a single event handler reference that we can remove later
-            const handleNewBlock = async () => {
-                // Remove duplicate event handlers before updating parameters
-                this.miningContract.removeListener('BlockMined', handleNewBlock);
-                this.miningContract.removeListener('DifficultyAdjusted', handleDifficultyChange);
-                
-                await this.updateMiningParameters(true);
-                if (resolveParameterChange) {
-                    resolveParameterChange();
-                }
-            };
-
-            const handleDifficultyChange = async (newDifficulty) => {
-                // Remove duplicate event handlers before updating difficulty
-                this.miningContract.removeListener('BlockMined', handleNewBlock);
-                this.miningContract.removeListener('DifficultyAdjusted', handleDifficultyChange);
-                
-                this.currentDifficulty = newDifficulty;
-                if (resolveParameterChange) {
-                    resolveParameterChange();
-                }
-            };
-
-            // Use direct event names instead of filters
-            this.miningContract.on('BlockMined', handleNewBlock);
-            this.miningContract.on('DifficultyAdjusted', handleDifficultyChange);
-
             while (this.isRunning) {
+                console.log('Mining loop');
                 this.emit('mining', { 
                     message: "Mining",
                     difficulty: this.currentDifficulty.toString(16).substring(0,12) + "...",
@@ -324,37 +280,39 @@ class MiningService {
                     lastBlockHash: this.latestBlockHash
                 });
 
-                await this.findValidNonce(this.currentDifficulty, this.latestBlockHash);
+                await this.findValidNonce();
                 
-                console.log('best nonce: ', this.bestNonce);
-                console.log('best hash: ', this.bestHash);
-
-                if (this.bestNonce) { // only submit if we have a best nonce
+                if (this.bestNonce) {
                     try {
                         await this.submitBestHash();
+                        
+                        // Reset mining state for next iteration
+                        this.bestNonce = null;
+                        this.bestHash = null;
+                        this.startTime = Date.now();
+                        this.progress = 0;
                     } catch (error) {
                         if (error.code === "ACTION_REJECTED") {
                             break;
                         }
+                        console.error('Error submitting hash:', error);
                     }
                 }
             }
-
-            // Update the cleanup to use event names
-            this.miningContract.off('BlockMined', handleNewBlock);
-            this.miningContract.off('DifficultyAdjusted', handleDifficultyChange);
-
         } catch (error) {
             this.emit('error', {
                 message: "Mining error",
                 error: error.message
             });
             console.error('Mining error:', error);
+            this.stop(); // Stop mining when we encounter an error
+            return; // Exit the mining loop
         }
     }
 
     async findValidNonce() {
-        const signerAddress = await this.signer.getAddress();
+        // Create a buffer for random values
+        const randomBuffer = new Uint32Array(MINING_CONFIG.MINING_BATCH_SIZE);
         
         let hashCount = 0;
         let lastHashRateUpdate = Date.now();
@@ -366,9 +324,12 @@ class MiningService {
             // Check if parameters changed (flag set by interval)
             if (this.shouldRestartMining) {
                 console.log('Mining parameters changed, restarting mining loop');
-                this.shouldRestartMining = false; // Reset the flag
-                return null; // Return null to go back to top of mining loop
+                this.shouldRestartMining = false;
+                return null;
             }
+
+            // Fill buffer with cryptographically secure random numbers
+            crypto.getRandomValues(randomBuffer);
 
             // Update progress bar
             this.updateProgress()
@@ -382,19 +343,21 @@ class MiningService {
 
             for (let i = 0; i < MINING_CONFIG.MINING_BATCH_SIZE; i++) {
                 if (!this.isRunning) return null;
-
-                const nonce = Math.floor(Math.random() * MINING_CONFIG.NONCE_RANGE);
+                
+                // Use the random number directly - it's already a valid uint32
+                const nonce = randomBuffer[i];
+                
                 const hash = ethers.keccak256(
                     ethers.solidityPacked(
                         ["address", "bytes32", "uint256", "uint256"],
-                        [signerAddress, this.latestBlockHash, this.currentDifficulty, nonce]
+                        [this.signerAddress, this.latestBlockHash, this.currentDifficulty, nonce]
                     )
                 );
 
                 hashCount++;
                 const hashValue = BigInt(hash);
                 
-                // Update best hash for display purposes
+                // Update best hash 
                 if (hashValue < this.bestHash) {
                     this.bestHash = hashValue;
                     
@@ -417,6 +380,7 @@ class MiningService {
                         targetDifficulty: this.currentDifficulty.toString(16),
                         nonce
                     });
+                    return;
                 }
             }
             
@@ -427,19 +391,17 @@ class MiningService {
     }
 
     async submitBlock() {
-        const signerAddress = await this.signer.getAddress();  // Get the actual miner's address
-        
         // Calculate hash for verification using signer's address
         const hash = ethers.keccak256(
             ethers.solidityPacked(
                 ["address", "bytes32", "uint256", "uint256"],
-                [signerAddress, this.latestBlockHash, this.currentDifficulty, this.bestNonce]
+                [this.signerAddress, this.latestBlockHash, this.currentDifficulty, this.bestNonce]
             )
         );
         
         // Log verification data
         console.log('Submitting block with parameters:', {
-            minerAddress: signerAddress,
+            minerAddress: this.signerAddress,
             lastBlockHash: this.latestBlockHash,
             difficulty: this.currentDifficulty.toString(16),
             nonce: this.bestNonce,

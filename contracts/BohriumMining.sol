@@ -11,13 +11,14 @@ contract BohriumMining {
     uint256 public constant INITIAL_REWARD = 10 * 10**18; // 10 BOHR
     uint256 public constant HALVING_INTERVAL = 365 days;
     uint256 public constant TARGET_BLOCK_TIME = 60 seconds;
-    uint256 public constant DIFFICULTY_ADJUSTMENT_INTERVAL = 360; // 6 hours
+    uint256 public constant DIFFICULTY_ADJUSTMENT_BLOCKS = 5;
     
     uint256 public currentDifficulty; // The current difficulty target
     uint256 public lastHalvingTimestamp;
     uint256 public lastBlockTimestamp;
     uint256 public blockHeight;
     bytes32 public lastBlockHash;
+    uint256 public adjustmentStartTimestamp;
     
     event BlockMined(
         address indexed miner,
@@ -80,36 +81,41 @@ contract BohriumMining {
     }
     
     function adjustDifficulty(uint256 timeElapsed) internal {
-        // Cap the maximum time considered to 5 minutes to prevent extreme adjustments
-        timeElapsed = timeElapsed > 300 seconds ? 300 seconds : timeElapsed;
-        
-        // Target is 120 seconds (2 minutes)
-        if (timeElapsed < 120) {
-            // Block was too fast - increase difficulty
-            // Calculate percentage deviation from target (0-100%)
-            uint256 deviation = ((120 - timeElapsed) * 100) / 120;
-            // Max 10% adjustment, scaled by deviation
-            uint256 adjustment = 100 - ((deviation * 10) / 100);
-            currentDifficulty = currentDifficulty * adjustment / 100;
-        } else if (timeElapsed > 120) {
-            // Block was too slow - decrease difficulty
-            // Calculate percentage deviation from target (0-100%)
-            uint256 deviation = ((timeElapsed - 120) * 100) / 120;
-            // Max 10% adjustment, scaled by deviation
-            uint256 adjustment = 100 + ((deviation * 10) / 100);
-            currentDifficulty = currentDifficulty * adjustment / 100;
+        // If this is the start of a new adjustment period, store the timestamp
+        if (blockHeight % DIFFICULTY_ADJUSTMENT_BLOCKS == 0) {
+            adjustmentStartTimestamp = block.timestamp;
         }
         
-        // Safety bounds
+        // Store the last block timestamp
+        lastBlockTimestamp = block.timestamp;
+        
+        // Only adjust difficulty at the end of each period
+        if ((blockHeight + 1) % DIFFICULTY_ADJUSTMENT_BLOCKS != 0) {
+            return;
+        }
+        
+        // Calculate actual timespan for the last DIFFICULTY_ADJUSTMENT_BLOCKS
+        uint256 timespan = block.timestamp - adjustmentStartTimestamp;
+        uint256 targetTimespan = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_BLOCKS;
+        
+        // Apply dampening to avoid drastic changes
+        if (timespan < targetTimespan / 4) {
+            timespan = targetTimespan / 4;
+        }
+        if (timespan > targetTimespan * 4) {
+            timespan = targetTimespan * 4;
+        }
+        
+        // Adjust difficulty based on timespan ratio
+        uint256 newDifficulty = (currentDifficulty * timespan) / targetTimespan;
+        
+        // Apply safety bounds
         uint256 maxDifficulty = type(uint256).max >> 1;
         uint256 minDifficulty = type(uint256).max >> 32;
         
-        if (currentDifficulty < minDifficulty) {
-            currentDifficulty = minDifficulty;
-        }
-        if (currentDifficulty > maxDifficulty) {
-            currentDifficulty = maxDifficulty;
-        }
+        currentDifficulty = newDifficulty < minDifficulty ? minDifficulty :
+                           newDifficulty > maxDifficulty ? maxDifficulty :
+                           newDifficulty;
         
         emit DifficultyAdjusted(currentDifficulty);
     }

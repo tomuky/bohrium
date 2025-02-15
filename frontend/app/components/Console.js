@@ -4,7 +4,7 @@ import ConsoleItem from './ConsoleItem'
 import { useMining } from '../contexts/MiningContext'
 import ConsoleMiningItem from './ConsoleMiningItem'
 import ConsoleRewardItem from './ConsoleRewardItem'
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 
 // Memoize the item renderer function
 const ConsoleItemRenderer = memo(({ item, index }) => {
