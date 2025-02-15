@@ -85,7 +85,9 @@ export function MiningProvider({ children }) {
     }, [isMining]);
 
     const createConsoleItem = (event) => {
-        const { type, data = {}, timestamp = Date.now() } = event;
+        // Use UTC timestamp in ISO format
+        const timestamp = new Date().toISOString();
+        const { type, data = {} } = event;
 
         const eventMap = {
             'mining': {

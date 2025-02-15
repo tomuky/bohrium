@@ -90,9 +90,6 @@ class MiningService {
         const userAddress = await this.signer.getAddress();
 
         this.rewardListener = async (from, to, amount, event) => {
-            // Get block timestamp
-            const block = await this.provider.getBlock(event.blockNumber);
-            const timestamp = block.timestamp;
 
             // Only process incoming transfers to the user from the mining contract or zero address
             if (to.toLowerCase() === userAddress.toLowerCase() && 
@@ -105,8 +102,7 @@ class MiningService {
                     message: 'Earned BOHR',
                     reward: formattedAmount,
                     pill: `+${formattedAmount} BOHR`,
-                    icon: '/images/wand.png',
-                    timestamp
+                    icon: '/images/wand.png'
                 });
             }
         };
@@ -264,7 +260,7 @@ class MiningService {
             
             if (receipt.status === 1) {
                 this.emit('transaction_success', {
-                    message: "Block submitted successfully",
+                    message: "Submitted successfully",
                     hash: receipt.hash,
                     icon: '/images/check.png'
                 });
@@ -398,6 +394,11 @@ class MiningService {
                 // Check if this hash meets the difficulty target
                 if (hashValue <= this.currentDifficulty) {
                     this.bestNonce = nonce;
+                    this.emit('nonce_found', {
+                        icon: '/images/trophy.png',
+                        text: 'Hash found',
+                        pill: `${nonce}`,
+                    });
                     console.log('Found valid hash!', {
                         hashValue: hashValue.toString(16),
                         targetDifficulty: this.currentDifficulty.toString(16),

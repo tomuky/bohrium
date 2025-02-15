@@ -3,7 +3,7 @@ import styles from './Console.module.css'
 import ConsoleItem from './ConsoleItem'
 import { useMining } from '../contexts/MiningContext'
 import ConsoleMiningItem from './ConsoleMiningItem'
-import ConsoleRewardItem from './ConsoleRewardItem'
+import ConsoleRainbowItem from './ConsoleRainbowItem'
 import { memo } from 'react'
 
 // Memoize the item renderer function
@@ -15,9 +15,10 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
             icon={item.icon}
             text={item.text}
             type={item.type}
+            timestamp={item.timestamp}
         />
     } else if(item.type === 'nonce_found') {
-        return <ConsoleRewardItem 
+        return <ConsoleRainbowItem 
             key={`${item.timestamp}-${index}`}
             icon={item.icon}
             text={item.text}

@@ -45,7 +45,19 @@
     border-radius: 10px;
     font-size: 12px;
 }
+.timeAgo {
+    margin-left: auto;
+    color: #666;
+    font-size: 0.7em;
+}
 .itemContent{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+.left{
     display: flex;
     align-items: center;
     gap: 10px;
