@@ -6,7 +6,7 @@ import { miningService } from '../services/miningService';
 const MiningContext = createContext({});
 
 export function MiningProvider({ children }) {
-    const { isConnected } = useAccount();
+    const { isConnected, address } = useAccount();
     const [isMining, setIsMining] = useState(false);
     const [consoleItems, setConsoleItems] = useState([]);
     const [walletError, setWalletError] = useState(null);
@@ -157,7 +157,8 @@ export function MiningProvider({ children }) {
             blockHeight,
             currentCheckingHash,
             progress,
-            sessionWalletAddress
+            sessionWalletAddress,
+            mainWalletAddress: address
         }}>
             {children}
         </MiningContext.Provider>

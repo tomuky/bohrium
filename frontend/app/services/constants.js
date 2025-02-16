@@ -74,5 +74,25 @@ export const TOKEN_ABI = [
         ],
         "name": "Transfer",
         "type": "event"
+    },
+    {
+        "name": "transfer",
+        "type": "function",
+        "inputs": [
+            {
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ]
     }
 ];

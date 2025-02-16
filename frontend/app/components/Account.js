@@ -3,6 +3,7 @@ import styles from './Account.module.css'
 import { useMining } from '../contexts/MiningContext'
 import { formatHashRate } from '../services/utils'
 import { useAccount } from 'wagmi'
+import AccountSession from './AccountSession'
 
 const Account = () => {
     const { isConnected } = useAccount()
@@ -10,14 +11,14 @@ const Account = () => {
         currentHashRate, 
         bestHash, 
         currentDifficulty, 
-        // blockHeight,
         currentCheckingHash,
-        isMining,
         progress
     } = useMining()
     
     return (
         <div className={styles.accountArea}>
+
+            <AccountSession />
 
             <div className={styles.metricsGrid}>
                 {/* <div className={styles.metricCard}>

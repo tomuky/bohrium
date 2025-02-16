@@ -2,22 +2,65 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid var(--border);
 }
 
-.createSessionButton {
-    color: #888;
-    border: 1px dashed #888;
-    padding: 10px;
-    border-radius: 10px;
-    cursor: pointer;
+.sessionAreaBlock{
     width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px;
     text-align: center;
-    transition: background-color 0.2s;
-    transition: color 0.2s;
 }
-.createSessionButton:hover {
-    background-color: var(--background-hover);
-    color: #fff;
+
+.sessionAreaBlock h3{
+    font-size: 0.9rem;
+    color: #888;
+    margin: 0 0 0.5rem 0;
+}
+.sessionAreaBlock p{
+    font-size: 1rem;
+    margin: 0;
+    font-family: monospace;
+}
+
+.balances {
+    margin: 1rem 0;
+    display: flex;
+    gap: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.balances p {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.actionButton {
+    padding: 0.5rem 1rem;
+    border: 1px solid #666;
+    background: transparent;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.actionButton:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.addressText:hover {
+    opacity: 0.8;
+}
+
+.addressText:active {
+    opacity: 0.6;
 }

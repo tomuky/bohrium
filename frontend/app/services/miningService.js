@@ -33,7 +33,6 @@ class MiningService {
         this.shouldRestartMining = false;
         this.userMinedTheBlock = false;
 
-        this.signatureMessage = null;
         this.sessionWallet = null;
         this.mainWallet = null;
         this.sessionWalletAddress = null;
@@ -59,10 +58,10 @@ class MiningService {
 
     async generateSessionWallet() {
         const mainAddress = await this.mainWallet.getAddress();
-        this.signatureMessage = `Bohrium-session-${mainAddress}`;
+        const signatureMessage = `This is a gasless signature to create a session key for Bohrium mining.\n\nWARNING: Only sign this message on the official Bohrium website. Signing this message on another website could expose your session keys to attackers.\n\nCheck our socials for offical links.\n\nWallet: ${mainAddress}`;
         
         // Get deterministic signature from user
-        const signedMessage = await this.mainWallet.signMessage(this.signatureMessage);
+        const signedMessage = await this.mainWallet.signMessage(signatureMessage);
         
         // Generate deterministic seed from signature
         const seed = ethers.keccak256(ethers.toUtf8Bytes(signedMessage));
@@ -72,7 +71,7 @@ class MiningService {
 
         // Emit event for UI feedback
         this.emit('session_key_generated', {
-            icon: '/images/wallet.png',
+            icon: '/images/key.png',
             text: 'Session key loaded',
             address: sessionWallet.address
         });
@@ -92,7 +91,6 @@ class MiningService {
             // Generate deterministic session wallet
             this.sessionWallet = await this.generateSessionWallet();
             this.sessionWalletAddress = await this.sessionWallet.getAddress();
-            console.log('Session wallet address: ', this.sessionWalletAddress);
             
             // Connect session wallet to provider
             this.signer = this.sessionWallet.connect(this.provider);

@@ -1,10 +1,26 @@
 import { useState } from 'react';
+import { useSessionWallet } from '../hooks/useSessionWallet';
 import styles from './Modal.module.css';
 import Image from 'next/image';
 
 const DepositModal = ({ isOpen, onClose }) => {
     const [selectedToken, setSelectedToken] = useState('ETH');
     const [amount, setAmount] = useState('');
+    const { deposit, isLoading, error } = useSessionWallet();
+
+    const handleDeposit = async () => {
+        if (!amount) return;
+        
+        try {
+            const tx = await deposit(amount, selectedToken);
+            if (tx) {
+                setAmount('');
+                onClose();
+            }
+        } catch (err) {
+            console.error('Deposit failed:', err);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -41,9 +57,18 @@ const DepositModal = ({ isOpen, onClose }) => {
                     >
                         {selectedToken === 'ETH' && 'Recommended: 0.01'}
                     </p>
-                    <button className={styles.depositButton}>
-                        DEPOSIT
+                    <button 
+                        className={styles.depositButton} 
+                        onClick={handleDeposit}
+                        disabled={isLoading || !amount}
+                    >
+                        {isLoading ? 'DEPOSITING...' : 'DEPOSIT'}
                     </button>
+                    {error && (
+                        <p className={styles.error}>
+                            {error.message || 'Transaction failed'}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
