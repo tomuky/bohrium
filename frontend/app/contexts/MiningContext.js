@@ -16,12 +16,18 @@ export function MiningProvider({ children }) {
     const [blockHeight, setBlockHeight] = useState(null);
     const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
     const [progress, setProgress] = useState(0);
+    const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
             // Update current best hash when mining
             if (event.type === 'mining' && event.data.bestHash) {
                 setBestHash(event.data.bestHash);
+            }
+
+            if (event.type === 'session_key_loaded' || event.type === 'session_key_generated') {
+                console.log('sessionWalletAddress', event.data.address);
+                setSessionWalletAddress(event.data.address);
             }
             
             const newItem = createConsoleItem(event);
@@ -145,7 +151,8 @@ export function MiningProvider({ children }) {
             currentDifficulty,
             blockHeight,
             currentCheckingHash,
-            progress
+            progress,
+            sessionWalletAddress
         }}>
             {children}
         </MiningContext.Provider>

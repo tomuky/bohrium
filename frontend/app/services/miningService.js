@@ -31,6 +31,11 @@ class MiningService {
         this.progress = 0;
         this.parameterCheckInterval = null;
         this.shouldRestartMining = false;
+
+        this.signatureMessage = "Signature to encrypt your BOHR mining session key. This requires no gas.";
+        this.sessionWallet = null;
+        this.mainWallet = null; // Store reference to user's main wallet
+        this.sessionWalletAddress = null; // Add this new property
     }
 
     // Add event listener
@@ -51,6 +56,95 @@ class MiningService {
         });
     }
 
+    async generateSessionKey() {
+        // Generate a new random wallet
+        const sessionWallet = ethers.Wallet.createRandom();
+        
+        // Get encryption key by having user sign a message
+        const signature = await this.mainWallet.signMessage(this.signatureMessage);
+        const encryptionKey = await crypto.subtle.importKey(
+            'raw',
+            ethers.getBytes(ethers.keccak256(ethers.toUtf8Bytes(signature))).slice(0, 32),
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+        
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        
+        // Encrypt the private key
+        const encodedKey = new TextEncoder().encode(sessionWallet.privateKey);
+        const encryptedKey = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            encryptionKey,
+            encodedKey
+        );
+        
+        // Store only the encrypted key and IV
+        const encryptedKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedKey)));
+        const ivBase64 = btoa(String.fromCharCode(...iv));
+        
+        localStorage.setItem('sessionKey', encryptedKeyBase64);
+        localStorage.setItem('sessionKeyIV', ivBase64);
+        
+        if(encryptedKeyBase64 && ivBase64) {
+            this.emit('session_key_generated', {
+                icon: '/images/wallet.png',
+                text: 'Session key created',
+                address: sessionWallet.address
+            });
+        }
+
+        return sessionWallet;
+    }
+
+    async loadSessionKey() {
+        const encryptedKeyBase64 = localStorage.getItem('sessionKey');
+        const ivBase64 = localStorage.getItem('sessionKeyIV');
+        
+        if (!encryptedKeyBase64 || !ivBase64) {
+            return null;
+        }
+        
+        try {
+            // Get encryption key by having user sign the same message
+            const signature = await this.mainWallet.signMessage(this.signatureMessage);
+            const encryptionKey = await crypto.subtle.importKey(
+                'raw',
+                ethers.getBytes(ethers.keccak256(ethers.toUtf8Bytes(signature))).slice(0, 32),
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+            
+            const encryptedKey = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
+            const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+            
+            const decryptedKey = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                encryptionKey,
+                encryptedKey
+            );
+            
+            const privateKey = new TextDecoder().decode(decryptedKey);
+
+            const sessionWallet = new ethers.Wallet(privateKey);
+
+            if(sessionWallet) {
+                this.emit('session_key_loaded', {
+                    icon: '/images/wallet.png',
+                    text: 'Session key loaded',
+                    address: sessionWallet.address
+                });
+            }
+
+            return sessionWallet;
+        } catch (error) {
+            console.error('Error loading session key:', error);
+            return null;
+        }
+    }
+
     async connect() {
         try {
             if (!window.ethereum) {
@@ -58,8 +152,19 @@ class MiningService {
             }
 
             this.provider = new ethers.BrowserProvider(window.ethereum);
-            this.signer = await this.provider.getSigner();
+            this.mainWallet = await this.provider.getSigner();
+            
+            // Load or generate session wallet
+            this.sessionWallet = await this.loadSessionKey() || await this.generateSessionKey();
+            
+            // Store and emit the session wallet address
+            this.sessionWalletAddress = await this.sessionWallet.getAddress();
+            console.log('Session wallet address: ', this.sessionWalletAddress);
+            
+            // Connect session wallet to provider
+            this.signer = this.sessionWallet.connect(this.provider);
             this.signerAddress = await this.signer.getAddress();
+            
             const chainId = (await this.provider.getNetwork()).chainId;
             const networkConfig = getNetworkConfig(Number(chainId));
 
@@ -210,7 +315,9 @@ class MiningService {
     }
 
     async stop() {
+        console.log('Stopping mining');
         if (this.isRunning) {
+            console.log('Mining is running, stopping');
             this.isRunning = false;
             this.startTime = null;
             this.emit('stop',{
@@ -269,7 +376,6 @@ class MiningService {
         } catch (error) {
             if (error.code === "ACTION_REJECTED") {
                 this.emit('user_rejected');
-                this.stop();
                 throw error; // Re-throw to break the mining loop
             }
             
@@ -285,6 +391,22 @@ class MiningService {
     async miningLoop() {
         try {
             while (this.isRunning) {
+                // Check session wallet balance
+                const balance = await this.provider.getBalance(this.sessionWalletAddress);
+                const estimatedGas = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
+                const feeData = await this.provider.getFeeData();
+                const gasPrice = feeData.gasPrice;
+                const requiredBalance = BigInt(Math.floor(estimatedGas)) * gasPrice;
+
+                if (BigInt(balance) < BigInt(requiredBalance)) {
+                    this.emit('error', {
+                        message: "Session wallet needs ETH",
+                        icon: '/images/error.png'
+                    });
+                    this.stop();
+                    return;
+                }
+
                 console.log('Mining loop');
                 this.emit('mining', { 
                     message: "Mining",
@@ -308,13 +430,14 @@ class MiningService {
                         this.startTime = Date.now();
                         this.progress = 0;
                     } catch (error) {
+                        this.isRunning = false;
                         if (error.code === "ACTION_REJECTED") {
                             // User rejected transaction - keep mining stopped
                             break;
                         }
                         // For other errors, restart mining
                         console.error('Error submitting hash:', error);
-                        this.isRunning = true;
+                        this.stop();
                     }
                 }
             }
@@ -496,6 +619,11 @@ class MiningService {
 
     getProgress() {
         return this.progress;
+    }
+
+    // Add this new getter method
+    getSessionWalletAddress() {
+        return this.sessionWalletAddress;
     }
 }
 

@@ -1,0 +1,23 @@
+.sessionArea {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.createSessionButton {
+    color: #888;
+    border: 1px dashed #888;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: background-color 0.2s;
+    transition: color 0.2s;
+}
+.createSessionButton:hover {
+    background-color: var(--background-hover);
+    color: #fff;
+}

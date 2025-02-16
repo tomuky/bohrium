@@ -10,7 +10,7 @@ const Account = () => {
         currentHashRate, 
         bestHash, 
         currentDifficulty, 
-        blockHeight,
+        // blockHeight,
         currentCheckingHash,
         isMining,
         progress
@@ -18,6 +18,7 @@ const Account = () => {
     
     return (
         <div className={styles.accountArea}>
+
             <div className={styles.metricsGrid}>
                 {/* <div className={styles.metricCard}>
                     <h3>BOHR Balance</h3>
@@ -44,24 +45,27 @@ const Account = () => {
                     </div>
                 </div>
                 <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
-                    <h3>Checking Hash</h3>
-                    <p>
-                        {isConnected && isMining && currentCheckingHash 
-                            ? `0x${currentCheckingHash.substring(0, 20)}...` 
-                            : '-'}
-                    </p>
-                </div>
-                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
-                    <h3>Best Hash</h3>
-                    <p>{isConnected && bestHash ? `0x${bestHash.substring(0, 20)}...` : '-'}</p>
-                </div>
-                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
-                    <h3>Target Difficulty</h3>
-                    <p>{currentDifficulty ? `0x${currentDifficulty.substring(0, 20)}...` : '-'}</p>
-                </div>
-                <div className={`${styles.metricCard} ${styles.desktopOnly}`}>
-                    <h3>Block Height</h3>
-                    <p>{blockHeight ?? '-'}</p>
+                    <h3>Hashes</h3>
+                    <div className={styles.metricCardGrid}>
+                        <h3>
+                            Current
+                        </h3>
+                        <div className={styles.address}>
+                            {currentCheckingHash && `0x${currentCheckingHash.substring(0, 20)}...`}
+                        </div>
+                        <h3>
+                            Best
+                        </h3>
+                        <div className={styles.address}>
+                            {bestHash && `0x${bestHash.substring(0, 20)}...`}
+                        </div>
+                        <h3>
+                            Target
+                        </h3>
+                        <div className={styles.address}>
+                            {currentDifficulty && `0x${currentDifficulty.substring(0, 20)}...`}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
