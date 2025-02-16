@@ -25,7 +25,7 @@ export function MiningProvider({ children }) {
                 setBestHash(event.data.bestHash);
             }
 
-            if (event.type === 'session_key_loaded' || event.type === 'session_key_generated') {
+            if (event.type === 'session_key_generated') {
                 console.log('sessionWalletAddress', event.data.address);
                 setSessionWalletAddress(event.data.address);
             }
@@ -36,6 +36,11 @@ export function MiningProvider({ children }) {
                 
                 // Handle transaction rejection by stopping mining
                 if (event.type === 'user_rejected') {
+                    setIsMining(false);
+                }
+
+                // Handle the stopping mining
+                if (event.type === 'stop') {
                     setIsMining(false);
                 }
             }

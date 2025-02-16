@@ -7,11 +7,6 @@ const AccountSession = () => {
 
     return (
         <div className={styles.sessionArea}>
-            {!sessionWalletAddress && (
-                <div className={styles.createSessionButton}>
-                    + CREATE SESSION KEYS (optional)
-                </div>
-            )}
             {sessionWalletAddress && (
                 <div className={styles.sessionWalletAddress}>
                     {sessionWalletAddress}

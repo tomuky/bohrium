@@ -31,11 +31,12 @@ class MiningService {
         this.progress = 0;
         this.parameterCheckInterval = null;
         this.shouldRestartMining = false;
+        this.userMinedTheBlock = false;
 
-        this.signatureMessage = "Signature to encrypt your BOHR mining session key. This requires no gas.";
+        this.signatureMessage = null;
         this.sessionWallet = null;
-        this.mainWallet = null; // Store reference to user's main wallet
-        this.sessionWalletAddress = null; // Add this new property
+        this.mainWallet = null;
+        this.sessionWalletAddress = null;
     }
 
     // Add event listener
@@ -56,93 +57,27 @@ class MiningService {
         });
     }
 
-    async generateSessionKey() {
-        // Generate a new random wallet
-        const sessionWallet = ethers.Wallet.createRandom();
+    async generateSessionWallet() {
+        const mainAddress = await this.mainWallet.getAddress();
+        this.signatureMessage = `Bohrium-session-${mainAddress}`;
         
-        // Get encryption key by having user sign a message
-        const signature = await this.mainWallet.signMessage(this.signatureMessage);
-        const encryptionKey = await crypto.subtle.importKey(
-            'raw',
-            ethers.getBytes(ethers.keccak256(ethers.toUtf8Bytes(signature))).slice(0, 32),
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt']
-        );
+        // Get deterministic signature from user
+        const signedMessage = await this.mainWallet.signMessage(this.signatureMessage);
         
-        const iv = crypto.getRandomValues(new Uint8Array(12));
+        // Generate deterministic seed from signature
+        const seed = ethers.keccak256(ethers.toUtf8Bytes(signedMessage));
         
-        // Encrypt the private key
-        const encodedKey = new TextEncoder().encode(sessionWallet.privateKey);
-        const encryptedKey = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv },
-            encryptionKey,
-            encodedKey
-        );
-        
-        // Store only the encrypted key and IV
-        const encryptedKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedKey)));
-        const ivBase64 = btoa(String.fromCharCode(...iv));
-        
-        localStorage.setItem('sessionKey', encryptedKeyBase64);
-        localStorage.setItem('sessionKeyIV', ivBase64);
-        
-        if(encryptedKeyBase64 && ivBase64) {
-            this.emit('session_key_generated', {
-                icon: '/images/wallet.png',
-                text: 'Session key created',
-                address: sessionWallet.address
-            });
-        }
+        // Create wallet from private key using Wallet
+        const sessionWallet = new ethers.Wallet(seed);
+
+        // Emit event for UI feedback
+        this.emit('session_key_generated', {
+            icon: '/images/wallet.png',
+            text: 'Session key loaded',
+            address: sessionWallet.address
+        });
 
         return sessionWallet;
-    }
-
-    async loadSessionKey() {
-        const encryptedKeyBase64 = localStorage.getItem('sessionKey');
-        const ivBase64 = localStorage.getItem('sessionKeyIV');
-        
-        if (!encryptedKeyBase64 || !ivBase64) {
-            return null;
-        }
-        
-        try {
-            // Get encryption key by having user sign the same message
-            const signature = await this.mainWallet.signMessage(this.signatureMessage);
-            const encryptionKey = await crypto.subtle.importKey(
-                'raw',
-                ethers.getBytes(ethers.keccak256(ethers.toUtf8Bytes(signature))).slice(0, 32),
-                { name: 'AES-GCM', length: 256 },
-                false,
-                ['encrypt', 'decrypt']
-            );
-            
-            const encryptedKey = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
-            const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
-            
-            const decryptedKey = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv },
-                encryptionKey,
-                encryptedKey
-            );
-            
-            const privateKey = new TextDecoder().decode(decryptedKey);
-
-            const sessionWallet = new ethers.Wallet(privateKey);
-
-            if(sessionWallet) {
-                this.emit('session_key_loaded', {
-                    icon: '/images/wallet.png',
-                    text: 'Session key loaded',
-                    address: sessionWallet.address
-                });
-            }
-
-            return sessionWallet;
-        } catch (error) {
-            console.error('Error loading session key:', error);
-            return null;
-        }
     }
 
     async connect() {
@@ -154,10 +89,8 @@ class MiningService {
             this.provider = new ethers.BrowserProvider(window.ethereum);
             this.mainWallet = await this.provider.getSigner();
             
-            // Load or generate session wallet
-            this.sessionWallet = await this.loadSessionKey() || await this.generateSessionKey();
-            
-            // Store and emit the session wallet address
+            // Generate deterministic session wallet
+            this.sessionWallet = await this.generateSessionWallet();
             this.sessionWalletAddress = await this.sessionWallet.getAddress();
             console.log('Session wallet address: ', this.sessionWalletAddress);
             
@@ -248,8 +181,6 @@ class MiningService {
             this.currentBlockHeight = await this.miningContract.blockHeight();
             this.startTime = Date.now();
             
-            
-            
             while (this.isRunning) { // Main mining loop
                 await this.miningLoop();
             }
@@ -301,8 +232,9 @@ class MiningService {
                     this.currentBlockHeight = await this.miningContract.blockHeight();
                     this.startTime = Date.now();
 
-                    if(!this.isRunning) {
+                    if(!this.isRunning && this.userMinedTheBlock) {
                         this.isRunning = true;
+                        this.userMinedTheBlock = false;
                         this.start(true); // restart mining
                     }else{
                         this.shouldRestartMining = true; // flag for restart
@@ -316,7 +248,8 @@ class MiningService {
 
     async stop() {
         console.log('Stopping mining');
-        if (this.isRunning) {
+
+        if (this.isRunning || this.userMinedTheBlock) {
             console.log('Mining is running, stopping');
             this.isRunning = false;
             this.startTime = null;
@@ -418,8 +351,9 @@ class MiningService {
                 await this.findValidNonce();
                 
                 if (this.bestNonce) {
-                    // Stop mining immediately when we find a valid nonce
-                    this.isRunning = false;
+                    
+                    this.isRunning = false; // Stop mining immediately when we find a valid nonce
+                    this.userMinedTheBlock = true; // flag for parameter check to restart mining
                     
                     try {
                         await this.submitBestHash();
