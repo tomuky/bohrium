@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import styles from './Modal.module.css';
 import Image from 'next/image';
-import { useSessionWallet } from '../hooks/useSessionWallet';
+import { useSessionWallet } from '../contexts/SessionWalletContext';
 
 const WithdrawModal = ({ isOpen, onClose }) => {
     const [selectedToken, setSelectedToken] = useState('ETH');

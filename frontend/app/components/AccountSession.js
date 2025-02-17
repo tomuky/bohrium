@@ -1,21 +1,18 @@
 'use client'
 import styles from './AccountSession.module.css'
-import { useMining } from '../contexts/MiningContext'
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import DepositModal from './DepositModal'
 import WithdrawModal from './WithdrawModal'
-import { useSessionWallet } from '../hooks/useSessionWallet'
+import { useSessionWallet } from '../contexts/SessionWalletContext'
 
 const AccountSession = () => {
-    const { sessionWalletAddress } = useMining();
-    const { balances, isLoading, error, deposit } = useSessionWallet();
+    const { sessionWalletAddress, balances } = useSessionWallet();
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
     const copyToClipboard = async (text) => {
         try {
             await navigator.clipboard.writeText(text);
-            // You could add a toast notification here if you have a notification system
         } catch (err) {
             console.error('Failed to copy address:', err);
         }
@@ -25,7 +22,9 @@ const AccountSession = () => {
         <div className={styles.sessionArea}>
             <div className={styles.sessionAreaBlock}>
                 <h3>Session Wallet</h3>
-                {sessionWalletAddress ? (
+                {!sessionWalletAddress ? (
+                    '-'
+                ) : (
                     <>
                         <p 
                             onClick={() => copyToClipboard(sessionWalletAddress)}
@@ -44,17 +43,17 @@ const AccountSession = () => {
                                 className={styles.actionButton}
                                 onClick={() => setIsDepositModalOpen(true)}
                             >
-                                Deposit
+                                DEPOSIT
                             </button>
                             <button 
                                 className={styles.actionButton}
                                 onClick={() => setIsWithdrawModalOpen(true)}
                             >
-                                Withdraw
+                                WITHDRAW
                             </button>
                         </div>
                     </>
-                ) : '-'}
+                )}
             </div>
             <DepositModal 
                 isOpen={isDepositModalOpen}

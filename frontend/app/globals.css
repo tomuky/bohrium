@@ -9,7 +9,7 @@
     --background-hover: #1a1a1a;
     --border: #2f3336;
     --text-primary: #fff;
-    --white-hover: #dbdbdb;
+    --white-hover: rgba(255,255,255,0.5);
     --secondary-button-color: #2f3336;
     --secondary-button-hover: #3f4346;
     --label-text: #888;

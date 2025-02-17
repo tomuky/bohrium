@@ -2,11 +2,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { miningService } from '../services/miningService';
+import { useSessionWallet } from './SessionWalletContext';
 
 const MiningContext = createContext({});
 
 export function MiningProvider({ children }) {
     const { isConnected, address } = useAccount();
+    const sessionWalletContext = useSessionWallet();
     const [isMining, setIsMining] = useState(false);
     const [consoleItems, setConsoleItems] = useState([]);
     const [walletError, setWalletError] = useState(null);
@@ -94,6 +96,12 @@ export function MiningProvider({ children }) {
             clearInterval(metricsInterval);
         };
     }, [isMining]);
+
+    useEffect(() => {
+        if (sessionWalletContext) {
+            miningService.setSessionWalletContext(sessionWalletContext);
+        }
+    }, [sessionWalletContext]);
 
     const createConsoleItem = (event) => {
         // Use UTC timestamp in ISO format

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useSessionWallet } from '../hooks/useSessionWallet';
+import { useState, useContext } from 'react';
+import { useSessionWallet } from '../contexts/SessionWalletContext';
 import styles from './Modal.module.css';
 import Image from 'next/image';
 

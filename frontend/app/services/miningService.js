@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { MINING_ABI, TOKEN_ABI, MINING_CONFIG } from './constants';
 import { sleep, getCurrentTimestamp } from './utils';
 import { getNetworkConfig } from './config';
+import { useSessionWallet } from '../contexts/SessionWalletContext';
 
 class MiningService {
     constructor() {
@@ -36,6 +37,7 @@ class MiningService {
         this.sessionWallet = null;
         this.mainWallet = null;
         this.sessionWalletAddress = null;
+        this.sessionWalletContext = null;
     }
 
     // Add event listener
@@ -56,57 +58,36 @@ class MiningService {
         });
     }
 
-    async generateSessionWallet() {
-        const mainAddress = await this.mainWallet.getAddress();
-        const signatureMessage = `This is a gasless signature to create a session key for Bohrium mining.\n\nWARNING: Only sign this message on the official Bohrium website. Signing this message on another website could expose your session keys to attackers.\n\nCheck our socials for offical links.\n\nWallet: ${mainAddress}`;
-        
-        // Get deterministic signature from user
-        const signedMessage = await this.mainWallet.signMessage(signatureMessage);
-        
-        // Generate deterministic seed from signature
-        const seed = ethers.keccak256(ethers.toUtf8Bytes(signedMessage));
-        
-        // Create wallet from private key using Wallet
-        const sessionWallet = new ethers.Wallet(seed);
-
-        // Emit event for UI feedback
-        this.emit('session_key_generated', {
-            icon: '/images/key.png',
-            text: 'Session key loaded',
-            address: sessionWallet.address
-        });
-
-        return sessionWallet;
-    }
-
     async connect() {
         try {
-            if (!window.ethereum) {
-                throw new Error('MetaMask is not installed');
+            if (!this.sessionWalletContext) {
+                throw new Error("SessionWalletContext not initialized. Call setSessionWalletContext first.");
             }
 
-            this.provider = new ethers.BrowserProvider(window.ethereum);
-            this.mainWallet = await this.provider.getSigner();
+            // Get the latest session wallet using the context's method
+            const { wallet: sessionWallet, address: sessionWalletAddress } = 
+                await this.sessionWalletContext.getSessionWallet();
             
-            // Generate deterministic session wallet
-            this.sessionWallet = await this.generateSessionWallet();
-            this.sessionWalletAddress = await this.sessionWallet.getAddress();
-            
-            // Connect session wallet to provider
-            this.signer = this.sessionWallet.connect(this.provider);
-            this.signerAddress = await this.signer.getAddress();
+            if (!sessionWallet) {
+                throw new Error("Failed to get session wallet");
+            }
+
+            // Set up provider from the session wallet
+            this.provider = sessionWallet.provider;
+            this.signer = sessionWallet;
+            this.signerAddress = sessionWalletAddress;
+            this.sessionWalletAddress = sessionWalletAddress;
             
             const chainId = (await this.provider.getNetwork()).chainId;
             const networkConfig = getNetworkConfig(Number(chainId));
 
-            // Initialize mining contract
+            // Initialize contracts
             this.miningContract = new ethers.Contract(
                 networkConfig.contracts.mining,
                 MINING_ABI,
                 this.signer
             );
             
-            // Initialize token contract
             const bohrTokenAddress = await this.miningContract.bohriumToken();
             this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
             
@@ -556,6 +537,11 @@ class MiningService {
     // Add this new getter method
     getSessionWalletAddress() {
         return this.sessionWalletAddress;
+    }
+
+    // Add this new method to set the context
+    setSessionWalletContext(context) {
+        this.sessionWalletContext = context;
     }
 }
 
