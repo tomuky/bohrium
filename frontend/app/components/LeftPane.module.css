@@ -3,7 +3,7 @@
     flex-direction: column;
     background: var(--background-secondary);
     border-right: 1px solid var(--border);
-    width: 50%;
+    width: 40%;
     min-height: calc(100vh - 80px); /* Subtract header height */
 }
 

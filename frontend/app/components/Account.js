@@ -21,10 +21,6 @@ const Account = () => {
             <AccountSession />
 
             <div className={styles.metricsGrid}>
-                {/* <div className={styles.metricCard}>
-                    <h3>BOHR Balance</h3>
-                    <p>{isConnected ? '0.00 BOHR' : '-'}</p>
-                </div> */}
                 <div className={styles.metricCard}>
                     <h3>Current Hash Rate</h3>
                     <p>{isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}</p>
@@ -52,19 +48,19 @@ const Account = () => {
                             Current
                         </h3>
                         <div className={styles.address}>
-                            {currentCheckingHash && `0x${currentCheckingHash.substring(0, 20)}...`}
+                            {currentCheckingHash && `0x${currentCheckingHash.substring(0, 10)}...`}
                         </div>
                         <h3>
                             Best
                         </h3>
                         <div className={styles.address}>
-                            {bestHash && `0x${bestHash.substring(0, 20)}...`}
+                            {bestHash && `0x${bestHash.substring(0, 10)}...`}
                         </div>
                         <h3>
                             Target
                         </h3>
                         <div className={styles.address}>
-                            {currentDifficulty && `0x${currentDifficulty.substring(0, 20)}...`}
+                            {currentDifficulty && `0x${currentDifficulty.substring(0, 10)}...`}
                         </div>
                     </div>
                 </div>
