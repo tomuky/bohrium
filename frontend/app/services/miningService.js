@@ -262,40 +262,10 @@ class MiningService {
 
     async submitBestHash() {
         try {
-            this.emit('preparing_transaction', {
-                message: "Preparing transaction",
-                icon: '/images/checklist.png'
-            });
             const tx = await this.submitBlock();
-            
-            this.emit('transaction', {
-                message: "Transaction submitted",
-                hash: tx.hash,
-                icon: '/images/send.png',
-                pill: `${tx.hash.substring(0, 8)}...`
-            });
-
-            const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
-            
-            if (receipt.status === 1) {
-                this.emit('transaction_success', {
-                    message: "Submitted successfully",
-                    hash: receipt.hash,
-                    icon: '/images/check.png'
-                });
-                return true; // needed?
-            }
+            this.emit('transaction', {hash: tx.hash});
         } catch (error) {
-            if (error.code === "ACTION_REJECTED") {
-                this.emit('user_rejected');
-                throw error; // Re-throw to break the mining loop
-            }
-            
-            this.emit('error', {
-                message: "Block submission failed",
-                error: error.message,
-                icon: '/images/error.png'
-            });
+            console.error('Error submitting hash:', error);
             throw error; // Re-throw to handle in calling function
         }
     }
@@ -468,7 +438,7 @@ class MiningService {
             hash: hash
         });
 
-        return this.miningContract.submitBlock(
+        const tx = await this.miningContract.submitBlock(
             this.bestNonce,
             {
                 gasLimit: Math.floor(
@@ -476,6 +446,8 @@ class MiningService {
                 )
             }
         );
+
+        return tx;
     }
 
     // Helper method to update hash rate statistics

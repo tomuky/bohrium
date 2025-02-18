@@ -12,6 +12,7 @@ export const NETWORKS = {
         name: 'Base Sepolia',
         chainId: 84532,
         rpcUrl: 'https://sepolia.base.org',
+        baseScanUrl: 'https://sepolia.basescan.org',
         contracts: {
             mining: '0xACeE79D68d42d2f2d71Aa96D0F8510A8ADD4a8B3',
             bohr: '0xe248Dc8Ef9163DADDbd65609413F7b3d16A22Ecb'
@@ -21,6 +22,7 @@ export const NETWORKS = {
         name: 'Base',
         chainId: 8453,
         rpcUrl: 'https://mainnet.base.org',
+        baseScanUrl: 'https://basescan.org',
         contracts: {
             mining: '0x...' // mainnet address when deployed
         }

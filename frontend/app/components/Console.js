@@ -4,6 +4,7 @@ import ConsoleItem from './ConsoleItem'
 import { useMining } from '../contexts/MiningContext'
 import ConsoleMiningItem from './ConsoleMiningItem'
 import ConsoleRainbowItem from './ConsoleRainbowItem'
+import ConsoleTransactionItem from './ConsoleTransactionItem'
 import { memo } from 'react'
 
 // Memoize the item renderer function
@@ -23,6 +24,12 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
             icon={item.icon}
             text={item.text}
             pill={item.pill}
+            timestamp={item.timestamp}
+        />
+    }else if(item.type === 'transaction') {
+        return <ConsoleTransactionItem 
+            key={`${item.timestamp}-${index}`}
+            hash={item.hash}
             timestamp={item.timestamp}
         />
     } else {
