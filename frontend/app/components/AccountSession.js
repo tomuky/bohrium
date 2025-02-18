@@ -35,8 +35,8 @@ const AccountSession = () => {
                             {sessionWalletAddress.slice(0, 6)}...{sessionWalletAddress.slice(-4)}
                         </p>
                         <div className={styles.balances}>
-                            <p>{balances.eth || '0.00'} ETH</p>
-                            <p>{balances.bohr || '0.00'} BOHR</p>
+                            <p>ETH {balances.eth || '0.00'}</p>
+                            <p>BOHR {balances.bohr || '0.00'}</p>
                         </div>
                         <div className={styles.actions}>
                             <button 
