@@ -136,7 +136,7 @@ class MiningService {
     }
 
     async start(restart = false) {
-        if (this.isRunning) return; // already running
+        if (this.isRunning && !restart) return; // already running
         
         try {
             if(!restart) {
