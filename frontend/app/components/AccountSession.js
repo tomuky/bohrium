@@ -3,16 +3,20 @@ import styles from './AccountSession.module.css'
 import { useState, useContext } from 'react'
 import DepositModal from './DepositModal'
 import WithdrawModal from './WithdrawModal'
+import Image from 'next/image'
 import { useSessionWallet } from '../contexts/SessionWalletContext'
 
 const AccountSession = () => {
     const { sessionWalletAddress, balances } = useSessionWallet();
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+    const [showCopied, setShowCopied] = useState(false);
 
     const copyToClipboard = async (text) => {
         try {
             await navigator.clipboard.writeText(text);
+            setShowCopied(true);
+            setTimeout(() => setShowCopied(false), 2000); // Hide after 2 seconds
         } catch (err) {
             console.error('Failed to copy address:', err);
         }
@@ -21,22 +25,43 @@ const AccountSession = () => {
     return (
         <div className={styles.sessionArea}>
             <div className={styles.sessionAreaBlock}>
-                <h3>Session Wallet</h3>
-                {!sessionWalletAddress ? (
-                    '-'
-                ) : (
+                {!sessionWalletAddress && (
                     <>
+                        <h3>Session Wallet</h3>
+                        <p className={styles.addressText}>-</p>
+                    </>
+                )}
+                
+                {sessionWalletAddress && (
+                    <>
+                        <h3>Session Wallet</h3>
                         <p 
                             onClick={() => copyToClipboard(sessionWalletAddress)}
                             className={styles.addressText}
                             title="Click to copy address"
-                            style={{ cursor: 'pointer' }}
                         >
                             {sessionWalletAddress.slice(0, 6)}...{sessionWalletAddress.slice(-4)}
+                            {showCopied && (
+                                <span className={styles.tooltip}>
+                                    Copied!
+                                </span>
+                            )}
                         </p>
                         <div className={styles.balances}>
-                            <p>ETH {balances.eth || '0.00'}</p>
-                            <p>BOHR {balances.bohr || '0.00'}</p>
+                            <div className={styles.balanceItem}>
+                                <div className={styles.balanceItemAsset}>
+                                    <Image src="/images/eth.png" alt="ETH" width={20} height={20} className={styles.balanceItemAssetImage}/>
+                                    <span className={styles.tokenSymbol}>ETH</span>
+                                </div>
+                                <span className={styles.tokenAmount}>{balances.eth || '0.00'}</span>
+                            </div>
+                            <div className={styles.balanceItem}>
+                                <div className={styles.balanceItemAsset}>
+                                    <Image src="/images/bohr.png" alt="BOHR" width={20} height={20} className={styles.balanceItemAssetImage}/>
+                                    <span className={styles.tokenSymbol}>BOHR</span>
+                                </div>
+                                <span className={styles.tokenAmount}>{balances.bohr || '0.00'}</span>
+                            </div>
                         </div>
                         <div className={styles.actions}>
                             <button 

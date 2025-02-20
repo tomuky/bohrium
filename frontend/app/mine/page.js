@@ -3,13 +3,12 @@ import styles from './page.module.css'
 import Console from '../components/Console';
 import { useMining } from '../contexts/MiningContext';
 import { useAccount } from 'wagmi';
-import { useState } from 'react';
 import { useSessionWallet } from '../contexts/SessionWalletContext';
 
 const Mine = () => {    
     const { isMining, setIsMining } = useMining();
     const { isConnected } = useAccount();
-    const { getSessionWallet, sessionWalletAddress, hasSessionWallet } = useSessionWallet();
+    const { getSessionWallet, hasSessionWallet } = useSessionWallet();
 
     const handleSessionWallet = async () => {
         if (!hasSessionWallet) {

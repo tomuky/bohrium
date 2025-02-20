@@ -24,17 +24,36 @@
 }
 
 .balances {
-    margin: 1rem 0;
     display: flex;
-    gap: 1rem;
-    display: flex;
-    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    margin: 20px 0;
 }
 
-.balances p {
-    padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+.balanceItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.balanceItemAsset{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.balanceItemAssetImage{
+    opacity: 0.5;
+}
+.tokenSymbol {
+    font-weight: 500;
+    color: #888;
+}
+
+.tokenAmount {
+    font-family: monospace;
+    font-weight: 600;
 }
 
 .actions {
@@ -61,10 +80,23 @@
     background: var(--white-hover);
 }
 
+.addressText{
+    cursor: pointer;
+    position: relative;
+}
 .addressText:hover {
     opacity: 0.8;
 }
-
-.addressText:active {
-    opacity: 0.6;
+.tooltip{
+    position: absolute;
+    opacity: 1 !important;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
 }
