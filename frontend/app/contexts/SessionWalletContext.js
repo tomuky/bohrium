@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { useBalance, useReadContract, useWriteContract, useSendTransaction } from 'wagmi';
 import { TOKEN_ABI } from '../services/constants';
 import { NETWORKS } from '../services/config';  
@@ -14,6 +14,14 @@ export function SessionWalletProvider({ children }) {
     const [sessionWallet, setSessionWallet] = useState(null);
     const [hasSessionWallet, setHasSessionWallet] = useState(false);
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
+
+    // Add useEffect to watch for main wallet changes
+    useEffect(() => {
+        // Reset session wallet when main wallet changes or disconnects
+        setSessionWallet(null);
+        setSessionWalletAddress(null);
+        setHasSessionWallet(false);
+    }, [mainWalletAddress]);
 
     // Get ETH balance using wagmi's useBalance hook
     const { data: ethBalanceData } = useBalance({
