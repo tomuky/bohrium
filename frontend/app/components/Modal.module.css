@@ -96,7 +96,7 @@
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 36px;
-    min-width: 150px;
+    min-width: 50px;
 }
 
 .select:hover {
@@ -150,4 +150,10 @@
 }
 .txLink:hover{
     text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .modalContent{
+        max-width: 90%;
+    }
 }

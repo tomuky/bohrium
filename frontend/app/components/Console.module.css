@@ -167,3 +167,12 @@
 .rewardItem:hover::before {
   opacity: 1;
 }
+
+@media (max-width: 768px) {
+    .itemText{
+        font-size: 14px;
+    }
+    .txLink{
+        font-size: 12px;
+    }
+}

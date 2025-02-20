@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useSessionWallet } from '../contexts/SessionWalletContext'
 
 const AccountSession = () => {
-    const { sessionWalletAddress, balances } = useSessionWallet();
+    const { sessionWalletAddress, balances, formattedBalances } = useSessionWallet();
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
     const [showCopied, setShowCopied] = useState(false);
@@ -26,41 +26,43 @@ const AccountSession = () => {
         <div className={styles.sessionArea}>
             <div className={styles.sessionAreaBlock}>
                 {!sessionWalletAddress && (
-                    <>
+                    <div className={`${styles.sessionAreaBlockTitle}`}>
                         <h3>Session Wallet</h3>
                         <p className={styles.addressText}>-</p>
-                    </>
+                    </div>
                 )}
                 
                 {sessionWalletAddress && (
                     <>
-                        <h3>Session Wallet</h3>
-                        <p 
-                            onClick={() => copyToClipboard(sessionWalletAddress)}
-                            className={styles.addressText}
-                            title="Click to copy address"
-                        >
-                            {sessionWalletAddress.slice(0, 6)}...{sessionWalletAddress.slice(-4)}
-                            {showCopied && (
-                                <span className={styles.tooltip}>
-                                    Copied!
-                                </span>
-                            )}
-                        </p>
+                        <div className={`${styles.sessionAreaBlockTitle}`}>
+                            <h3>Session Wallet</h3>
+                            <p 
+                                onClick={() => copyToClipboard(sessionWalletAddress)}
+                                className={styles.addressText}
+                                title="Click to copy address"
+                            >
+                                {sessionWalletAddress.slice(0, 6)}...{sessionWalletAddress.slice(-4)}
+                                {showCopied && (
+                                    <span className={styles.tooltip}>
+                                        Copied!
+                                    </span>
+                                )}
+                            </p>
+                        </div>
                         <div className={styles.balances}>
                             <div className={styles.balanceItem}>
                                 <div className={styles.balanceItemAsset}>
                                     <Image src="/images/eth.png" alt="ETH" width={20} height={20} className={styles.balanceItemAssetImage}/>
                                     <span className={styles.tokenSymbol}>ETH</span>
                                 </div>
-                                <span className={styles.tokenAmount}>{balances.eth || '0.00'}</span>
+                                <span className={styles.tokenAmount}>{formattedBalances.eth || '0.00'}</span>
                             </div>
                             <div className={styles.balanceItem}>
                                 <div className={styles.balanceItemAsset}>
                                     <Image src="/images/bohr.png" alt="BOHR" width={20} height={20} className={styles.balanceItemAssetImage}/>
                                     <span className={styles.tokenSymbol}>BOHR</span>
                                 </div>
-                                <span className={styles.tokenAmount}>{balances.bohr || '0.00'}</span>
+                                <span className={styles.tokenAmount}>{formattedBalances.bohr || '0.00'}</span>
                             </div>
                         </div>
                         <div className={styles.actions}>

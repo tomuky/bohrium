@@ -173,6 +173,10 @@ export function SessionWalletProvider({ children }) {
             eth: ethBalanceData?.value ? Number(formatEther(ethBalanceData.value)).toFixed(7) : '0',
             bohr: bohrBalance ? formatEther(bohrBalance) : '0'
         },
+        formattedBalances: {
+            eth: ethBalanceData?.value ? Number(formatEther(ethBalanceData.value)).toLocaleString(undefined, { minimumFractionDigits: 7, maximumFractionDigits: 7 }) : '0',
+            bohr: bohrBalance ? Number(formatEther(bohrBalance)).toLocaleString() : '0'
+        },
         isLoading: isEthPending || isTokenPending || isWithdrawPending,
         isSuccess: isEthSuccess || isTokenSuccess || isWithdrawSuccess,
         error: null,

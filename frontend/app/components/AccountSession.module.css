@@ -67,17 +67,18 @@
     flex: 1;
     max-width: 200px;
     padding: 10px;
-    background: white;
-    color: black;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
-    border: none;
     font-weight: bold;
 }
 
 .actionButton:hover {
-    background: var(--white-hover);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .addressText{
@@ -99,4 +100,41 @@
     border-radius: 4px;
     font-size: 12px;
     white-space: nowrap;
+}
+.sessionAreaBlockTitle{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+}
+.desktopOnly{
+    display: flex;
+}
+@media (max-width: 768px) {
+    .desktopOnly{
+        display: none;
+    }
+    .balances {
+        flex-direction: row;
+    }
+    .balanceItem{
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+    .tokenAmount{
+        font-size: 1.2rem;
+    }
+    .sessionAreaBlockTitle{
+        justify-content: space-between;
+        align-items: center;
+        flex-direction: row;
+        width: 100%;
+    }
+    .sessionAreaBlockTitle h3{
+        margin: 0;
+    }
+    
 }
