@@ -24,6 +24,15 @@ export function SessionWalletProvider({ children }) {
         }
     });
 
+    // Get ETH balance of main wallet
+    const { data: ethBalanceMain } = useBalance({
+        address: mainWalletAddress,
+        watch: true,
+        query: {
+            refetchInterval: 2000,
+        }
+    });
+
     // Get BOHR balance
     const { data: bohrBalance } = useReadContract({
         address: NETWORKS.baseSepolia.contracts.bohr,
@@ -35,15 +44,27 @@ export function SessionWalletProvider({ children }) {
         }
     });
 
+    // Get BOHR balance for main wallet
+    const { data: bohrBalanceMain } = useReadContract({
+        address: NETWORKS.baseSepolia.contracts.bohr,
+        abi: TOKEN_ABI,
+        functionName: 'balanceOf',
+        args: [mainWalletAddress],
+        query: {
+            refetchInterval: 2000,
+        }
+    });
+
     // Separate hooks for ETH and token transfers
-    const { sendTransaction, isPending: isEthPending } = useSendTransaction();
-    const { writeContract, isPending: isTokenPending } = useWriteContract();
+    const { data: ethData, sendTransactionAsync, isPending: isEthPending, isSuccess: isEthSuccess } = useSendTransaction();
+    const { data: tokenData, writeContractAsync, isPending: isTokenPending, isSuccess: isTokenSuccess } = useWriteContract();
+
+    // Add new state variables for withdraw transactions
+    const [isWithdrawPending, setIsWithdrawPending] = useState(false);
+    const [isWithdrawSuccess, setIsWithdrawSuccess] = useState(false);
 
     const getSessionWallet = async () => {
-        console.log('sessionWallet', sessionWallet)
-        console.log('mainWalletAddress', mainWalletAddress)
         if (!sessionWallet && mainWalletAddress) {
-            console.log('getSessionWallet')
             try {
                 const provider = new ethers.BrowserProvider(window.ethereum);
                 const mainWallet = await provider.getSigner();
@@ -76,18 +97,19 @@ export function SessionWalletProvider({ children }) {
 
         try {
             if (token === 'ETH') {
-                const result = await sendTransaction({
+                const hash = await sendTransactionAsync({
                     to: sessionWalletAddress,
                     value: parsedAmount,
                 });
-                return result;
+                return hash;
             } else if (token === 'BOHR') {
-                const result = await writeContract({
+                const result = await writeContractAsync({
                     address: NETWORKS.baseSepolia.contracts.bohr,
                     abi: TOKEN_ABI,
                     functionName: 'transfer',
                     args: [sessionWalletAddress, parsedAmount],
                 });
+                console.log('result', result)
                 return result;
             }
         } catch (err) {
@@ -101,6 +123,8 @@ export function SessionWalletProvider({ children }) {
             throw new Error('Missing required parameters for withdraw');
         }
 
+        setIsWithdrawPending(true);
+        setIsWithdrawSuccess(false);
         const parsedAmount = parseEther(amount);
 
         try {
@@ -109,21 +133,29 @@ export function SessionWalletProvider({ children }) {
             }
 
             if (token === 'ETH') {
-                return await sessionWallet.sendTransaction({
+                const result = await sessionWallet.sendTransaction({
                     to: mainWalletAddress,
                     value: parsedAmount
                 });
+                await result.wait(); // Wait for transaction confirmation
+                setIsWithdrawSuccess(true);
+                return result;
             } else if (token === 'BOHR') {
                 const tokenContract = new ethers.Contract(
                     NETWORKS.baseSepolia.contracts.bohr,
                     TOKEN_ABI,
                     sessionWallet
                 );
-                return await tokenContract.transfer(mainWalletAddress, parsedAmount);
+                const result = await tokenContract.transfer(mainWalletAddress, parsedAmount);
+                await result.wait(); // Wait for transaction confirmation
+                setIsWithdrawSuccess(true);
+                return result;
             }
         } catch (err) {
             console.error('Withdraw error:', err);
             throw err;
+        } finally {
+            setIsWithdrawPending(false);
         }
     };
 
@@ -133,12 +165,18 @@ export function SessionWalletProvider({ children }) {
             eth: ethBalanceData?.value ? Number(formatEther(ethBalanceData.value)).toFixed(7) : '0',
             bohr: bohrBalance ? formatEther(bohrBalance) : '0'
         },
-        isLoading: isEthPending || isTokenPending,
+        isLoading: isEthPending || isTokenPending || isWithdrawPending,
+        isSuccess: isEthSuccess || isTokenSuccess || isWithdrawSuccess,
         error: null,
         deposit,
         withdraw,
         getSessionWallet,
         hasSessionWallet,
+        data: ethData || tokenData,
+        balancesMain: {
+            bohr: bohrBalanceMain ? formatEther(bohrBalanceMain) : '0',
+            eth: ethBalanceMain ? Number(formatEther(ethBalanceMain)).toFixed(7) : '0'
+        }
     };
 
     return (

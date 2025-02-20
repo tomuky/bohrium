@@ -1,44 +1,69 @@
-import { useState, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './Modal.module.css';
 import Image from 'next/image';
 import { useSessionWallet } from '../contexts/SessionWalletContext';
+import { DEFAULT_NETWORK } from '../services/config';
 
 const WithdrawModal = ({ isOpen, onClose }) => {
     const [selectedToken, setSelectedToken] = useState('ETH');
     const [amount, setAmount] = useState('');
     const [error, setError] = useState('');
-    const { balances, withdraw, isLoading } = useSessionWallet();
+    const [txHash, setTxHash] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const { balances, withdraw, isLoading, isSuccess } = useSessionWallet();
+
+    useEffect(() => {
+        if (isSuccess) {
+            setSuccessMessage('Transaction successful');
+        }
+    }, [isSuccess]);
 
     const handleWithdraw = async () => {
+        if (isLoading) {
+            return;
+        }
+
         try {
             setError('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
                 return;
             }
-            
-            const balance = selectedToken === 'ETH' ? balances.eth : balances.bohr;
-            if (Number(amount) > Number(balance)) {
+
+            if(selectedToken === 'BOHR' && Number(amount) > Number(balances.bohr)) {
+                setError('Insufficient balance');
+                return;
+            }
+            if(selectedToken === 'ETH' && Number(amount) > Number(balances.eth)) {
                 setError('Insufficient balance');
                 return;
             }
 
-            await withdraw(amount, selectedToken);
-            onClose();
+            const tx = await withdraw(amount, selectedToken);
+            if(tx.hash){
+                setTxHash(tx.hash);
+            }
         } catch (err) {
             setError(err.message || 'Failed to withdraw');
             console.error('Withdrawal error:', err);
         }
     };
 
+    const handleClose = () => {
+        setTxHash('');
+        setSuccessMessage('');
+        setAmount('');
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={styles.modalOverlay} onClick={handleClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
                     <h2>Withdraw</h2>
-                    <button className={styles.closeButton} onClick={onClose}>
+                    <button className={styles.closeButton} onClick={handleClose}>
                         <Image src="/images/close.png" alt="Close" width={16} height={16} />
                     </button>
                 </div>
@@ -66,7 +91,6 @@ const WithdrawModal = ({ isOpen, onClose }) => {
                     >
                         Balance: {selectedToken === 'ETH' ? balances.eth : balances.bohr}
                     </p>
-                    {error && <p className={styles.error}>{error}</p>}
                     <button 
                         className={styles.depositButton}
                         onClick={handleWithdraw}
@@ -74,6 +98,28 @@ const WithdrawModal = ({ isOpen, onClose }) => {
                     >
                         {isLoading ? 'WITHDRAWING...' : 'WITHDRAW'}
                     </button>
+                    {error && (
+                        <p className={styles.error}>
+                            {error.message || 'Transaction failed'}
+                        </p>
+                    )}
+                    {txHash && (
+                        <p className={styles.message}>
+                            <a 
+                                href={`${DEFAULT_NETWORK.baseScanUrl}/tx/${txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.txLink}
+                            >
+                                View on explorer
+                            </a>
+                        </p>
+                    )}
+                    {successMessage && (
+                        <p className={styles.message}>
+                            {successMessage}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
