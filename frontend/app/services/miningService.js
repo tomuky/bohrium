@@ -148,19 +148,23 @@ class MiningService {
                 if (currentLastBlockHash !== this.latestBlockHash) {
                     console.log('Mining parameters changed, flagging for restart');
 
-                    this.emit('new_block', {
-                        message: "New block",
-                        icon: '/images/new-block.png',
-                        blockHeight: this.currentBlockHeight,
-                        lastBlockHash: this.latestBlockHash,
-                        pill: `#${this.currentBlockHeight}`
+                    // this.emit('new_block', {
+                    //     message: "New block",
+                    //     icon: '/images/new-block.png',
+                    //     blockHeight: this.currentBlockHeight,
+                    //     lastBlockHash: this.latestBlockHash,
+                    //     pill: `#${this.currentBlockHeight}`
+                    // });
+                    this.emit('params_changed', {
+                        message: "Mining parameters changed",
+                        icon: '/images/params.png'
                     });
                     
                     const newDifficulty = await this.miningContract.currentDifficulty();
                     if(newDifficulty !== this.currentDifficulty) {
                         this.emit('difficulty_change', {
                             message: "Difficulty changed",
-                            icon: '/images/params.png',
+                            icon: '/images/gauge.png',
                             difficulty: newDifficulty
                         });
                     }
@@ -235,10 +239,7 @@ class MiningService {
 
                 console.log('Mining loop');
                 this.emit('mining', { 
-                    message: "Mining",
-                    difficulty: this.currentDifficulty.toString(16).substring(0,12) + "...",
-                    blockHeight: this.currentBlockHeight,
-                    lastBlockHash: this.latestBlockHash
+                    message: "Mining"
                 });
 
                 // Start mining for this block
@@ -252,13 +253,26 @@ class MiningService {
                         // Listen for mining success event
                         const receipt = await tx.wait();
                         if (receipt.status === 1) {
-                            const formattedReward = ethers.formatUnits(this.currentBlockReward, 18);
-                            this.emit('reward', {
-                                message: 'Earned BOHR',
-                                reward: this.currentBlockReward,
-                                pill: `+${formattedReward} BOHR`,
-                                icon: '/images/earned.png'
+                            // Find the mining success event to get the actual mined block height
+                            const miningEvent = receipt.logs.find(log => {
+                                try {
+                                    return this.miningContract.interface.parseLog(log)?.name === 'BlockMined';
+                                } catch {
+                                    return false;
+                                }
                             });
+                            
+                            // Only emit reward event if we found the BlockMined event
+                            if (miningEvent) {
+                                console.log('mining event: ',this.miningContract.interface.parseLog(miningEvent).args)
+                                const { blockHeight: minedBlockHeight, reward } = this.miningContract.interface.parseLog(miningEvent).args;
+                                const formattedReward = ethers.formatUnits(reward, 18);
+                                this.emit('reward', {
+                                    message: `Mined Block #${minedBlockHeight}`,
+                                    pill: `+${formattedReward} BOHR`,
+                                    icon: '/images/earned.png'
+                                });
+                            }
                         }
                     } catch (error) {
                         if (error.code === "ACTION_REJECTED") {
