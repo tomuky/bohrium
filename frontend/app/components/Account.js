@@ -22,11 +22,11 @@ const Account = () => {
 
             <div className={styles.metricsGrid}>
                 <div className={styles.metricCard}>
-                    <h3>Current Hash Rate</h3>
+                    <h3>Hash Rate</h3>
                     <p>{isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}</p>
                 </div>
                 <div className={styles.metricCard}>
-                    <h3>Progress to Target</h3>
+                    <h3>Progress</h3>
                     <div>
                         {isConnected && bestHash && currentDifficulty ? (
                             <>
