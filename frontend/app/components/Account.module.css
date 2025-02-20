@@ -236,6 +236,8 @@
     border-radius: 10px;
     padding: 10px;
     text-align: center;
+    align-content: center;
+    min-height: 90px;
 }
 
 .metricCard h3 {
@@ -291,5 +293,10 @@
     }
     .metricCard{
         padding: 10px 20px;
+        flex: 1;
+    }
+    .metricsGrid{
+        display: flex;
+        gap: 10px;
     }
 }
