@@ -36,6 +36,9 @@ class MiningService {
         this.sessionWallet = null;
         this.sessionWalletAddress = null;
         this.sessionWalletContext = null;
+
+        this.lastParamsChangedTime = 0;
+        this.paramsChangedCooldown = 2000; // 2 second cooldown
     }
 
     // Add event listener
@@ -147,19 +150,17 @@ class MiningService {
                 // Compare with current values before updating the latest values
                 if (currentLastBlockHash !== this.latestBlockHash) {
                     console.log('Mining parameters changed, flagging for restart');
-
-                    // this.emit('new_block', {
-                    //     message: "New block",
-                    //     icon: '/images/new-block.png',
-                    //     blockHeight: this.currentBlockHeight,
-                    //     lastBlockHash: this.latestBlockHash,
-                    //     pill: `#${this.currentBlockHeight}`
-                    // });
-                    this.emit('params_changed', {
-                        message: "Mining parameters changed",
-                        icon: '/images/params.png'
-                    });
                     
+                    const now = Date.now();
+                    // Only emit if enough time has passed since last emission
+                    if (now - this.lastParamsChangedTime >= this.paramsChangedCooldown) {
+                        this.emit('params_changed', {
+                            message: "Mining parameters changed",
+                            icon: '/images/params.png'
+                        });
+                        this.lastParamsChangedTime = now;
+                    }
+
                     const newDifficulty = await this.miningContract.currentDifficulty();
                     if(newDifficulty !== this.currentDifficulty) {
                         this.emit('difficulty_change', {
