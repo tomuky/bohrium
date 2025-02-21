@@ -77,8 +77,8 @@ export function SessionWalletProvider({ children }) {
                 const provider = new ethers.BrowserProvider(window.ethereum);
                 const mainWallet = await provider.getSigner();
                 
-                const signatureMessage = `This is a gasless signature to create a session key for Bohrium mining.\n\nWARNING: Only sign this message on the official Bohrium website. Signing this message on another website could expose your session keys to attackers.\n\nCheck our socials for offical links.\n\nWallet: ${mainWalletAddress}`;
-                
+                const signatureMessage = `WARNING: Only sign this message on the official website. Signing this message elsewhere will expose your session keys to attackers.\n\nThis is a gasless signature to create a session key to mine BOHR.\n\nDomain: ${window.location.hostname}\n\nWallet: ${mainWalletAddress}\n\nUnique App ID: Bohrium-Secure-Session-Key\n\nVersion: 1.0`;
+
                 const signedMessage = await mainWallet.signMessage(signatureMessage);
                 const seed = ethers.keccak256(ethers.toUtf8Bytes(signedMessage));
                 const wallet = new ethers.Wallet(seed, provider);

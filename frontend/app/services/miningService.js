@@ -208,8 +208,30 @@ class MiningService {
         }
     }
 
+    async checkWalletBalance() {
+        const balance = await this.provider.getBalance(this.sessionWalletAddress);
+        const estimatedGas = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
+        const feeData = await this.provider.getFeeData();
+        const requiredBalance = BigInt(Math.floor(estimatedGas)) * feeData.gasPrice;
+
+        if (BigInt(balance) < BigInt(requiredBalance)) {
+            this.emit('error', {
+                message: "Session wallet needs ETH",
+                icon: '/images/error.png'
+            });
+            return false;
+        }
+        return true;
+    }
+
     async miningLoop() {
         try {
+            // Initial balance check before starting mining loop
+            if (!(await this.checkWalletBalance())) {
+                this.stop();
+                return;
+            }
+
             let lastParamCheck = Date.now();
             const PARAM_CHECK_INTERVAL = 2000; // Check every 2 seconds
 
@@ -218,16 +240,7 @@ class MiningService {
                 const now = Date.now();
                 if (now - lastParamCheck >= PARAM_CHECK_INTERVAL) {
                     // Check wallet balance
-                    const balance = await this.provider.getBalance(this.sessionWalletAddress);
-                    const estimatedGas = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
-                    const feeData = await this.provider.getFeeData();
-                    const requiredBalance = BigInt(Math.floor(estimatedGas)) * feeData.gasPrice;
-
-                    if (BigInt(balance) < BigInt(requiredBalance)) {
-                        this.emit('error', {
-                            message: "Session wallet needs ETH",
-                            icon: '/images/error.png'
-                        });
+                    if (!(await this.checkWalletBalance())) {
                         this.stop();
                         return;
                     }
@@ -265,8 +278,8 @@ class MiningService {
                             // Only emit reward event if we found the BlockMined event
                             if (miningEvent) {
                                 console.log('mining event: ',this.miningContract.interface.parseLog(miningEvent).args)
-                                const { blockHeight: minedBlockHeight, reward } = this.miningContract.interface.parseLog(miningEvent).args;
-                                const formattedReward = ethers.formatUnits(reward, 18);
+                                const minedBlockHeight = this.miningContract.interface.parseLog(miningEvent).args.blockHeight;
+                                const formattedReward = ethers.formatUnits(this.currentBlockReward, 18);
                                 this.emit('reward', {
                                     message: `Mined Block #${minedBlockHeight}`,
                                     pill: `+${formattedReward} BOHR`,
