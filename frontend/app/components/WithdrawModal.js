@@ -6,6 +6,7 @@ import { DEFAULT_NETWORK } from '../services/config';
 
 const WithdrawModal = ({ isOpen, onClose }) => {
     const [selectedToken, setSelectedToken] = useState('ETH');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [amount, setAmount] = useState('');
     const [error, setError] = useState('');
     const [txHash, setTxHash] = useState('');
@@ -17,6 +18,11 @@ const WithdrawModal = ({ isOpen, onClose }) => {
             setSuccessMessage('Transaction successful');
         }
     }, [isSuccess]);
+
+    const handleTokenSelect = (token) => {
+        setSelectedToken(token);
+        setIsDropdownOpen(false);
+    };
 
     const handleWithdraw = async () => {
         if (isLoading) {
@@ -76,14 +82,31 @@ const WithdrawModal = ({ isOpen, onClose }) => {
                             placeholder="Enter amount"
                             className={styles.input}
                         />
-                        <select 
-                            value={selectedToken}
-                            onChange={(e) => setSelectedToken(e.target.value)}
-                            className={styles.select}
-                        >
-                            <option value="ETH">ETH</option>
-                            <option value="BOHR">BOHR</option>
-                        </select>
+                        <div className={styles.customDropdown}>
+                            <div 
+                                className={styles.dropdownHeader} 
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            >
+                                {selectedToken}
+                                <span className={styles.dropdownArrow}>▼</span>
+                            </div>
+                            {isDropdownOpen && (
+                                <div className={styles.dropdownContent}>
+                                    <div 
+                                        className={styles.dropdownItem}
+                                        onClick={() => handleTokenSelect('ETH')}
+                                    >
+                                        ETH
+                                    </div>
+                                    <div 
+                                        className={styles.dropdownItem}
+                                        onClick={() => handleTokenSelect('BOHR')}
+                                    >
+                                        BOHR
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <p 
                         className={styles.recommendation}
