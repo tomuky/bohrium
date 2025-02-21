@@ -91,16 +91,21 @@ const DepositModal = ({ isOpen, onClose }) => {
                             <option value="BOHR">BOHR</option>
                         </select>
                     </div>
-                    <p 
-                        className={styles.recommendation}
-                        onClick={() => {
-                            if (selectedToken === 'ETH') setAmount('0.01');
-                            if (selectedToken === 'BOHR') setAmount(balancesMain.bohr?.toString() || '');
-                        }}
-                    >
-                        {selectedToken === 'ETH' && 'Recommended: 0.01'}
-                        {selectedToken === 'BOHR' && `Balance: ${balancesMain.bohr}`}
-                    </p>
+                    <div className={styles.recommendationContainer}>
+                        <span 
+                            className={`${styles.recommendation} ${styles.recommendationClickable}`}
+                            onClick={() => {
+                                if (selectedToken === 'ETH') setAmount('0.01');
+                                if (selectedToken === 'BOHR') setAmount(balancesMain.bohr?.toString() || '');
+                            }}
+                        >
+                            {selectedToken === 'ETH' && 'Recommended: 0.01'}
+                            {selectedToken === 'BOHR' && `Balance: ${balancesMain.bohr}`}
+                        </span>
+                        <span className={`${styles.recommendation} ${styles.recommendationRed}`}>
+                            Keep low balances
+                        </span>
+                    </div>
                     <button 
                         className={styles.depositButton} 
                         onClick={handleDeposit}

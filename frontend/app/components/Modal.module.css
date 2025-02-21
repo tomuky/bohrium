@@ -109,15 +109,28 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
 }
 
+.recommendationContainer{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+
+.recommendationClickable{
+    cursor: pointer;
+}
+
+.recommendationClickable:hover{
+    text-decoration: underline;
+}
 .recommendation {
     color: var(--text-secondary);
     font-size: 0.9rem;
     min-height: 22px;
-    cursor: pointer;
 }
 
-.recommendation:hover {
-    text-decoration: underline;
+.recommendationRed{
+    color: indianred;
 }
 
 .depositButton {
