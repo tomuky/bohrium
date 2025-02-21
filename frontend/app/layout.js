@@ -1,5 +1,6 @@
 import './globals.css'
 import { Providers } from './providers'
+import { Analytics } from '@vercel/analytics/react'
 
 export const metadata = {
   title: 'Mine BOHR',
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
         <Providers>
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   )
