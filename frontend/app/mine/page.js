@@ -1,6 +1,7 @@
 'use client'
 import styles from './page.module.css'
 import Console from '../components/Console';
+import Instructions from '../components/Instructions';
 import { useMining } from '../contexts/MiningContext';
 import { useAccount } from 'wagmi';
 import { useSessionWallet } from '../contexts/SessionWalletContext';
@@ -47,7 +48,8 @@ const Mine = () => {
                     STOP MINING
                 </div>}
             </div>
-            <Console />
+            {hasSessionWallet && <Console />}
+            {!hasSessionWallet && <Instructions />}
         </div>
     )
 }

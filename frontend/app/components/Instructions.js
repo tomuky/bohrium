@@ -5,25 +5,32 @@ const Instructions = () => {
     return (
         <div className={styles.area}>
             <div className={styles.title}>
-                <h2>How to mine</h2>
+                <h3>How to mine</h3>
             </div>
             <div className={styles.content}>
                 <div className={styles.item}>
                     <div className={styles.number}>1.</div>
                     <div className={styles.itemContent}>
-                        <Image src="/images/wallet.png" alt="Wallet" width={24} height={24} className={styles.icon} />
+                        <Image src="/images/simple-wallet.png" alt="Wallet" width={24} height={24} className={styles.icon} />
                         <p>Connect wallet</p>
                     </div>
                 </div>
                 <div className={styles.item}>
                     <div className={styles.number}>2.</div>
                     <div className={styles.itemContent}>
-                        <Image src="/images/miner.png" alt="Miner" width={24} height={24} className={styles.icon} />
-                        <p>Create miner</p>
+                        <Image src="/images/sign.png" alt="Miner" width={24} height={24} className={styles.icon} />
+                        <p>Open session wallet</p>
                     </div>
                 </div>
                 <div className={styles.item}>
                     <div className={styles.number}>3.</div>
+                    <div className={styles.itemContent}>
+                        <Image src="/images/deposit.png" alt="Miner" width={24} height={24} className={styles.icon} />
+                        <p>Fund session wallet</p>
+                    </div>
+                </div>
+                <div className={styles.item}>
+                    <div className={styles.number}>4.</div>
                     <div className={styles.itemContent}>
                         <Image src="/images/pickaxe.png" alt="Pickaxe" width={24} height={24} className={styles.icon} />
                         <p>Start mining</p>
