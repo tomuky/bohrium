@@ -9,7 +9,7 @@
 }
 
 .title {
-    
+    color: #888;
     font-weight: bold;
 }
 
@@ -24,9 +24,9 @@
 .item {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
+    gap: 30px;
     padding: 20px; 
-    background-color: var(--background-hover);
+    background-color: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
     width: 300px;
 }
@@ -34,17 +34,17 @@
     display: flex;
     flex-grow: 1;
     align-items: center;
-    gap: 10px;
+    gap: 20px;
 }
 .number {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: bold;
     color: var(--primary);
+    color: #888;
 }
 .icon {
-    width: 32px;
-    height: 32px;
-    margin-right: 10px;
+    width: 24px;
+    height: 24px;
 }
 .itemContent p {
     min-width: 115px;
