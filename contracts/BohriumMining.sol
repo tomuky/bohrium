@@ -6,86 +6,122 @@ interface IBohriumToken {
 }
 
 contract BohriumMining {
-    IBohriumToken public bohriumToken;
-
-    uint256 public initialReward = 10 * 10**18; // Initial reward (10 BOH)
-    uint256 public halvingInterval = 365 * 24 * 60 * 60; // Halve every 1 year
-    uint256 public lastHalvingTimestamp;
-    uint256 public roundDuration = 60 seconds;
-    uint256 public roundStartTime;
-    uint256 public roundEndTime;
-    uint256 public roundId;
-
-    address public bestMiner;
-    uint256 public bestHashValue;
-    bytes32 public bestHash;
+    IBohriumToken public immutable bohriumToken;
     
-    mapping(uint256 => uint256) public noncesSubmitted;
-    event NewBestHash(address indexed miner, uint256 nonce, uint256 hashValue);
-    event RoundEnded(uint256 indexed roundId, address winner, uint256 reward);
-    event RoundStarted(uint256 indexed roundId, uint256 startTime, uint256 endTime);
+    uint256 public constant INITIAL_REWARD = 10 * 10**18; // 10 BOHR
+    uint256 public constant HALVING_INTERVAL = 365 days;
+    uint256 public constant TARGET_BLOCK_TIME = 60 seconds;
+    uint256 public constant DIFFICULTY_ADJUSTMENT_BLOCKS = 5;
+    
+    uint256 public currentDifficulty; // The current difficulty target
+    uint256 public lastHalvingTimestamp;
+    uint256 public lastBlockTimestamp;
+    uint256 public blockHeight;
+    bytes32 public lastBlockHash;
+    uint256 public adjustmentStartTimestamp;
+    
+    event BlockMined(
+        address indexed miner,
+        uint256 indexed blockHeight,
+        uint256 nonce,
+        uint256 reward,
+        uint256 timeTaken
+    );
+    event DifficultyAdjusted(uint256 newDifficulty);
     event RewardHalved(uint256 newReward);
 
     constructor(address _bohriumTokenAddress) {
         bohriumToken = IBohriumToken(_bohriumTokenAddress);
         lastHalvingTimestamp = block.timestamp;
-        startNewRound();
-    }
-
-    function startNewRound() private {
-        roundId++;
-        roundStartTime = block.timestamp;
-        roundEndTime = roundStartTime + roundDuration;
-        bestMiner = address(0);
-        bestHashValue = type(uint256).max;
-        emit RoundStarted(roundId, roundStartTime, roundEndTime);
+        lastBlockTimestamp = block.timestamp;
+        currentDifficulty = type(uint256).max >> 16;
+        lastBlockHash = bytes32(0);
     }
 
     function currentReward() public view returns (uint256) {
         uint256 elapsedTime = block.timestamp - lastHalvingTimestamp;
-        uint256 halvings = elapsedTime / halvingInterval;
-        uint256 reward = initialReward >> halvings;
-        return reward > 1e14 ? reward : 1e14;
+        uint256 halvings = elapsedTime / HALVING_INTERVAL;
+        uint256 reward = INITIAL_REWARD >> halvings;
+        return reward > 1e14 ? reward : 1e14; // Minimum reward of 0.0001 BOHR
     }
 
-    function submitNonce(uint256 nonce) external {
-        require(block.timestamp < roundEndTime, "Round has ended");
-        
+    function submitBlock(uint256 nonce) external {
         bytes32 hash = keccak256(abi.encodePacked(
             msg.sender,
-            bestHash, 
+            lastBlockHash,
+            currentDifficulty,
             nonce
         ));
+        
         uint256 hashValue = uint256(hash);
+        require(hashValue <= currentDifficulty, "Hash doesn't meet difficulty");
 
-        noncesSubmitted[roundId]++;
-
-        if (bestMiner == address(0) || hashValue < bestHashValue) {
-            bestMiner = msg.sender;
-            bestHashValue = hashValue;
-            bestHash = hash;
-            emit NewBestHash(msg.sender, nonce, hashValue);
+        // Calculate block time
+        uint256 timeElapsed = block.timestamp - lastBlockTimestamp;
+        
+        // Adjust difficulty every block with a moderate step
+        adjustDifficulty(timeElapsed);
+        
+        // Mint reward
+        uint256 reward = currentReward();
+        bohriumToken.mint(msg.sender, reward);
+        
+        // Update state
+        lastBlockHash = hash;
+        lastBlockTimestamp = block.timestamp;
+        blockHeight++;
+        
+        // Check for halving
+        if (block.timestamp >= lastHalvingTimestamp + HALVING_INTERVAL) {
+            lastHalvingTimestamp = block.timestamp;
+            emit RewardHalved(currentReward());
         }
+        
+        emit BlockMined(msg.sender, blockHeight, nonce, reward, timeElapsed);
+    }
+    
+    function adjustDifficulty(uint256 timeElapsed) internal {
+        // If this is the start of a new adjustment period, store the timestamp
+        if (blockHeight % DIFFICULTY_ADJUSTMENT_BLOCKS == 0) {
+            adjustmentStartTimestamp = block.timestamp;
+        }
+        
+        // Store the last block timestamp
+        lastBlockTimestamp = block.timestamp;
+        
+        // Only adjust difficulty at the end of each period
+        if ((blockHeight + 1) % DIFFICULTY_ADJUSTMENT_BLOCKS != 0) {
+            return;
+        }
+        
+        // Calculate actual timespan for the last DIFFICULTY_ADJUSTMENT_BLOCKS
+        uint256 timespan = block.timestamp - adjustmentStartTimestamp;
+        uint256 targetTimespan = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_BLOCKS;
+        
+        // Apply dampening to avoid drastic changes
+        if (timespan < targetTimespan / 4) {
+            timespan = targetTimespan / 4;
+        }
+        if (timespan > targetTimespan * 4) {
+            timespan = targetTimespan * 4;
+        }
+        
+        // Adjust difficulty based on timespan ratio
+        uint256 newDifficulty = (currentDifficulty * timespan) / targetTimespan;
+        
+        // Apply safety bounds
+        uint256 maxDifficulty = type(uint256).max >> 1;
+        uint256 minDifficulty = type(uint256).max >> 32;
+        
+        currentDifficulty = newDifficulty < minDifficulty ? minDifficulty :
+                           newDifficulty > maxDifficulty ? maxDifficulty :
+                           newDifficulty;
+        
+        emit DifficultyAdjusted(currentDifficulty);
     }
 
-    function endRound() public {
-        require(block.timestamp >= roundStartTime + roundDuration, "Round minimum duration not met");
-        
-        // If there was a miner, mint their reward
-        if (bestMiner != address(0)) {
-            uint256 reward = currentReward();
-            bohriumToken.mint(bestMiner, reward);
-            emit RoundEnded(roundId, bestMiner, reward);
-        } else {
-            emit RoundEnded(roundId, address(0), 0);
-        }
-
-        // Check for halving 
-        if (block.timestamp >= lastHalvingTimestamp + halvingInterval) {
-            lastHalvingTimestamp = block.timestamp;
-            emit RewardHalved(currentReward() >> 1);
-        }
-
-        startNewRound();
+    // Add this function for testing purposes only
+    function setCurrentDifficulty(uint256 _difficulty) external {
+        currentDifficulty = _difficulty;
     }
 }

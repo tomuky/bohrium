@@ -40,6 +40,9 @@
   text-decoration: none;
   opacity: 0.8;
   transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .socialLinks a:hover {
@@ -85,17 +88,9 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.startButton:disabled {
+.disabled {
   background-color: #cccccc;
-  color: #666666;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.startButton:disabled:hover {
-  transform: none;
-  box-shadow: none;
 }
 
 .backgroundVideo {

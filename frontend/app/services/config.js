@@ -5,21 +5,24 @@ export const NETWORKS = {
         chainId: 31337, // Hardhat's default chain ID
         rpcUrl: 'http://127.0.0.1:8545',
         contracts: {
-            mining: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+            mining: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
         }
     },
     baseSepolia: {
         name: 'Base Sepolia',
         chainId: 84532,
         rpcUrl: 'https://sepolia.base.org',
+        baseScanUrl: 'https://sepolia.basescan.org',
         contracts: {
-            mining: '0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87'
+            mining: '0xACeE79D68d42d2f2d71Aa96D0F8510A8ADD4a8B3',
+            bohr: '0xe248Dc8Ef9163DADDbd65609413F7b3d16A22Ecb'
         }
     },
     baseMainnet: {
         name: 'Base',
         chainId: 8453,
         rpcUrl: 'https://mainnet.base.org',
+        baseScanUrl: 'https://basescan.org',
         contracts: {
             mining: '0x...' // mainnet address when deployed
         }

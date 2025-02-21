@@ -1,14 +1,58 @@
+export const MINING_CONFIG = {
+    MINING_BATCH_SIZE: 1000,
+    BASE_GAS_LIMIT: 200000,
+    CONFIRMATIONS: 2,
+    GAS_MULTIPLIER: 1.5
+};
+
 export const MINING_ABI = [
-    "function submitNonce(uint256 nonce) external",
-    "function endRound() external",
-    "function roundId() view returns (uint256)",
-    "function roundStartTime() view returns (uint256)",
+    // Human-readable function signatures
+    "function submitBlock(uint256 nonce) external",
+    "function currentReward() view returns (uint256)",
+    "function currentDifficulty() view returns (uint256)",
+    "function lastBlockHash() view returns (bytes32)",
+    "function blockHeight() view returns (uint256)",
     "function bohriumToken() view returns (address)",
-    "function bestHash() view returns (bytes32)"
+
+    // Events
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "miner", "type": "address"},
+            {"indexed": true, "internalType": "uint256", "name": "blockHeight", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "nonce", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "reward", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "timeTaken", "type": "uint256"}
+        ],
+        "name": "BlockMined",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": false, "internalType": "uint256", "name": "newDifficulty", "type": "uint256"}
+        ],
+        "name": "DifficultyAdjusted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": false, "internalType": "uint256", "name": "newReward", "type": "uint256"}
+        ],
+        "name": "RewardHalved",
+        "type": "event"
+    }
 ];
 
 export const TOKEN_ABI = [
-    "function balanceOf(address account) view returns (uint256)",
+    {
+        name: "balanceOf",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "account", type: "address" }],
+        outputs: [{ name: "balance", type: "uint256" }]
+    },
     {
         "anonymous": false,
         "inputs": [
@@ -30,31 +74,25 @@ export const TOKEN_ABI = [
         ],
         "name": "Transfer",
         "type": "event"
+    },
+    {
+        "name": "transfer",
+        "type": "function",
+        "inputs": [
+            {
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ]
     }
 ];
-
-export const MINING_CONFIG = {
-    MIN_ROUND_DURATION: 60,
-    NONCE_RANGE: 100000,
-    MINING_BATCH_SIZE: 1000,
-    TX_BUFFER: 10,
-    END_ROUND_WAIT: 5,
-    BASE_GAS_LIMIT: 200000,
-    CONFIRMATIONS: 2,
-    GAS_MULTIPLIER: 1.5
-};
-
-export const MINING_EVENTS = {
-    START: 'start',
-    STOP: 'stop',
-    ROUND_START: 'round_start',
-    MINING: 'mining',
-    NONCE_FOUND: 'nonce_found',
-    SUBMIT: 'submit',
-    CONFIRM: 'confirm',
-    WAITING: 'waiting',
-    ERROR: 'error',
-    TRANSACTION: 'transaction',
-    REWARD: 'reward',
-    USER_REJECTED: 'user_rejected'
-};

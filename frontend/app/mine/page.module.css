@@ -1,7 +1,5 @@
 .layout {
     display: flex;
-    gap: 1rem;
-    padding: 0 1rem;
 }
 
 @media (max-width: 768px) {
@@ -76,4 +74,9 @@
 /* Make sure your existing button styles are preserved */
 .startMiningButton, .stopMiningButton {
     flex: 1;
+}
+
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
 }

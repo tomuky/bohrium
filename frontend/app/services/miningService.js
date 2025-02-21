@@ -1,22 +1,41 @@
 import { ethers } from 'ethers';
-import { MINING_ABI, TOKEN_ABI, MINING_CONFIG, MINING_EVENTS } from './constants';
-import { formatBalance, sleep, getCurrentTimestamp } from './utils';
-import { getNetworkConfig, DEFAULT_NETWORK } from './config';
+import { MINING_ABI, TOKEN_ABI, MINING_CONFIG } from './constants';
+import { getCurrentTimestamp } from './utils';
+import { getNetworkConfig } from './config';
+import { useSessionWallet } from '../contexts/SessionWalletContext';
 
 class MiningService {
     constructor() {
         this.isRunning = false;
         this.listeners = new Set();
+        this.provider = null;
+        this.signer = null;
+        this.signerAddress = null;
+        this.miningContract = null;
+        this.bestHash = null;
+
         this.currentHashRate = 0;
         this.hashRateHistory = [];
         this.hashRateWindowSize = 10;
         this.hashRateUpdateInterval = 1000;
-        this.hashHistory = []; // Array of {timestamp, count} objects
         this.hashRateWindowMs = 10000; // 10 second window
-        this.hashRateUpdateInterval = 1000;
-        this.lastBohrBalance = BigInt(0); // Add this line to track the last balance
+
         this.bohrToken = null;
-        this.rewardListener = null;
+
+        this.currentDifficulty = null;
+        this.latestBlockHash = null;
+        this.currentBlockHeight = 0;
+        this.currentBlockReward = 0;
+        this.startTime = null;
+
+        this.currentCheckingHash = null;
+        this.progress = 0;
+        this.parameterCheckInterval = null;
+        this.shouldRestartMining = false;
+
+        this.sessionWallet = null;
+        this.sessionWalletAddress = null;
+        this.sessionWalletContext = null;
     }
 
     // Add event listener
@@ -38,337 +57,427 @@ class MiningService {
     }
 
     async connect() {
-        if (!window.ethereum) {
-            throw new Error('MetaMask is not installed');
-        }
-
-        this.provider = new ethers.BrowserProvider(window.ethereum);
-        this.signer = await this.provider.getSigner();
-        
-        // Get the current network
-        const chainId = (await this.provider.getNetwork()).chainId;
-        const networkConfig = getNetworkConfig(Number(chainId));
-        
-        // Initialize contracts
-        this.miningContract = new ethers.Contract(
-            networkConfig.contracts.mining,
-            MINING_ABI,
-            this.signer
-        );
-        
-        // Initialize token contract
-        const bohrTokenAddress = await this.miningContract.bohriumToken();
-        this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
-        
-        // Setup transfer event listener
-        await this.setupRewardListener();
-    }
-
-    async setupRewardListener() {
-        if (this.rewardListener) {
-            this.bohrToken.removeListener('Transfer', this.rewardListener);
-        }
-
-        // Verify we have the correct addresses
-        const myAddress = await this.signer.getAddress();
-        const miningAddress = this.miningContract.target;
-
-        this.rewardListener = async (from, to, amount, event) => {
-            // Get block timestamp
-            const block = await this.provider.getBlock(event.blockNumber);
-            const timestamp = block.timestamp;
-
-            console.log('Transfer event received:', {
-                from,
-                to,
-                amount: amount.toString(),
-                myAddress,
-                miningAddress,
-                timestamp
-            });
-
-            // Only process incoming transfers from the mining contract or zero address
-            if (to.toLowerCase() === myAddress.toLowerCase() && 
-                (from.toLowerCase() === miningAddress.toLowerCase() ||
-                 from.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
-                
-                const formattedAmount = ethers.formatUnits(amount, 18);
-                
-                this.emit(MINING_EVENTS.REWARD, {
-                    message: 'Earned BOHR',
-                    reward: formattedAmount,
-                    timestamp
-                });
+        try {
+            if (!this.sessionWalletContext) {
+                throw new Error("SessionWalletContext not initialized. Call setSessionWalletContext first.");
             }
-        };
 
-        // Add error handling for the event listener
-        this.bohrToken.on('Transfer', this.rewardListener)
-            .catch(error => {
-                console.error('Error in transfer listener:', error);
-                this.emit(MINING_EVENTS.ERROR, { 
-                    error: error.message, 
-                    message: "Error listening for rewards" 
-                });
-            });
+            // Get the latest session wallet using the context's method
+            const { wallet: sessionWallet, address: sessionWalletAddress } = 
+                await this.sessionWalletContext.getSessionWallet();
+            
+            if (!sessionWallet) {
+                throw new Error("Failed to get session wallet");
+            }
+
+            // Set up provider from the session wallet
+            this.provider = sessionWallet.provider;
+            this.signer = sessionWallet;
+            this.signerAddress = sessionWalletAddress;
+            this.sessionWalletAddress = sessionWalletAddress;
+            
+            const chainId = (await this.provider.getNetwork()).chainId;
+            const networkConfig = getNetworkConfig(Number(chainId));
+
+            // Initialize contracts
+            this.miningContract = new ethers.Contract(
+                networkConfig.contracts.mining,
+                MINING_ABI,
+                this.signer
+            );
+            
+            const bohrTokenAddress = await this.miningContract.bohriumToken();
+            this.bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, this.signer);
+
+        } catch (error) {
+            throw error;
+        }
     }
 
-    async start() {
-        if (this.isRunning) return;
+    async start(restart = false) {
+        if (this.isRunning) return; // already running
         
         try {
-            await this.connect();
-            this.isRunning = true;
-            this.emit(MINING_EVENTS.START);
-            
-            while (this.isRunning) {
-                await this.miningLoop();
+            if(!restart) {
+                await this.connect(); // setup signers and contracts
+
+                this.emit('start',{
+                    icon: '/images/rocket.png',
+                    text: 'Mining started'
+                });
+                
+                this.startParameterCheck(); // Start mining parameters checking timer
             }
+            
+            this.isRunning = true;
+            this.bestHash = null;
+            this.bestNonce = null;
+
+            // Update mining parameters
+            this.latestBlockHash = await this.miningContract.lastBlockHash();
+            this.currentDifficulty = await this.miningContract.currentDifficulty();
+            this.currentBlockHeight = await this.miningContract.blockHeight();
+            this.currentBlockReward = await this.miningContract.currentReward();
+            this.startTime = Date.now();
+            
+            // The main mining loop
+            await this.miningLoop();
+
         } catch (error) {
-            this.emit(MINING_EVENTS.ERROR, { error: error.message, message: "There was an error"  });
+            this.emit('error', { 
+                error: error.message, 
+                message: "There was an error" 
+            });
+            console.log('Mining error:', error);
             this.stop();
         }
     }
 
-    stop() {
-        if (this.isRunning) {
-            this.isRunning = false;
-            this.emit(MINING_EVENTS.STOP);
-            
-            // Clean up listeners
-            if (this.rewardListener && this.bohrToken) {
-                try {
-                    this.bohrToken.removeListener('Transfer', this.rewardListener);
-                    this.rewardListener = null;
-                } catch (error) {
-                    console.error('Error removing transfer listener:', error);
+    startParameterCheck() {
+        // Clear any existing interval
+        if (this.parameterCheckInterval) {
+            clearInterval(this.parameterCheckInterval);
+        }
+
+        this.parameterCheckInterval = setInterval(async () => {
+            try {
+                // Get current params from contract
+                const currentLastBlockHash = await this.miningContract.lastBlockHash();
+
+                // Compare with current values before updating the latest values
+                if (currentLastBlockHash !== this.latestBlockHash) {
+                    console.log('Mining parameters changed, flagging for restart');
+
+                    // this.emit('new_block', {
+                    //     message: "New block",
+                    //     icon: '/images/new-block.png',
+                    //     blockHeight: this.currentBlockHeight,
+                    //     lastBlockHash: this.latestBlockHash,
+                    //     pill: `#${this.currentBlockHeight}`
+                    // });
+                    this.emit('params_changed', {
+                        message: "Mining parameters changed",
+                        icon: '/images/params.png'
+                    });
+                    
+                    const newDifficulty = await this.miningContract.currentDifficulty();
+                    if(newDifficulty !== this.currentDifficulty) {
+                        this.emit('difficulty_change', {
+                            message: "Difficulty changed",
+                            icon: '/images/gauge.png',
+                            difficulty: newDifficulty
+                        });
+                    }
+
+                    // Update mining parameters
+                    this.latestBlockHash = currentLastBlockHash;
+                    this.currentDifficulty = newDifficulty;
+                    this.currentBlockHeight = await this.miningContract.blockHeight();
+                    this.currentBlockReward = await this.miningContract.currentReward();
+                    this.startTime = Date.now();
+
+                    // Flag for restart
+                    this.shouldRestartMining = true;
                 }
+            } catch (error) {
+                console.error('Error checking mining parameters:', error);
+            }
+        }, 2000); // check every 2 seconds  
+    }
+
+    async stop() {
+        if (this.isRunning) {
+            console.log('Stopping mining');
+            this.isRunning = false;
+            this.startTime = null;
+            this.emit('stop',{
+                icon: '/images/stop.png',
+                text: 'Mining stopped'
+            });
+
+            // Clear parameter check interval
+            if (this.parameterCheckInterval) {
+                clearInterval(this.parameterCheckInterval);
+                this.parameterCheckInterval = null;
+            }
+
+            // Clean up any event listeners if they exist
+            if (this.miningContract) {
+                this.miningContract.removeAllListeners();
             }
         }
     }
 
     async miningLoop() {
         try {
-            const roundId = await this.miningContract.roundId();
-            const roundStart = BigInt(await this.miningContract.roundStartTime());
-            const currentTime = BigInt(Math.floor(Date.now() / 1000));
-            const roundAge = Number(currentTime - roundStart);
+            let lastParamCheck = Date.now();
+            const PARAM_CHECK_INTERVAL = 2000; // Check every 2 seconds
 
-            // Check if we're in a new round
-            if (roundId !== this.lastRoundId) {
-                this.emit(MINING_EVENTS.ROUND_START, { roundId: roundId.toString() });
-                this.lastRoundId = roundId;
-            }
+            while (this.isRunning) {
+                // Check session wallet balance and parameters less frequently
+                const now = Date.now();
+                if (now - lastParamCheck >= PARAM_CHECK_INTERVAL) {
+                    // Check wallet balance
+                    const balance = await this.provider.getBalance(this.sessionWalletAddress);
+                    const estimatedGas = MINING_CONFIG.BASE_GAS_LIMIT * MINING_CONFIG.GAS_MULTIPLIER;
+                    const feeData = await this.provider.getFeeData();
+                    const requiredBalance = BigInt(Math.floor(estimatedGas)) * feeData.gasPrice;
 
-            // If round is over
-            if (roundAge >= MINING_CONFIG.MIN_ROUND_DURATION) {
-                // Wait for 10 seconds to see if someone else ends the round
-                this.emit(MINING_EVENTS.WAITING, { 
-                    message: "Waiting for round to end",
-                    endTime: Date.now() + 10000
+                    if (BigInt(balance) < BigInt(requiredBalance)) {
+                        this.emit('error', {
+                            message: "Session wallet needs ETH",
+                            icon: '/images/error.png'
+                        });
+                        this.stop();
+                        return;
+                    }
+
+                    // Update mining parameters
+                    await this.updateMiningParameters();
+                    lastParamCheck = now;
+                }
+
+                console.log('Mining loop');
+                this.emit('mining', { 
+                    message: "Mining"
                 });
-                
-                await sleep(10000);
-                
-                // Check if we're still in the same round
-                const newRoundId = await this.miningContract.roundId();
-                if (newRoundId === roundId && this.isRunning) {
-                    // No one ended the round, so we'll do it
-                    this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Preparing transaction to end round",
-                        icon: '/images/checklist.png'
-                    });
 
-                    const tx = await this.miningContract.endRound();
-                    
-                    this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Transaction submitted",
-                        icon: '/images/send.png',
-                        hash: tx.hash
-                    });           
-
+                // Start mining for this block
+                const result = await this.findValidNonce();
+                
+                if (result?.nonce) {
                     try {
-                        const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
-                        this.emit(MINING_EVENTS.TRANSACTION, {
-                            message: "Transaction confirmed",
-                            icon: '/images/check.png',
-                            hash: receipt.hash
-                        });
+                        const tx = await this.submitBlock(result.nonce);
+                        this.emit('transaction', { hash: tx.hash });
+                        
+                        // Listen for mining success event
+                        const receipt = await tx.wait();
+                        if (receipt.status === 1) {
+                            // Find the mining success event to get the actual mined block height
+                            const miningEvent = receipt.logs.find(log => {
+                                try {
+                                    return this.miningContract.interface.parseLog(log)?.name === 'BlockMined';
+                                } catch {
+                                    return false;
+                                }
+                            });
+                            
+                            // Only emit reward event if we found the BlockMined event
+                            if (miningEvent) {
+                                console.log('mining event: ',this.miningContract.interface.parseLog(miningEvent).args)
+                                const { blockHeight: minedBlockHeight, reward } = this.miningContract.interface.parseLog(miningEvent).args;
+                                const formattedReward = ethers.formatUnits(reward, 18);
+                                this.emit('reward', {
+                                    message: `Mined Block #${minedBlockHeight}`,
+                                    pill: `+${formattedReward} BOHR`,
+                                    icon: '/images/earned.png'
+                                });
+                            }
+                        }
                     } catch (error) {
-                        this.emit(MINING_EVENTS.TRANSACTION, {
-                            message: "Transaction failed",
-                            icon: '/images/error.png',
-                            error: error.message
-                        });
-                        console.log('Transaction failed:', {
-                            hash: tx.hash,
-                            error: error.message,
-                            status: 'error'
-                        });
-                        throw error;
+                        if (error.code === "ACTION_REJECTED") {
+                            break; // Stop mining if user rejected
+                        }
+                        console.error('Error submitting hash:', error);
                     }
                 }
-                return;
+                
+                // Reset mining state for next iteration
+                this.bestNonce = null;
+                this.bestHash = null;
+                this.startTime = Date.now();
+                this.progress = 0;
             }
-
-            // If we're in the end-round waiting period, just wait because it's too late to submit a nonce
-            // if (roundAge >= (MINING_CONFIG.MIN_ROUND_DURATION - MINING_CONFIG.TX_BUFFER)) {
-            //     const remainingWait = (MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT + 10 ) - roundAge;
-            //     const endTime = Date.now() + (remainingWait * 1000);
-            //     this.emit(MINING_EVENTS.WAITING, { 
-            //         message: "Waiting for next round to start",
-            //         endTime: endTime
-            //     });
-            //     await sleep(remainingWait * 1000);
-            //     return;
-            // }
-
-            // Calculate mining duration
-            const miningDuration = Math.max(0, MINING_CONFIG.MIN_ROUND_DURATION - roundAge - MINING_CONFIG.TX_BUFFER);
-            if (miningDuration > 0) {
-                // Start mining with countdown updates
-                const startTime = Date.now();
-                const endTime = startTime + (miningDuration * 1000);
-                
-                // Initial mining message
-                this.emit(MINING_EVENTS.MINING, { 
-                    message: "Mining",
-                    endTime: endTime
-                });
-
-                // Do the mining
-                const { nonce: bestNonce, hash: bestHash } = await this.findBestNonce(miningDuration * 1000);
-                
-                // Recheck round age before submitting
-                const newCurrentTime = BigInt(Math.floor(Date.now() / 1000));
-                const newRoundAge = Number(newCurrentTime - roundStart);
-
-                // Skip submission if round should end
-                if (newRoundAge >= MINING_CONFIG.MIN_ROUND_DURATION + MINING_CONFIG.END_ROUND_WAIT) {
-                    return;
-                }
-                
-                this.emit(MINING_EVENTS.NONCE_FOUND, { 
-                    nonce: bestNonce.toString(),
-                    hash: "0x" + bestHash.toString(16).padStart(64, '0').substring(0, 12) + "..."
-                });
-
-                this.emit(MINING_EVENTS.TRANSACTION, {
-                    message: "Preparing transaction",
-                    icon: '/images/checklist.png'
-                });
-
-                const tx = await this.miningContract.submitNonce(bestNonce, {
-                    gasLimit: Math.floor(MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT)
-                });
-                
-                this.emit(MINING_EVENTS.TRANSACTION, {
-                    message: "Transaction submitted",
-                    icon: '/images/send.png',
-                    hash: tx.hash
-                });
-
-                try {
-                    const receipt = await tx.wait(MINING_CONFIG.CONFIRMATIONS);
-                    this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Transaction confirmed",
-                        icon: '/images/check.png',
-                        hash: receipt.hash
-                    });
-                } catch (error) {
-                    this.emit(MINING_EVENTS.TRANSACTION, {
-                        message: "Transaction failed",
-                        icon: '/images/error.png',
-                        error: error.message
-                    });
-                    console.log('Transaction failed:', {
-                        hash: tx.hash,
-                        error: error.message,
-                        status: 'error'
-                    });
-                    throw error;
-                }
-                
-            }
-
         } catch (error) {
-            if (error.code === "ACTION_REJECTED") { // ethers v6 user rejection code
-                this.emit(MINING_EVENTS.USER_REJECTED);
-                this.stop();
-                return;
-            }
-            console.log('Error in mining loop:', error);
-            await sleep(1000);
+            this.emit('error', {
+                message: "Mining error",
+                error: error.message
+            });
+            console.error('Mining error:', error);
+            this.stop();
         }
     }
 
-    async findBestNonce(duration) {
-        const minerAddress = await this.signer.getAddress();
-        let bestNonce = 0;
-        let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        const endTime = Date.now() + duration;
-        let lastProgressUpdate = Date.now();
-        
-        // Hash rate tracking
+    async updateMiningParameters() {
+        const [blockHash, difficulty, blockHeight, reward] = await Promise.all([
+            this.miningContract.lastBlockHash(),
+            this.miningContract.currentDifficulty(),
+            this.miningContract.blockHeight(),
+            this.miningContract.currentReward()
+        ]);
+
+        if (blockHash !== this.latestBlockHash) {
+            this.emit('new_block', {
+                message: "New block",
+                icon: '/images/new-block.png',
+                blockHeight,
+                lastBlockHash: blockHash,
+                pill: `#${blockHeight}`
+            });
+
+            if (difficulty !== this.currentDifficulty) {
+                this.emit('difficulty_change', {
+                    message: "Difficulty changed",
+                    icon: '/images/params.png',
+                    difficulty
+                });
+            }
+        }
+
+        this.latestBlockHash = blockHash;
+        this.currentDifficulty = difficulty;
+        this.currentBlockHeight = blockHeight;
+        this.currentBlockReward = reward;
+        this.startTime = Date.now();
+    }
+
+    async findValidNonce() {
+        const randomBuffer = new Uint32Array(MINING_CONFIG.MINING_BATCH_SIZE);
         let hashCount = 0;
         let lastHashRateUpdate = Date.now();
         
-        // Get the bestHash of the previous round from the contract
-        const previousBestHash = await this.miningContract.bestHash();
-
-        while (Date.now() < endTime && this.isRunning) {
-            const now = Date.now();
-            if (now - lastHashRateUpdate >= this.hashRateUpdateInterval) {
-                // Store the hash count for this interval
-                this.hashHistory.push({ timestamp: now, count: hashCount });
-                
-                // Remove entries older than 10 seconds
-                const cutoffTime = now - this.hashRateWindowMs;
-                this.hashHistory = this.hashHistory.filter(entry => entry.timestamp >= cutoffTime);
-                
-                // Calculate total hashes in the window
-                const totalHashes = this.hashHistory.reduce((sum, entry) => sum + entry.count, 0);
-                
-                // Calculate time span (in seconds)
-                const timeSpan = (now - Math.min(...this.hashHistory.map(entry => entry.timestamp))) / 1000;
-                
-                // Calculate current hash rate (in kH/s), with safeguards
-                if (this.hashHistory.length > 1 && timeSpan > 0) {
-                    this.currentHashRate = (totalHashes / timeSpan) / 1000;
-                } else {
-                    // Show 0 until we have enough data
-                    this.currentHashRate = 0;
+        // Initialize bestHash to max value
+        this.bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        
+        while (this.isRunning) {
+            // Check block parameters less frequently (every 10 batches)
+            if (hashCount % (MINING_CONFIG.MINING_BATCH_SIZE * 10) === 0) {
+                const currentBlockHash = await this.miningContract.lastBlockHash();
+                if (currentBlockHash !== this.latestBlockHash) {
+                    return null;
                 }
-                
-                // Reset counters
-                hashCount = 0;
-                lastHashRateUpdate = now;
-                lastProgressUpdate = now;
             }
 
-            // Process a batch of nonces
+            // Fill buffer with cryptographically secure random numbers
+            crypto.getRandomValues(randomBuffer);
+
+            // Update progress bar
+            this.updateProgress();
+
+            const now = Date.now();
+            if (now - lastHashRateUpdate >= this.hashRateUpdateInterval) {
+                this.updateHashRate(hashCount, now);
+                hashCount = 0;
+                lastHashRateUpdate = now;
+            }
+
             for (let i = 0; i < MINING_CONFIG.MINING_BATCH_SIZE; i++) {
-                const nonce = Math.floor(Math.random() * MINING_CONFIG.NONCE_RANGE);
+                if (!this.isRunning) return null;
+                
+                const nonce = randomBuffer[i];
                 const hash = ethers.keccak256(
                     ethers.solidityPacked(
-                        ["address", "bytes32", "uint256"],
-                        [minerAddress, previousBestHash, nonce]
+                        ["address", "bytes32", "uint256", "uint256"],
+                        [this.signerAddress, this.latestBlockHash, this.currentDifficulty, nonce]
                     )
                 );
 
                 hashCount++;
                 const hashValue = BigInt(hash);
-                if (hashValue < bestHash) {
-                    bestHash = hashValue;
-                    bestNonce = nonce;
+                
+                if (hashValue < this.bestHash) {
+                    this.bestHash = hashValue;
+                    if (hashValue <= this.currentDifficulty) {
+                        this.progress = 100;
+                    }
+                }
+                
+                if (i % 20000 === 0) {
+                    this.currentCheckingHash = hashValue.toString(16);
+                }
+
+                if (hashValue <= this.currentDifficulty) {
+                    this.emit('nonce_found', {
+                        icon: '/images/trophy.png',
+                        text: 'Hash found',
+                        pill: `${nonce}`,
+                    });
+                    return { nonce, hashValue };
                 }
             }
             
-            // Allow other events to process
-            await new Promise(resolve => setTimeout(resolve, 0));
+            // Use requestAnimationFrame instead of setTimeout for better performance
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+        return null;
+    }
+
+    async submitBlock(nonce) {
+        const tx = await this.miningContract.submitBlock(
+            nonce,
+            {
+                gasLimit: Math.floor(
+                    MINING_CONFIG.GAS_MULTIPLIER * MINING_CONFIG.BASE_GAS_LIMIT
+                )
+            }
+        );
+        return tx;
+    }
+
+    // Helper method to update hash rate statistics
+    updateHashRate(hashCount, now) {
+        this.hashRateHistory.push({ timestamp: now, count: hashCount });
+        
+        const cutoffTime = now - this.hashRateWindowMs;
+        this.hashRateHistory = this.hashRateHistory.filter(entry => entry.timestamp >= cutoffTime);
+        
+        const totalHashes = this.hashRateHistory.reduce((sum, entry) => sum + entry.count, 0);
+        const timeSpan = (now - Math.min(...this.hashRateHistory.map(entry => entry.timestamp))) / 1000;
+        
+        if (this.hashRateHistory.length > 1 && timeSpan > 0) {
+            this.currentHashRate = (totalHashes / timeSpan);
+        } else {
+            this.currentHashRate = 0;
+        }
+    }
+
+    // Add getter for bestHash
+    getBestHash() {
+        return this.bestHash ? this.bestHash.toString(16) : null;
+    }
+
+    // Add this getter method
+    getDifficulty() {
+        return this.currentDifficulty ? this.currentDifficulty.toString(16) : null;
+    }
+
+    // Add getter method
+    getBlockHeight() {
+        return this.currentBlockHeight;
+    }
+
+    // Add getter for currentCheckingHash
+    getCurrentCheckingHash() {
+        return this.currentCheckingHash;
+    }
+
+    // Update progress based purely on elapsed time
+    updateProgress() {
+        if (!this.startTime) {
+            this.startTime = Date.now();
         }
 
-        return { nonce: bestNonce, hash: bestHash };
+        const elapsedMs = Date.now() - this.startTime;
+        const targetMs = 2 * 60 * 1000; // 2 minutes in milliseconds
+        
+        // Using a power function to create rapid initial progress that slows dramatically
+        // x^0.3 gives us a curve that rises quickly then flattens
+        const ratio = Math.min(1, elapsedMs / targetMs);
+        this.progress = Math.min(99, Math.pow(ratio, 0.3) * 99);
+    }
+
+    getProgress() {
+        return this.progress;
+    }
+
+    // Add this new getter method
+    getSessionWalletAddress() {
+        return this.sessionWalletAddress;
+    }
+
+    // Add this new method to set the context
+    setSessionWalletContext(context) {
+        this.sessionWalletContext = context;
     }
 }
 

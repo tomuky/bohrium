@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { baseSepolia, base } from 'wagmi/chains'
 import { MiningProvider } from './contexts/MiningContext'
+import { SessionWalletProvider } from './contexts/SessionWalletContext'
 
 const config = getDefaultConfig({
   appName: 'Bohrium',
@@ -20,9 +21,11 @@ export function Providers({ children }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
-          <MiningProvider>
-            {children}
-          </MiningProvider>
+          <SessionWalletProvider>
+            <MiningProvider>
+              {children}
+            </MiningProvider>
+          </SessionWalletProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

@@ -1,0 +1,140 @@
+.sessionArea {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sessionAreaBlock{
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.sessionAreaBlock h3{
+    font-size: 0.9rem;
+    color: #888;
+    margin: 0 0 0.5rem 0;
+}
+.sessionAreaBlock p{
+    font-size: 1rem;
+    margin: 0;
+    font-family: monospace;
+}
+
+.balances {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.balanceItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.balanceItemAsset{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.balanceItemAssetImage{
+    opacity: 0.5;
+}
+.tokenSymbol {
+    font-weight: 500;
+    color: #888;
+}
+
+.tokenAmount {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+}
+
+.actionButton {
+    flex: 1;
+    max-width: 200px;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+}
+
+.actionButton:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.addressText{
+    cursor: pointer;
+    position: relative;
+}
+.addressText:hover {
+    opacity: 0.8;
+}
+.tooltip{
+    position: absolute;
+    opacity: 1 !important;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.sessionAreaBlockTitle{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+}
+.desktopOnly{
+    display: flex;
+}
+@media (max-width: 768px) {
+    .desktopOnly{
+        display: none;
+    }
+    .balances {
+        flex-direction: row;
+    }
+    .balanceItem{
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+    .tokenAmount{
+        font-size: 1.2rem;
+    }
+    .sessionAreaBlockTitle{
+        justify-content: space-between;
+        align-items: center;
+        flex-direction: row;
+        width: 100%;
+    }
+    .sessionAreaBlockTitle h3{
+        margin: 0;
+    }
+    
+}

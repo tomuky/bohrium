@@ -18,14 +18,14 @@ export default function Home() {
           BOHRIUM
         </div>
         <div className={styles.socialLinks}>
-          <Link href="https://x.com/bohrsupply" target="_blank">
-            <Image src="/images/x-white.png" alt="X" width={24} height={24}/> 
-          </Link>
           <Link href="https://discord.gg/xyZW4Ck36V" target="_blank">
             <Image src="/images/discord-white.png" alt="Discord" width={30} height={24}/>
           </Link>
           <Link href="https://github.com/tomuky/bohrium" target="_blank">
-            <Image src="/images/github-white.png" alt="GitHub" width={24} height={24}/>
+            <Image src="/images/github.png" alt="GitHub" width={24} height={24}/>
+          </Link>
+          <Link href="https://x.com/bohrsupply" target="_blank">
+            <Image src="/images/x.png" alt="X" width={24} height={24}/> 
           </Link>
         </div>
       </nav>
@@ -33,10 +33,11 @@ export default function Home() {
       <div className={styles.mainContent}>
         <h1>Do the work. Earn BOHR.</h1>
         <p>BOHR is the first proof-of-work token on Base</p>
-        <Link href="/mine">
+        <Link href="/" onClick={(e) => e.preventDefault()}>
           <button 
-            className={styles.startButton} 
-            disabled={true}
+            className={`${styles.startButton} ${styles.disabled}`} 
+            disabled={true} 
+            style={{ cursor: 'not-allowed' }}
           >
             COMING SOON
           </button>

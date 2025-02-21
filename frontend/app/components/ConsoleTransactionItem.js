@@ -1,55 +1,58 @@
 'use client'
 import styles from './Console.module.css'   
 import Image from 'next/image'
-import { useTransactionStatus } from '../hooks/useTransactionStatus'
 import { memo, useMemo } from 'react'
+import { useWaitForTransactionReceipt } from 'wagmi'
+import { useTimeAgo } from '../hooks/useTimeAgo'
+import { DEFAULT_NETWORK } from '../services/config'
 
-const ConsoleTransactionItem = memo(({ text, transactionHash }) => {
-    const { isLoading, isError, isReverted, isSuccessful, receipt } = useTransactionStatus(transactionHash)
+const ConsoleTransactionItem = memo(({ hash, timestamp }) => {
+    const { data, error, isError, isPending, isSuccess } = useWaitForTransactionReceipt({
+        hash,
+        pollingInterval: 1000
+    })
+    const timeAgo = useTimeAgo(timestamp)
 
-    console.log('~~~~~~~~~~')
-    console.log('transactionHash', transactionHash)
-    console.log('isError', isError)
-    console.log('isPending', isLoading)
-    console.log('isSuccess', isSuccessful)
-    console.log('status', receipt)
-    console.log('~~~~~~~~~~')
+    if (isError) console.log('Transaction error: ', error)
     
     const statusIcon = useMemo(() => {
-        if (isError || isReverted) return '/images/error.png'
-        if (isSuccessful) return '/images/check.png'
-        if (isLoading) return '/images/spinner.png'
+        if (isError) return '/images/error.png'
+        if (isSuccess) return '/images/check.png'
+        if (isPending) return '/images/spinner.png'
         return '/images/spinner.png'
-    }, [isLoading, isSuccessful, isError, isReverted])
+    }, [isPending, isSuccess, isError])
 
     const message = useMemo(() => {
-        if (isError || isReverted) return "Transaction failed"
-        if (isSuccessful) return text[1]
-        if (isLoading) return text[0]
-        return text[0]
-    }, [isLoading, isSuccessful, isError, isReverted, text])
+        if (isError) return "Transaction failed"
+        if (isSuccess) return "Transaction successful"
+        if (isPending) return "Transaction pending"
+        return "Transaction pending"
+    }, [isPending, isSuccess, isError])
 
     return (
         <div className={styles.item}>
             <div className={styles.itemContent}>
-                <Image 
-                    src={statusIcon} 
-                    alt="transaction status" 
-                    width={20} 
-                    height={20} 
-                    className={ isLoading ? styles.spinning : '' } 
-                />
-                <div className={styles.itemText}>
-                    {message}
+                <div className={styles.left}>
+                    <Image 
+                        src={statusIcon} 
+                        alt="transaction status" 
+                        width={20} 
+                        height={20} 
+                        className={ isPending ? styles.spinning : '' } 
+                    />
+                    <div className={styles.itemText}>
+                        {message}
+                    </div>
+                    <a 
+                        href={`${DEFAULT_NETWORK.baseScanUrl}/tx/${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.txLink}
+                    >
+                        [View tx]
+                    </a>
                 </div>
-                <a 
-                    href={`https://sepolia.basescan.org/tx/${transactionHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.txLink}
-                >
-                    [View tx]
-                </a>
+                <div className={styles.timeAgo}>{timeAgo}</div>
             </div>
         </div>
     )

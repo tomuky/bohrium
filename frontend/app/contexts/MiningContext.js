@@ -2,27 +2,47 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { miningService } from '../services/miningService';
-import { MINING_EVENTS } from '../services/constants';
+import { useSessionWallet } from './SessionWalletContext';
 
 const MiningContext = createContext({});
 
 export function MiningProvider({ children }) {
-    const { isConnected } = useAccount();
+    const { isConnected, address } = useAccount();
+    const sessionWalletContext = useSessionWallet();
     const [isMining, setIsMining] = useState(false);
     const [consoleItems, setConsoleItems] = useState([]);
     const [walletError, setWalletError] = useState(null);
     const [currentHashRate, setCurrentHashRate] = useState(0);
-    const [miningEndTime, setMiningEndTime] = useState(null);
+    const [bestHash, setBestHash] = useState(null);
+    const [currentDifficulty, setCurrentDifficulty] = useState(null);
+    const [blockHeight, setBlockHeight] = useState(null);
+    const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
+            // Update current best hash when mining
+            if (event.type === 'mining' && event.data.bestHash) {
+                setBestHash(event.data.bestHash);
+            }
+
+            if (event.type === 'session_key_generated') {
+                console.log('sessionWalletAddress', event.data.address);
+                setSessionWalletAddress(event.data.address);
+            }
+            
             const newItem = createConsoleItem(event);
             if (newItem) {
-                setConsoleItems(prev => [...prev, newItem]);
+                setConsoleItems(prev => [newItem, ...prev]);
                 
                 // Handle transaction rejection by stopping mining
-                if (event.type === MINING_EVENTS.USER_REJECTED) {
-                    console.log('stopping from user rejected')
+                if (event.type === 'user_rejected') {
+                    setIsMining(false);
+                }
+
+                // Handle the stopping mining
+                if (event.type === 'stop') {
                     setIsMining(false);
                 }
             }
@@ -50,131 +70,88 @@ export function MiningProvider({ children }) {
         }
     }, [isMining, isConnected]);
 
-    // Add new useEffect for hash rate updates
+    // Update metrics from mining service
     useEffect(() => {
         if (!isMining) {
             setCurrentHashRate(0);
+            setBestHash(null);
+            setCurrentDifficulty(null);
+            setBlockHeight(null);
+            setCurrentCheckingHash(null);
+            setProgress(0);
             return;
         }
 
-        const hashRateInterval = setInterval(() => {
+        // Main metrics interval (slower updates)
+        const metricsInterval = setInterval(() => {
             setCurrentHashRate(miningService.currentHashRate);
-        }, 1000); // Update every second
+            setBestHash(miningService.getBestHash());
+            setCurrentDifficulty(miningService.getDifficulty());
+            setBlockHeight(miningService.getBlockHeight());
+            setProgress(miningService.getProgress());
+            setCurrentCheckingHash(miningService.getCurrentCheckingHash());
+        }, 1000);
 
-        return () => clearInterval(hashRateInterval);
+        return () => {
+            clearInterval(metricsInterval);
+        };
     }, [isMining]);
 
-    // Map events to console items
+    useEffect(() => {
+        if (sessionWalletContext) {
+            miningService.setSessionWalletContext(sessionWalletContext);
+        }
+    }, [sessionWalletContext]);
+
     const createConsoleItem = (event) => {
-        const { type, data = {}, timestamp = Date.now() } = event;
+        // Use UTC timestamp in ISO format
+        const timestamp = new Date().toISOString();
+        const { type, data = {} } = event;
 
         const eventMap = {
-            [MINING_EVENTS.START]: {
-                icon: '/images/rocket.png',
-                text: 'Mining started'
-            },
-            [MINING_EVENTS.STOP]: {
-                icon: '/images/stop.png',
-                text: 'Mining stopped'
-            },
-            [MINING_EVENTS.ROUND_START]: {
-                icon: '/images/round.png',
-                text: `Round ${data?.roundId || 'unknown'} started`,
-                roundId: data?.roundId
-            },
-            [MINING_EVENTS.MINING]: {
+            'mining': {
                 icon: '/images/pickaxe.png',
                 text: data.message,
-                endTime: data.endTime
+                difficulty: data.difficulty
             },
-            [MINING_EVENTS.NONCE_FOUND]: {
-                icon: '/images/trophy.png',
-                text: 'Best hash found',
-                pill: data.hash
-            },
-            [MINING_EVENTS.BALANCE_UPDATE]: {
-                icon: '/images/coins.png',
-                text: `BOHR: ${data.bohr}`,
-                pill: `+${0} BOHR` // this needs to be the change in balance
-            },
-            [MINING_EVENTS.SUBMIT]: {
+            'transaction': {
                 icon: '/images/send.png',
-                text: data.message
-            },
-            [MINING_EVENTS.CONFIRM]: {
-                icon: '/images/check.png',
-                text: data.message
-            },
-            [MINING_EVENTS.WAITING]: {
-                icon: '/images/wait.png',
-                text: data.message,
-                endTime: data.endTime
-            },
-            [MINING_EVENTS.ERROR]: {
-                icon: '/images/error.png',
-                text: data.message,
-                error: data.error
-            },
-            [MINING_EVENTS.REWARD]: {
-                icon: '/images/wand.png',
-                text: data.message,
-                pill: `+${data.reward} BOHR`
-            },
-            [MINING_EVENTS.TRANSACTION]: {
-                icon: data.icon,
                 text: data.message,
                 hash: data.hash,
                 error: data.error
             },
-            [MINING_EVENTS.USER_REJECTED]: {
+            'error': {
+                icon: '/images/error.png',
+                text: data.message,
+                error: data.error
+            },
+            'user_rejected': {
                 icon: '/images/error.png',
                 text: 'Transaction rejected by user',
                 error: true
-            },
+            }
         };
 
         const eventConfig = eventMap[type];
-        if (!eventConfig) return null;
+        if (!eventConfig) {
+            // Fallback case for unknown event types
+            return {
+                icon: '/images/info.png', // fallback icon
+                text: data.message || `Unknown event: ${type}`,
+                type,
+                timestamp,
+                ...data // Pass through any additional data
+            };
+        }
 
         return {
             ...eventConfig,
-            type, // Add type to help identify items
+            type,
             timestamp
         };
     };
 
-    // Clear the console
     const clearConsole = () => setConsoleItems([]);
-
-
-    // not using this?
-    useEffect(() => {
-        if (!miningEndTime) return;
-
-        const timer = setInterval(() => {
-            const remaining = Math.ceil((miningEndTime - Date.now()) / 1000);
-            
-            setConsoleItems(prev => {
-                const newItems = [...prev];
-                const lastMiningIndex = newItems.findLastIndex(item => item.type === MINING_EVENTS.MINING);
-                
-                if (lastMiningIndex !== -1) {
-                    newItems[lastMiningIndex] = {
-                        ...newItems[lastMiningIndex],
-                        text: remaining > 0 ? `Mining... (-${remaining}s)` : 'Mining...'
-                    };
-                }
-                return newItems;
-            });
-
-            if (remaining <= 0) {
-                clearInterval(timer);
-                setMiningEndTime(null);
-            }
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [miningEndTime]);
 
     return (
         <MiningContext.Provider value={{ 
@@ -182,7 +159,14 @@ export function MiningProvider({ children }) {
             setIsMining, 
             consoleItems,
             clearConsole,
-            currentHashRate
+            currentHashRate,
+            bestHash,
+            currentDifficulty,
+            blockHeight,
+            currentCheckingHash,
+            progress,
+            sessionWalletAddress,
+            mainWalletAddress: address
         }}>
             {children}
         </MiningContext.Provider>

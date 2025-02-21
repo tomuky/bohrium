@@ -4,7 +4,7 @@ module.exports = buildModule("BohriumMining", (m) => {
     // Deploy token contract first
     const token = m.contract("BohriumToken");
     
-    // Deploy mining contract with the token address
+    // Deploy mining contract with token
     const mining = m.contract("BohriumMining", [token]);
     
     // Transfer ownership of token to mining contract

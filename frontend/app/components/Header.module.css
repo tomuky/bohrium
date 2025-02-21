@@ -8,6 +8,12 @@
     border-bottom: 1px solid var(--border);
 }
 
+@media (max-width: 768px) {
+  .header{
+    border-bottom: none;
+  }
+}
+
 .title {
     font-size: 2rem;
     font-weight: bold;

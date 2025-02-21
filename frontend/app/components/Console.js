@@ -2,31 +2,35 @@
 import styles from './Console.module.css'
 import ConsoleItem from './ConsoleItem'
 import { useMining } from '../contexts/MiningContext'
-import NewRound from './ConsoleNewRound'
 import ConsoleMiningItem from './ConsoleMiningItem'
+import ConsoleRainbowItem from './ConsoleRainbowItem'
 import ConsoleTransactionItem from './ConsoleTransactionItem'
-import ConsoleWaiting from './ConsoleWaiting'
 import { memo } from 'react'
 
 // Memoize the item renderer function
 const ConsoleItemRenderer = memo(({ item, index }) => {
-    if(item.type === 'round_start') {
-        return <NewRound 
-            key={`${item.roundId}-${index}`}
-            roundId={item.roundId} 
-        />
-    } else if(item.type === 'mining') {
+    if(item.type === 'mining') {
         return <ConsoleMiningItem 
             key={`mining-${item.endTime}-${index}`}
             endTime={item.endTime}
             icon={item.icon}
             text={item.text}
+            type={item.type}
+            timestamp={item.timestamp}
         />
-    } else if(item.type === 'waiting') {
-        return <ConsoleWaiting 
-            key={`waiting-${item.endTime}-${index}`}
+    } else if(item.type === 'nonce_found') {
+        return <ConsoleRainbowItem 
+            key={`${item.timestamp}-${index}`}
+            icon={item.icon}
             text={item.text}
-            endTime={item.endTime}
+            pill={item.pill}
+            timestamp={item.timestamp}
+        />
+    }else if(item.type === 'transaction') {
+        return <ConsoleTransactionItem 
+            key={`${item.timestamp}-${index}`}
+            hash={item.hash}
+            timestamp={item.timestamp}
         />
     } else {
         return <ConsoleItem
@@ -34,7 +38,6 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
             icon={item.icon}
             text={item.text}
             pill={item.pill}
-            error={item.error}
             timestamp={item.timestamp}
         />
     }
@@ -42,13 +45,13 @@ const ConsoleItemRenderer = memo(({ item, index }) => {
 
 ConsoleItemRenderer.displayName = 'ConsoleItemRenderer';
 
-// Memoize the entire Console component
+// Memoize the Console component
 const Console = memo(() => {
     const { consoleItems } = useMining();
 
     return (
         <div className={styles.list}>
-            {[...consoleItems].reverse().map((item, index) => (
+            {[...consoleItems].map((item, index) => (
                 <ConsoleItemRenderer 
                     key={`${item.type}-${index}`}
                     item={item}

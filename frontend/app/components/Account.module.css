@@ -1,0 +1,302 @@
+.accountArea{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--background);
+    /* border-bottom: 1px solid var(--border); */
+    width: 100%;
+    padding: 20px;
+}
+.button{
+    background-color: var(--text-primary);
+    color: var(--background);
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.button:hover{
+    background-color: var(--white-hover);
+}
+
+.accountInfo {
+    background: var(--background);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.minerHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.minerIcon {
+    width: 32px;
+    height: 32px;
+    filter: brightness(0.6) opacity(0.7);
+    transition: filter 0.2s;
+}
+
+.minerAddress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.minerAddress .label {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.minerAddress .address {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.balanceContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 20px;
+}
+
+.balance {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--background);
+    border-radius: 10px;
+}
+.balanceLeft{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.label {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.amount {
+    font-weight: 500;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.actionButton {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 0.75rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-weight: 600;
+}
+
+.actionButton:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.icon {
+    color: var(--label-text);
+    filter: brightness(0.6) opacity(0.7);
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    vertical-align: middle;
+}
+
+.createMinerArea {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 20px 20px;
+    border: 1px dashed var(--label-text);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    opacity: 0.7;
+}
+.createMinerIcon{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.createMinerText {
+    color: var(--label-text);
+    font-weight: 600;
+    font-size: 1rem;
+    transition: color 0.2s;
+}
+
+.plusSign {
+    font-size: 1.5rem;
+    color: var(--label-text);
+    transition: color 0.2s;
+}
+
+.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.createMinerArea.hoverEnabled:hover {
+    background: var(--background-hover);
+    border-color: var(--text-primary);
+    opacity: 1;
+}
+.createMinerArea.hoverEnabled:hover .plusSign {
+    color: var(--text-primary);
+}
+
+.createMinerArea.hoverEnabled:hover .createMinerText {
+    color: var(--text-primary);
+}
+
+.createMinerArea.hoverEnabled:hover .minerIcon {
+    filter: brightness(1) opacity(1);
+}
+
+.fundingMessage {
+    color: #ff9800;
+    font-size: 14px;
+    text-align: center;
+    padding: 8px;
+    background: rgba(255, 152, 0, 0.1);
+    border-radius: 4px;
+}
+
+.addressContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    position: relative;
+}
+
+.addressContainer:hover .amount {
+    text-decoration: underline;
+}
+
+.copyIcon {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.addressContainer:hover .copyIcon {
+    opacity: 1;
+}
+
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+/* Remove spinner arrows from number inputs */
+.accountInfo input[type="number"]::-webkit-inner-spin-button,
+.accountInfo input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.accountInfo input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.metricCard {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    align-content: center;
+    min-height: 90px;
+}
+
+.metricCard h3 {
+    font-size: 0.9rem;
+    color: #888;
+    margin: 0 0 0.5rem 0;
+}
+
+.metricCard p {
+    font-size: 1rem;
+    margin: 0;
+    font-family: monospace;
+}
+.metricCard p.address{
+    font-size: .7rem;
+}
+.metricCardGrid{
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+.metricCardGrid div{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.progressBar {
+    width: 100%;
+    height: 8px;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    background-color: #4CAF50;
+    transition: width 0.3s ease-in-out;
+}
+
+.desktopOnly{
+    display: grid;
+}
+@media (max-width: 768px) {
+    .desktopOnly{
+        display: none;
+    }
+    .accountArea{
+        padding: 0 10px;
+    }
+    .metricCard{
+        padding: 10px 20px;
+        flex: 1;
+    }
+    .metricsGrid{
+        display: flex;
+        gap: 10px;
+    }
+}
