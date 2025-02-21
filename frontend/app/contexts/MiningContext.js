@@ -34,7 +34,11 @@ export function MiningProvider({ children }) {
             
             const newItem = createConsoleItem(event);
             if (newItem) {
-                setConsoleItems(prev => [newItem, ...prev]);
+                setConsoleItems(prev => {
+                    const updatedItems = [newItem, ...prev];
+                    // Truncate the list to keep only the most recent 30 items
+                    return updatedItems.slice(0, 30);
+                });
                 
                 // Handle transaction rejection by stopping mining
                 if (event.type === 'user_rejected') {
