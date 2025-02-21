@@ -33,13 +33,9 @@ export default function Home() {
       <div className={styles.mainContent}>
         <h1>Do the work. Earn BOHR.</h1>
         <p>BOHR is the first proof-of-work token on Base</p>
-        <Link href="/" onClick={(e) => e.preventDefault()}>
-          <button 
-            className={`${styles.startButton} ${styles.disabled}`} 
-            disabled={true} 
-            style={{ cursor: 'not-allowed' }}
-          >
-            COMING SOON
+        <Link href="/mine">
+          <button className={`${styles.startButton}`}>
+            START MINING
           </button>
         </Link>
       </div>

@@ -18,14 +18,14 @@ const Instructions = () => {
                 <div className={styles.item}>
                     <div className={styles.number}>2.</div>
                     <div className={styles.itemContent}>
-                        <Image src="/images/sign.png" alt="Miner" width={24} height={24} className={styles.icon} />
+                        <Image src="/images/sign.png" alt="Sign" width={24} height={24} className={styles.icon} />
                         <p>Open session wallet</p>
                     </div>
                 </div>
                 <div className={styles.item}>
                     <div className={styles.number}>3.</div>
                     <div className={styles.itemContent}>
-                        <Image src="/images/deposit.png" alt="Miner" width={24} height={24} className={styles.icon} />
+                        <Image src="/images/deposit.png" alt="Deposit" width={24} height={24} className={styles.icon} />
                         <p>Fund session wallet</p>
                     </div>
                 </div>

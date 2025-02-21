@@ -48,19 +48,19 @@ const Account = () => {
                             Current
                         </h3>
                         <div className={styles.address}>
-                            {currentCheckingHash && `0x${currentCheckingHash.substring(0, 10)}...`}
+                            {currentCheckingHash ? `0x${currentCheckingHash.substring(0, 10)}...` : '-'}
                         </div>
                         <h3>
                             Best
                         </h3>
                         <div className={styles.address}>
-                            {bestHash && `0x${bestHash.substring(0, 10)}...`}
+                            {bestHash ? `0x${bestHash.substring(0, 10)}...` : '-'}
                         </div>
                         <h3>
                             Target
                         </h3>
                         <div className={styles.address}>
-                            {currentDifficulty && `0x${currentDifficulty.substring(0, 10)}...`}
+                            {currentDifficulty ? `0x${currentDifficulty.substring(0, 10)}...` : '-'}
                         </div>
                     </div>
                 </div>
