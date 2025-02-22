@@ -1,10 +1,19 @@
 {
-  "name": "bohrium-cli",
-  "version": "1.0.0",
-  "description": "CLI tool for mining BOHR",
+  "name": "bohrium",
+  "version": "0.1.0",
+  "description": "CLI tool for mining BOHR tokens on Base",
   "main": "index.js",
   "bin": {
     "bohrium": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "wallet.js",
+    "miner.js",
+    "config.js"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
   },
   "license": "MIT",
   "dependencies": {
@@ -24,12 +33,12 @@
   "author": "Your Name",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/bohrium-cli"
+    "url": "https://github.com/tomuky/bohrium"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/bohrium-cli/issues"
+    "url": "https://github.com/tomuky/bohrium/issues"
   },
-  "homepage": "https://github.com/yourusername/bohrium-cli#readme",
+  "homepage": "https://github.com/tomuky/bohrium#readme",
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js"

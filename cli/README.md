@@ -4,8 +4,8 @@ A command-line interface for mining BOHR tokens on Base.
 
 ## Installation
 
-bash
-npm install -g bohrium-cli
+Open a terminal and run:
+`npm install -g bohrium`
 
 ## Usage
 

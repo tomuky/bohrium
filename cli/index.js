@@ -117,7 +117,7 @@ program
   .description('Start mining BOHR')
   .action(async () => {
     try {
-      const wallet = await getWallet();
+      const {wallet} = await getWallet();
       if (!wallet) {
         console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
         console.log(chalk.cyan('bohrium create-wallet'));

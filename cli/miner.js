@@ -124,107 +124,128 @@ async function countdownLog(message, seconds) {
 }
 
 async function mine(providedWallet = null) {
-    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    const wallet = providedWallet || await getWallet();
-    if (!wallet) {
-        throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
-    }
-    
-    const connectedWallet = wallet.connect(provider);
-    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
-    const bohrTokenAddress = await miningContract.bohriumToken();
-    
-    console.log("\n🚀 Starting Bohrium Mining...");
-    console.log(`📍 Mining Contract: ${config.MINING_CONTRACT_ADDRESS}`);
-    console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
-    
-    const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, connectedWallet);
-    await logBalances(provider, connectedWallet, bohrToken);
+    try {
+        const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+        
+        // Add RPC connection check
+        await provider.getNetwork().catch(() => {
+            throw new Error(`Cannot connect to ${config.RPC_URL}. Please check your internet connection.`);
+        });
 
-    let currentDifficulty = await miningContract.currentDifficulty();
-    let lastBlockHash = await miningContract.lastBlockHash();
-    let blockHeight = await miningContract.blockHeight();
-
-    let lastReminderTime = Date.now();
-    const REMINDER_INTERVAL = 5 * 60 * 1000; // Show reminder every 5 minutes
-
-    while (true) {
-        try {
-            // Show periodic reminder
-            const currentTime = Date.now();
-            if (currentTime - lastReminderTime >= REMINDER_INTERVAL) {
-                console.log('\n💡 Remember: Press Ctrl+C to stop mining safely');
-                lastReminderTime = currentTime;
+        // Add more specific error handling
+        if (!providedWallet) {
+            const walletData = await getWallet();
+            if (!walletData.wallet) {
+                throw new Error('No wallet found. Run "bohrium create-wallet" first.');
             }
+            providedWallet = walletData.wallet;
+        }
+        
+        const connectedWallet = providedWallet.connect(provider);
+        const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
+        const bohrTokenAddress = await miningContract.bohriumToken();
+        
+        console.log("\n🚀 Starting Bohrium Mining...");
+        console.log(`📍 Mining Contract: ${config.MINING_CONTRACT_ADDRESS}`);
+        console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
+        
+        const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, connectedWallet);
+        await logBalances(provider, connectedWallet, bohrToken);
 
-            // Check wallet balance periodically
-            const balance = await provider.getBalance(wallet.address);
-            const estimatedGas = Math.floor(config.BASE_GAS_LIMIT * config.GAS_MULTIPLIER);
-            const feeData = await provider.getFeeData();
-            const requiredBalance = BigInt(estimatedGas) * feeData.gasPrice;
+        let currentDifficulty = await miningContract.currentDifficulty();
+        let lastBlockHash = await miningContract.lastBlockHash();
+        let blockHeight = await miningContract.blockHeight();
 
-            if (BigInt(balance) < BigInt(requiredBalance)) {
-                console.error("\n❌ Insufficient ETH balance for gas fees");
-                return;
-            }
+        let lastReminderTime = Date.now();
+        const REMINDER_INTERVAL = 5 * 60 * 1000; // Show reminder every 5 minutes
 
-            // Check for new block parameters
-            const newBlockHash = await miningContract.lastBlockHash();
-            if (newBlockHash !== lastBlockHash) {
-                const newDifficulty = await miningContract.currentDifficulty();
-                const newBlockHeight = await miningContract.blockHeight();
-                
-                console.log(`\n📊 New Block #${newBlockHeight}`);
-                if (newDifficulty !== currentDifficulty) {
-                    console.log(`📈 Difficulty changed: 0x${newDifficulty.toString(16)}`);
+        while (true) {
+            try {
+                // Show periodic reminder
+                const currentTime = Date.now();
+                if (currentTime - lastReminderTime >= REMINDER_INTERVAL) {
+                    console.log('\n💡 Remember: Press Ctrl+C to stop mining safely');
+                    lastReminderTime = currentTime;
                 }
-                
-                currentDifficulty = newDifficulty;
-                lastBlockHash = newBlockHash;
-                blockHeight = newBlockHeight;
-                await logBalances(provider, connectedWallet, bohrToken);
-            }
 
-            const result = await findValidNonce(
-                connectedWallet.address,
-                lastBlockHash,
-                currentDifficulty,
-                (hashRate) => {
-                    // Convert to number and divide by 1000 with decimal precision
-                    const hashRateFormatted = formatHashRate(hashRate);
-                    process.stdout.write(`\r⛏️  Mining... Hash rate: ${hashRateFormatted}   `);
+                // Check wallet balance periodically
+                const balance = await provider.getBalance(connectedWallet.address);
+                const estimatedGas = Math.floor(config.BASE_GAS_LIMIT * config.GAS_MULTIPLIER);
+                const feeData = await provider.getFeeData();
+                const requiredBalance = BigInt(estimatedGas) * feeData.gasPrice;
+
+                if (BigInt(balance) < BigInt(requiredBalance)) {
+                    console.error("\n❌ Insufficient ETH balance for gas fees");
+                    return;
                 }
-            );
 
-            if (result?.nonce) {
-                console.log('\n✨ Found valid nonce:', result.nonce);
-                const tx = await miningContract.submitBlock(result.nonce, {
-                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
-                });
-                process.stdout.write('📝 Confirming transaction...');
-                const receipt = await tx.wait(config.CONFIRMATIONS);
-                
-                // Find and parse the BlockMined event
-                const miningEvent = receipt.logs.find(log => {
-                    try {
-                        return miningContract.interface.parseLog(log)?.name === 'BlockMined';
-                    } catch {
-                        return false;
+                // Check for new block parameters
+                const newBlockHash = await miningContract.lastBlockHash();
+                if (newBlockHash !== lastBlockHash) {
+                    const newDifficulty = await miningContract.currentDifficulty();
+                    const newBlockHeight = await miningContract.blockHeight();
+                    
+                    console.log(`\n📊 New Block #${newBlockHeight}`);
+                    if (newDifficulty !== currentDifficulty) {
+                        console.log(`📈 Difficulty changed: 0x${newDifficulty.toString(16)}`);
                     }
-                });
-
-                if (miningEvent) {
-                    const args = miningContract.interface.parseLog(miningEvent).args;
-                    const reward = ethers.formatEther(args.reward);
-                    console.log(`\n🎉 Successfully mined block #${args.blockHeight} - Earned ${reward} BOHR`);
+                    
+                    currentDifficulty = newDifficulty;
+                    lastBlockHash = newBlockHash;
+                    blockHeight = newBlockHeight;
                     await logBalances(provider, connectedWallet, bohrToken);
                 }
-            }
 
-        } catch (error) {
-            console.error("\n❌ Error:", error.message);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+                const result = await findValidNonce(
+                    connectedWallet.address,
+                    lastBlockHash,
+                    currentDifficulty,
+                    (hashRate) => {
+                        // Convert to number and divide by 1000 with decimal precision
+                        const hashRateFormatted = formatHashRate(hashRate);
+                        process.stdout.write(`\r⛏️  Mining... Hash rate: ${hashRateFormatted}   `);
+                    }
+                );
+
+                if (result?.nonce) {
+                    console.log('\n✨ Found valid nonce:', result.nonce);
+                    const tx = await miningContract.submitBlock(result.nonce, {
+                        gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
+                    });
+                    process.stdout.write('📝 Confirming transaction...');
+                    const receipt = await tx.wait(config.CONFIRMATIONS);
+                    
+                    // Find and parse the BlockMined event
+                    const miningEvent = receipt.logs.find(log => {
+                        try {
+                            return miningContract.interface.parseLog(log)?.name === 'BlockMined';
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                    if (miningEvent) {
+                        const args = miningContract.interface.parseLog(miningEvent).args;
+                        const reward = ethers.formatEther(args.reward);
+                        console.log(`\n🎉 Successfully mined block #${args.blockHeight} - Earned ${reward} BOHR`);
+                        await logBalances(provider, connectedWallet, bohrToken);
+                    }
+                }
+
+            } catch (error) {
+                console.error("\n❌ Error:", error.message);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
+    } catch (error) {
+        if (error.code === 'NETWORK_ERROR') {
+            console.error('\n❌ Network connection lost. Please check your internet connection.');
+        } else if (error.code === 'INSUFFICIENT_FUNDS') {
+            console.error('\n❌ Insufficient ETH for gas fees. Please fund your wallet.');
+        } else {
+            console.error('\n❌ Error:', error.message);
+        }
+        process.exit(1);
     }
 }
 
