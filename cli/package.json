@@ -33,12 +33,12 @@
   "author": "Your Name",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomuky/bohrium"
+    "url": "https://github.com/tomuky/bohrium/cli"
   },
   "bugs": {
     "url": "https://github.com/tomuky/bohrium/issues"
   },
-  "homepage": "https://github.com/tomuky/bohrium#readme",
+  "homepage": "https://github.com/tomuky/bohrium/cli#readme",
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js"
