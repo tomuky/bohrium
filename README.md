@@ -52,18 +52,6 @@ Deploy to Base Sepolia testnet:
 npx hardhat ignition deploy ./ignition/modules/deployBohriumMining.js --network baseSepolia
 ```
 
-## Mining
-
-Start mining with:
-```bash
-node scripts/miner-1.js baseSepolia
-```
-
-Available networks:
-- `local`: Local development
-- `baseSepolia`: Base Sepolia testnet
-- `baseMainnet`: Base mainnet
-
 ## Testing
 
 Run the test suite:
@@ -82,15 +70,6 @@ Verify contracts on Basescan:
 ```bash
 npx hardhat verify --network baseSepolia <contract-address> <constructor-arguments>
 ```
-
-## Mining Configuration
-
-Key parameters can be adjusted in `scripts/mineConfig.js`:
-- `MIN_ROUND_DURATION`: Duration of each mining round (seconds)
-- `NONCE_RANGE`: Range for nonce submissions
-- `MINING_BATCH_SIZE`: Nonces per transaction
-- `TX_BUFFER`: Buffer time for submissions
-- `END_ROUND_WAIT`: Wait time after round ends
 
 ## License
 
