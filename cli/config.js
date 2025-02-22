@@ -4,12 +4,10 @@ const os = require('os');
 
 // Common configuration shared across all environments
 const COMMON_CONFIG = {
-    MIN_ROUND_DURATION: 60, // amount of seconds per round
     NONCE_RANGE: 100000, // amount of nonces to submit per round
-    MINING_BATCH_SIZE: 1000, // amount of nonces to submit per transaction
-    TX_BUFFER: 10, // amount of seconds to submit nonce before round ends
-    END_ROUND_WAIT: 10, // amount of seconds to wait after round ends before starting to mine next round
-    BASE_GAS_LIMIT: 200000 // base gas limit for transactions
+    MINING_BATCH_SIZE: 1000, // amount of nonces to check per batch
+    BASE_GAS_LIMIT: 200000, // base gas limit for transactions
+    GAS_MULTIPLIER: 1.5 // multiplier for gas limit
 };
 
 // Environment-specific configurations
@@ -22,7 +20,8 @@ const ENV_CONFIG = {
     },
     baseSepolia: {
         RPC_URL: "https://sepolia.base.org",
-        MINING_CONTRACT_ADDRESS: "0x4A83D6C232fe06B00ABfbb2711C3b830f8a54d87", // testnet address
+        MINING_CONTRACT_ADDRESS: "0xACeE79D68d42d2f2d71Aa96D0F8510A8ADD4a8B3", // testnet address
+        BOHR_TOKEN_ADDRESS: "0xe248Dc8Ef9163DADDbd65609413F7b3d16A22Ecb", // testnet address
         CONFIRMATIONS: 2,
         GAS_MULTIPLIER: 2
     },

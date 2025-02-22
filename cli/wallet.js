@@ -50,7 +50,7 @@ async function createWallet() {
 
 async function getWallet() {
     if (!fs.existsSync(WALLET_PATH)) {
-        return null;
+        return { wallet: null, credentials: null };
     }
     const data = JSON.parse(fs.readFileSync(WALLET_PATH, 'utf8'));
     
@@ -66,7 +66,10 @@ async function getWallet() {
     try {
         // Decrypt the wallet using the password
         const wallet = await ethers.Wallet.fromEncryptedJson(data.keystore, password);
-        return wallet;
+        return { 
+            wallet,
+            credentials: { password } 
+        };
     } catch (error) {
         throw new Error('Invalid password or corrupted wallet file');
     }

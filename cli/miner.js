@@ -6,20 +6,95 @@ const { getWallet } = require("./wallet");
 const config = getNetworkConfig();
 
 const MINING_ABI = [
-    "function submitNonce(uint256 nonce) external",
-    "function endRound() external",
-    "function roundId() view returns (uint256)",
-    "function roundStartTime() view returns (uint256)",
-    "function bohriumToken() view returns (address)",
-    "function bestHash() view returns (bytes32)",
-    "function REWARD_AMOUNT() view returns (uint256)",
+    // Human-readable function signatures
+    "function submitBlock(uint256 nonce) external",
     "function currentReward() view returns (uint256)",
-    "function roundEndTime() view returns (uint256)",
-    "function roundDuration() view returns (uint256)",
+    "function currentDifficulty() view returns (uint256)",
+    "function lastBlockHash() view returns (bytes32)",
+    "function blockHeight() view returns (uint256)",
+    "function bohriumToken() view returns (address)",
+
+    // Events
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "miner", "type": "address"},
+            {"indexed": true, "internalType": "uint256", "name": "blockHeight", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "nonce", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "reward", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "timeTaken", "type": "uint256"}
+        ],
+        "name": "BlockMined",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": false, "internalType": "uint256", "name": "newDifficulty", "type": "uint256"}
+        ],
+        "name": "DifficultyAdjusted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": false, "internalType": "uint256", "name": "newReward", "type": "uint256"}
+        ],
+        "name": "RewardHalved",
+        "type": "event"
+    }
 ];
 
 const TOKEN_ABI = [
-    "function balanceOf(address account) view returns (uint256)"
+    {
+        name: "balanceOf",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "account", type: "address" }],
+        outputs: [{ name: "balance", type: "uint256" }]
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "Transfer",
+        "type": "event"
+    },
+    {
+        "name": "transfer",
+        "type": "function",
+        "inputs": [
+            {
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ]
+    }
 ];
 
 async function formatBalance(balance) {
@@ -50,14 +125,11 @@ async function countdownLog(message, seconds) {
 
 async function mine(providedWallet = null) {
     const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    
-    // Use provided wallet or get a new one if not provided
     const wallet = providedWallet || await getWallet();
     if (!wallet) {
         throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
     }
     
-    // Connect the wallet to the provider
     const connectedWallet = wallet.connect(provider);
     const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
     const bohrTokenAddress = await miningContract.bohriumToken();
@@ -67,126 +139,134 @@ async function mine(providedWallet = null) {
     console.log(`📍 BOHR Token Address: ${bohrTokenAddress}`);
     
     const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, connectedWallet);
-    
     await logBalances(provider, connectedWallet, bohrToken);
 
-    let lastRoundId = 0;
+    let currentDifficulty = await miningContract.currentDifficulty();
+    let lastBlockHash = await miningContract.lastBlockHash();
+    let blockHeight = await miningContract.blockHeight();
+
+    let lastReminderTime = Date.now();
+    const REMINDER_INTERVAL = 5 * 60 * 1000; // Show reminder every 5 minutes
 
     while (true) {
         try {
-            const roundId = await miningContract.roundId();
-            const roundStart = BigInt(await miningContract.roundStartTime());
-            const roundDuration = BigInt(await miningContract.roundDuration());
-            const currentTime = BigInt(Math.floor(Date.now() / 1000));
-            const roundAge = Number(currentTime - roundStart);
-
-            // Log new round information
-            if (roundId !== lastRoundId) {
-                console.log(`\n📊 Round ${roundId} Started`);
-                await logBalances(provider, connectedWallet, bohrToken);
-                lastRoundId = roundId;
+            // Show periodic reminder
+            const currentTime = Date.now();
+            if (currentTime - lastReminderTime >= REMINDER_INTERVAL) {
+                console.log('\n💡 Remember: Press Ctrl+C to stop mining safely');
+                lastReminderTime = currentTime;
             }
 
-            // If round duration has passed plus buffer, try to end it
-            if (roundAge >= Number(roundDuration) + config.END_ROUND_WAIT) {
-                console.log("\n🏁 Attempting to end round...");
-                const tx = await miningContract.endRound({
-                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
-                });
-                await tx.wait(config.CONFIRMATIONS);
-                console.log("✅ Round ended successfully");
-                await logBalances(provider, connectedWallet, bohrToken);
-                continue;
+            // Check wallet balance periodically
+            const balance = await provider.getBalance(wallet.address);
+            const estimatedGas = Math.floor(config.BASE_GAS_LIMIT * config.GAS_MULTIPLIER);
+            const feeData = await provider.getFeeData();
+            const requiredBalance = BigInt(estimatedGas) * feeData.gasPrice;
+
+            if (BigInt(balance) < BigInt(requiredBalance)) {
+                console.error("\n❌ Insufficient ETH balance for gas fees");
+                return;
             }
 
-            // If we're in the waiting period, show countdown
-            if (roundAge >= Number(roundDuration)) {
-                const remainingWait = (Number(roundDuration) + config.END_ROUND_WAIT) - roundAge;
-                await countdownLog("⏳ Waiting for round to end:", remainingWait);
-                continue;
-            }
-
-            // Calculate mining duration
-            const miningDuration = Math.max(0, config.MIN_ROUND_DURATION - roundAge - config.TX_BUFFER);
-            
-            if (miningDuration > 0) {
-                const startTime = Date.now();
-                const endTime = startTime + (miningDuration * 1000);
+            // Check for new block parameters
+            const newBlockHash = await miningContract.lastBlockHash();
+            if (newBlockHash !== lastBlockHash) {
+                const newDifficulty = await miningContract.currentDifficulty();
+                const newBlockHeight = await miningContract.blockHeight();
                 
-                const bestNonce = await findBestNonce(connectedWallet.address, miningDuration * 1000, miningContract,
-                    // Updated progress callback
-                    (remainingTime, hashRate) => {
-                        const remaining = Math.ceil(remainingTime / 1000);
-                        const hashRateFormatted = (hashRate / 1000).toFixed(2); // Convert to kH/s
-                        process.stdout.write(`\r⛏️  Mining... ${remaining}s remaining | Hash rate: ${hashRateFormatted} kH/s   `);
-                    }
-                );
-                console.log('\n✨ Found best nonce:', bestNonce);
+                console.log(`\n📊 New Block #${newBlockHeight}`);
+                if (newDifficulty !== currentDifficulty) {
+                    console.log(`📈 Difficulty changed: 0x${newDifficulty.toString(16)}`);
+                }
                 
-                const tx = await miningContract.submitNonce(bestNonce, {
+                currentDifficulty = newDifficulty;
+                lastBlockHash = newBlockHash;
+                blockHeight = newBlockHeight;
+                await logBalances(provider, connectedWallet, bohrToken);
+            }
+
+            const result = await findValidNonce(
+                connectedWallet.address,
+                lastBlockHash,
+                currentDifficulty,
+                (hashRate) => {
+                    // Convert to number and divide by 1000 with decimal precision
+                    const hashRateFormatted = formatHashRate(hashRate);
+                    process.stdout.write(`\r⛏️  Mining... Hash rate: ${hashRateFormatted}   `);
+                }
+            );
+
+            if (result?.nonce) {
+                console.log('\n✨ Found valid nonce:', result.nonce);
+                const tx = await miningContract.submitBlock(result.nonce, {
                     gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
                 });
                 process.stdout.write('📝 Confirming transaction...');
-                await tx.wait(config.CONFIRMATIONS);
-                console.log('\r✅ Nonce submitted successfully    ');
+                const receipt = await tx.wait(config.CONFIRMATIONS);
+                
+                // Find and parse the BlockMined event
+                const miningEvent = receipt.logs.find(log => {
+                    try {
+                        return miningContract.interface.parseLog(log)?.name === 'BlockMined';
+                    } catch {
+                        return false;
+                    }
+                });
+
+                if (miningEvent) {
+                    const args = miningContract.interface.parseLog(miningEvent).args;
+                    const reward = ethers.formatEther(args.reward);
+                    console.log(`\n🎉 Successfully mined block #${args.blockHeight} - Earned ${reward} BOHR`);
+                    await logBalances(provider, connectedWallet, bohrToken);
+                }
             }
 
         } catch (error) {
             console.error("\n❌ Error:", error.message);
-            await sleep(1000);
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 }
 
-async function findBestNonce(minerAddress, duration, miningContract, onProgress) {
-    let bestNonce = 0;
-    let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    const endTime = Date.now() + duration;
-    let lastProgressUpdate = Date.now();
-    
-    // Add hash rate tracking
+async function findValidNonce(minerAddress, blockHash, difficulty, onProgress) {
+    const randomBuffer = new Uint32Array(config.MINING_BATCH_SIZE);
     let hashCount = 0;
     let lastHashRateUpdate = Date.now();
-    let currentHashRate = 0;
+    let bestHash = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    
+    while (true) {
+        crypto.getRandomValues(randomBuffer);
 
-    // Get the current bestHash from the contract
-    const currentBestHash = await miningContract.bestHash();
-
-    while (Date.now() < endTime) {
-        // Update progress and hash rate every 100ms
-        if (Date.now() - lastProgressUpdate > 100) {
-            const now = Date.now();
-            // Calculate hash rate
-            const timeDiff = (now - lastHashRateUpdate) / 1000; // convert to seconds
-            currentHashRate = Math.floor(hashCount / timeDiff);
-            
-            process.stdout.write(`\r⛏️  Mining... ${Math.ceil((endTime - now) / 1000)}s remaining | Hash rate: ${(currentHashRate / 1000).toFixed(2)} kH/s   `);
-            lastProgressUpdate = now;
+        const now = Date.now();
+        if (now - lastHashRateUpdate >= 1000) {
+            onProgress(hashCount);
+            hashCount = 0;
+            lastHashRateUpdate = now;
         }
 
         for (let i = 0; i < config.MINING_BATCH_SIZE; i++) {
-            const nonce = Math.floor(Math.random() * config.NONCE_RANGE);
+            const nonce = randomBuffer[i];
             const hash = ethers.keccak256(
                 ethers.solidityPacked(
-                    ["address", "bytes32", "uint256"],
-                    [minerAddress, currentBestHash, nonce]
+                    ["address", "bytes32", "uint256", "uint256"],
+                    [minerAddress, blockHash, difficulty, nonce]
                 )
             );
 
-            hashCount++;
             const hashValue = BigInt(hash);
+            
             if (hashValue < bestHash) {
                 bestHash = hashValue;
-                bestNonce = nonce;
+            }
+            
+            if (hashValue <= difficulty) {
+                return { nonce, hashValue };
             }
         }
+        hashCount += config.MINING_BATCH_SIZE;
         
-        await new Promise(r => setImmediate(r));
+        await new Promise(resolve => setImmediate(resolve));
     }
-
-    // Add a newline after mining is complete
-    process.stdout.write('\n');
-    return bestNonce;
 }
 
 // Handle graceful shutdown
@@ -217,55 +297,82 @@ async function getRewardAmount() {
     return ethers.formatEther(rewardAmountWei);
 }
 
-async function watchRounds(providedWallet = null) {
-    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
-    
-    // Use provided wallet or get a new one if not provided
-    const wallet = providedWallet || await getWallet();
-    if (!wallet) {
-        throw new Error('No wallet found. Please create one first using "bohrium wallet create"');
-    }
-    
-    const connectedWallet = wallet.connect(provider);
-    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, connectedWallet);
-
-    let lastRoundId = 0;
-
-    while (true) {
-        try {
-            const roundId = await miningContract.roundId();
-            const roundStart = BigInt(await miningContract.roundStartTime());
-            const roundDuration = BigInt(await miningContract.roundDuration());
-            const currentTime = BigInt(Math.floor(Date.now() / 1000));
-            const roundAge = Number(currentTime - roundStart);
-
-            // Log new round information
-            if (roundId !== lastRoundId) {
-                console.log(`\n📊 Round ${roundId} Started`);
-                lastRoundId = roundId;
-            }
-
-            // If round duration has passed plus buffer
-            if (roundAge >= Number(roundDuration)) {
-                console.log("\n🏁 Attempting to end round...");
-                const tx = await miningContract.endRound({
-                    gasLimit: Math.floor(config.GAS_MULTIPLIER * config.BASE_GAS_LIMIT)
-                });
-                await tx.wait(config.CONFIRMATIONS);
-                console.log("✅ Round ended successfully");
-                continue;
-            }
-
-            // Otherwise show current round status
-            const timeLeft = Number(roundDuration) - roundAge;
-            process.stdout.write(`\r⏳ Round ${roundId}: ${timeLeft}s remaining until round can be ended   `);
-            await sleep(1000);
-
-        } catch (error) {
-            console.error("\n❌ Error:", error.message);
-            await sleep(1000);
-        }
+function formatHashRate(hashesPerSecond) {
+    if (hashesPerSecond < 1000) {
+        return `${hashesPerSecond.toFixed(1)} H/s`;
+    } else if (hashesPerSecond < 1000000) {
+        return `${(hashesPerSecond / 1000).toFixed(1)} kH/s`;
+    } else if (hashesPerSecond < 1000000000) {
+        return `${(hashesPerSecond / 1000000).toFixed(1)} MH/s`;
+    } else {
+        return `${(hashesPerSecond / 1000000000).toFixed(1)} GH/s`;
     }
 }
 
-module.exports = { mine, getETHBalance, getBohrBalance, getRewardAmount, watchRounds };
+async function withdrawETH(wallet, toAddress, amount) {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const connectedWallet = wallet.connect(provider);
+    
+    // Convert amount from ETH to Wei
+    const amountWei = ethers.parseEther(amount);
+    
+    // Get current balance
+    const balance = await provider.getBalance(wallet.address);
+    if (balance < amountWei) {
+        throw new Error('Insufficient ETH balance');
+    }
+
+    // Estimate gas for the transfer
+    const gasLimit = 21000; // Standard ETH transfer gas
+    const feeData = await provider.getFeeData();
+    const gasCost = BigInt(gasLimit) * feeData.gasPrice;
+    
+    // Check if we have enough ETH for transfer + gas
+    if (balance < (amountWei + gasCost)) {
+        throw new Error('Insufficient ETH balance to cover amount + gas fees');
+    }
+
+    // Send transaction
+    const tx = await connectedWallet.sendTransaction({
+        to: toAddress,
+        value: amountWei,
+        gasLimit: gasLimit
+    });
+
+    return tx;
+}
+
+async function withdrawBOHR(wallet, toAddress, amount) {
+    const provider = new ethers.JsonRpcProvider(config.RPC_URL);
+    const connectedWallet = wallet.connect(provider);
+    
+    // Get BOHR token contract
+    const miningContract = new ethers.Contract(config.MINING_CONTRACT_ADDRESS, MINING_ABI, provider);
+    const bohrTokenAddress = await miningContract.bohriumToken();
+    const bohrToken = new ethers.Contract(bohrTokenAddress, TOKEN_ABI, connectedWallet);
+    
+    // Convert amount from BOHR to Wei
+    const amountWei = ethers.parseEther(amount);
+    
+    // Check balance
+    const balance = await bohrToken.balanceOf(wallet.address);
+    if (balance < amountWei) {
+        throw new Error('Insufficient BOHR balance');
+    }
+
+    // Send transaction
+    const tx = await bohrToken.transfer(toAddress, amountWei, {
+        gasLimit: Math.floor(config.BASE_GAS_LIMIT * config.GAS_MULTIPLIER)
+    });
+
+    return tx;
+}
+
+module.exports = {
+    mine,
+    getETHBalance,
+    getBohrBalance,
+    getRewardAmount,
+    withdrawETH,
+    withdrawBOHR
+};

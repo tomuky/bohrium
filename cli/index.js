@@ -1,8 +1,11 @@
+#!/usr/bin/env node
+
 const { Command } = require('commander');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const path = require('path');
 const { createWallet, getWallet } = require('./wallet');
+const ethers = require('ethers');
 
 // Import mining script
 const miner = require(path.resolve(__dirname, './miner'));
@@ -25,10 +28,11 @@ program
             
             // Step 1: Check/Create Wallet
             let wallet = null;
+            let credentials = null;  // Store credentials for reuse
             try {
-                wallet = await getWallet();
+                // Get wallet and store credentials
+                ({ wallet, credentials } = await getWallet());
             } catch (error) {
-                // If there's an error getting the wallet, we'll create a new one
                 wallet = null;
             }
 
@@ -49,7 +53,8 @@ program
                     return;
                 }
 
-                wallet = await createWallet();
+                // Create wallet and store credentials
+                ({ wallet, credentials } = await createWallet());
                 console.log(chalk.green('\n✅ Wallet created successfully!'));
                 console.log('\n⚠️  IMPORTANT: Please store your recovery phrase and private key safely!');
             } else {
@@ -96,7 +101,7 @@ program
             if (startMining.begin) {
                 console.log(chalk.green('\n🎮 Starting mining process...'));
                 console.log(chalk.gray('Press Ctrl+C at any time to stop mining\n'));
-                await miner.mine(wallet);
+                await miner.mine(wallet, credentials);
             } else {
                 console.log(chalk.yellow('\nOK! You can start mining later using "bohrium mine"'));
             }
@@ -121,21 +126,12 @@ program
       
       console.log(chalk.green('Start mining...'));
       console.log(chalk.blue(`Mining with wallet address: ${wallet.address}`));
+      console.log('\n💡 Remember: Press Ctrl+C to stop mining safely');
       
       await miner.mine(wallet);
     } catch (error) {
       console.error(chalk.red('\n❌ Error starting mining:', error.message));
     }
-  });
-
-// 3. Check balance command
-program
-  .command('balance')
-  .description('Check your BOHR token balance')
-  .action(() => {
-    console.log(chalk.green('Fetching balance...'));
-    const balance = miner.getBalance(config); // Assuming a getBalance function
-    console.log(chalk.blue(`Your BOHR token balance is: ${balance}`));
   });
 
 // 4. Create wallet command
@@ -166,7 +162,7 @@ program
     .description('Show wallet information including address and balances')
     .action(async () => {
         try {
-            const wallet = getWallet();
+            const { wallet } = await getWallet();
             if (!wallet) {
                 console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
                 console.log(chalk.cyan('bohrium create-wallet'));
@@ -261,26 +257,137 @@ program
         console.log(chalk.blue('Configuration saved.'));
     });
 
-// 10. Round Watcher command
+// Add after other wallet-related commands
 program
-    .command('round-watcher')
-    .description('Monitor mining rounds and attempt to end them when possible')
+    .command('reveal-credentials')
+    .description('Securely reveal wallet credentials')
     .action(async () => {
         try {
-            const wallet = await getWallet();
+            console.log(chalk.yellow('\n⚠️  WARNING: You are about to reveal sensitive wallet information'));
+            console.log(chalk.yellow('Never share these credentials with anyone!'));
+
+            const { wallet, credentials } = await getWallet();
+            
             if (!wallet) {
-                console.log(chalk.yellow('\n⚠️  No wallet found. Create one first with:'));
+                console.log(chalk.red('\n❌ Invalid password or no wallet found'));
+                return;
+            }
+
+            console.log(chalk.green('\n✅ Credentials verified'));
+            console.log(chalk.yellow('\n⚠️  IMPORTANT: Store these securely and never share them!'));
+            console.log('\n📬 Address:', chalk.cyan(wallet.address));
+            console.log('🔑 Private Key:', chalk.cyan(wallet.privateKey));
+            
+            if (wallet.mnemonic?.phrase) {
+                console.log('🔐 Secret Recovery Phrase:', chalk.cyan(wallet.mnemonic.phrase));
+            } else {
+                console.log('🔐 Secret Recovery Phrase:', chalk.gray('Not available for this wallet'));
+            }
+
+            console.log(chalk.yellow('\n⚠️  WARNING:'));
+            console.log(chalk.yellow('  • Clear your terminal history after viewing these credentials'));
+            console.log(chalk.yellow('  • Never store these credentials in plain text'));
+            console.log(chalk.yellow('  • If someone gets access to these, they can steal your funds'));
+
+        } catch (error) {
+            console.error(chalk.red('\n❌ Error revealing credentials:', error.message));
+        }
+    });
+
+// Add after other commands
+program
+    .command('withdraw')
+    .description('Withdraw ETH or BOHR from your wallet')
+    .action(async () => {
+        try {
+            const { wallet } = await getWallet();
+            if (!wallet) {
+                console.log(chalk.red('\n❌ No wallet found. Create one first with:'));
                 console.log(chalk.cyan('bohrium create-wallet'));
                 return;
             }
 
-            console.log(chalk.green('\n🔍 Starting Round Watcher...'));
-            console.log(chalk.cyan('Monitoring rounds with wallet:', wallet.address));
-            console.log(chalk.gray('Press Ctrl+C at any time to stop watching\n'));
+            // Show current balances
+            console.log(chalk.gray('\nFetching current balances...'));
+            const ethBalance = await miner.getETHBalance(wallet.address);
+            const bohrBalance = await miner.getBohrBalance(wallet.address);
+            
+            console.log('\n📊 Current balances:');
+            console.log(`ETH: ${chalk.cyan(ethBalance)} ETH`);
+            console.log(`BOHR: ${chalk.cyan(bohrBalance)} BOHR`);
 
-            await miner.watchRounds(wallet);
+            // Get withdrawal details
+            const tokenAnswer = await inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'token',
+                    message: 'Which token would you like to withdraw?',
+                    choices: ['ETH', 'BOHR']
+                }
+            ]);
+
+            const maxBalance = tokenAnswer.token === 'ETH' ? ethBalance : bohrBalance;
+
+            const withdrawalDetails = await inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'address',
+                    message: 'Enter the destination address:',
+                    validate: (input) => {
+                        return ethers.isAddress(input) || 'Please enter a valid Ethereum address';
+                    }
+                },
+                {
+                    type: 'input',
+                    name: 'amount',
+                    message: 'Enter the amount to withdraw:',
+                    validate: (input) => {
+                        if (isNaN(input) || input <= 0) return 'Please enter a valid number';
+                        return parseFloat(input) <= parseFloat(maxBalance) || 'Amount exceeds balance';
+                    }
+                }
+            ]);
+
+            const confirmation = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Confirm sending ${withdrawalDetails.amount} ${tokenAnswer.token} to ${withdrawalDetails.address}?`,
+                    default: false
+                }
+            ]);
+
+            if (!confirmation.confirm) {
+                console.log(chalk.yellow('\n❌ Transaction cancelled'));
+                return;
+            }
+
+            console.log(chalk.gray('\nProcessing withdrawal...'));
+            
+            let tx;
+            if (tokenAnswer.token === 'ETH') {
+                tx = await miner.withdrawETH(wallet, withdrawalDetails.address, withdrawalDetails.amount);
+            } else {
+                tx = await miner.withdrawBOHR(wallet, withdrawalDetails.address, withdrawalDetails.amount);
+            }
+
+            console.log(chalk.gray('\nWaiting for confirmation...'));
+            await tx.wait();
+            
+            console.log(chalk.green('\n✅ Withdrawal successful!'));
+            console.log('Transaction hash:', chalk.cyan(tx.hash));
+            
+            // Show updated balances
+            console.log(chalk.gray('\nFetching updated balances...'));
+            const newEthBalance = await miner.getETHBalance(wallet.address);
+            const newBohrBalance = await miner.getBohrBalance(wallet.address);
+            
+            console.log('\n📊 Updated balances:');
+            console.log(`ETH: ${chalk.cyan(newEthBalance)} ETH`);
+            console.log(`BOHR: ${chalk.cyan(newBohrBalance)} BOHR`);
+
         } catch (error) {
-            console.error(chalk.red('\n❌ Error in round watcher:', error.message));
+            console.error(chalk.red('\n❌ Error processing withdrawal:', error.message));
         }
     });
 

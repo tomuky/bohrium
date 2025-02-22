@@ -13,6 +13,23 @@
     "ethers": "^6.11.1",
     "inquirer": "8.2.6"
   },
+  "keywords": [
+    "cli",
+    "cryptocurrency",
+    "mining",
+    "ethereum",
+    "base",
+    "bohr"
+  ],
+  "author": "Your Name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/bohrium-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/bohrium-cli/issues"
+  },
+  "homepage": "https://github.com/yourusername/bohrium-cli#readme",
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js"
