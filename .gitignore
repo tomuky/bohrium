@@ -13,8 +13,9 @@ node_modules
 /coverage
 /coverage.json
 
-# Hardhat Ignition default folder for deployments against a local node
-/ignition/deployments/
+# Hardhat Ignition deployments - only ignore local network deployments
+/ignition/deployments/localhost/
+/ignition/deployments/hardhat/
 
 # Next.js
 /frontend/.next/
