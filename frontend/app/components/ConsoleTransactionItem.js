@@ -1,7 +1,7 @@
 'use client'
 import styles from './Console.module.css'   
 import Image from 'next/image'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useEffect } from 'react'
 import { useWaitForTransactionReceipt } from 'wagmi'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 import { DEFAULT_NETWORK } from '../services/config'
@@ -13,8 +13,10 @@ const ConsoleTransactionItem = memo(({ hash, timestamp }) => {
     })
     const timeAgo = useTimeAgo(timestamp)
 
-    if (isError) console.log('Transaction error: ', error)
-    
+    useEffect(() => {
+        if (isError) console.log('Transaction error: ', error)
+    }, [isError, error])
+
     const statusIcon = useMemo(() => {
         if (isError) return '/images/error.png'
         if (isSuccess) return '/images/check.png'
