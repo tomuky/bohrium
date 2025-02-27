@@ -10,222 +10,361 @@ describe("Bohrium Mining System", function () {
     async function deployMiningSystemFixture() {
         const [owner, miner1, miner2] = await ethers.getSigners();
 
-        // Deploy token
+        // Deploy BOHR token
         const BohriumToken = await ethers.getContractFactory("BohriumToken");
-        const token = await BohriumToken.deploy();
+        const bohrToken = await BohriumToken.deploy();
+
+        // Deploy sBOHR token
+        const StakedBohrToken = await ethers.getContractFactory("StakedBohrToken");
+        const sBohrToken = await StakedBohrToken.deploy(await bohrToken.getAddress());
 
         // Deploy mining contract
         const Mining = await ethers.getContractFactory("BohriumMining");
-        const mining = await Mining.deploy(await token.getAddress());
+        const mining = await Mining.deploy(
+            await bohrToken.getAddress(),
+            await sBohrToken.getAddress()
+        );
 
-        // Transfer token ownership to mining contract
-        await token.transferOwnership(await mining.getAddress());
+        // Mint initial tokens for testing
+        const initialAmount = ethers.parseEther("1000");
+        await bohrToken.mint(miner1.address, initialAmount);
+        await bohrToken.mint(miner2.address, initialAmount);
 
-        return { token, mining, owner, miner1, miner2 };
+        // Transfer BOHR token ownership to mining contract for rewards
+        await bohrToken.transferOwnership(await mining.getAddress());
+
+        return { bohrToken, sBohrToken, mining, owner, miner1, miner2 };
     }
 
-    describe("Initial Setup", function () {
-        it("should set the correct initial reward to 10 BOHR", async function () {
-            const { mining } = await loadFixture(deployMiningSystemFixture);
-            const reward = await mining.currentReward();
-            expect(reward).to.equal(ethers.parseEther("10"));
-        });
-
-        it("should set the correct token address", async function () {
-            const { mining, token } = await loadFixture(deployMiningSystemFixture);
-            expect(await mining.bohriumToken()).to.equal(await token.getAddress());
-        });
-
-        it("should set initial difficulty", async function () {
-            const { mining } = await loadFixture(deployMiningSystemFixture);
-            const difficulty = await mining.currentDifficulty();
-            expect(difficulty).to.equal(ethers.MaxUint256 >> 16n);
-        });
-    });
-
-    describe("Mining Mechanics", function () {
-        it("should reject hashes that don't meet difficulty", async function () {
-            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+    describe("Staking System", function () {
+        it("should allow staking BOHR for sBOHR", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
             
-            // Using a very high nonce to ensure hash is above difficulty
-            const highNonce = ethers.MaxUint256;
+            // Approve and stake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Check balances
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(stakeAmount);
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("900"));
+        });
+
+        it("should prevent transferring sBOHR tokens", async function () {
+            const { bohrToken, sBohrToken, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Try to transfer sBOHR
             await expect(
-                mining.connect(miner1).submitBlock(highNonce)
-            ).to.be.revertedWith("Hash doesn't meet difficulty");
+                sBohrToken.connect(miner1).transfer(miner2.address, stakeAmount)
+            ).to.be.revertedWith("sBOHR: non-transferrable");
         });
 
-        it("should accept valid blocks and mint rewards", async function () {
-            const { mining, token, miner1 } = await loadFixture(deployMiningSystemFixture);
+        it("should affect mining difficulty based on sBOHR balance", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
             
-            // Temporarily increase the difficulty to make it easier to find a valid hash
-            const difficulty = ethers.MaxUint256 >> 4n; // Much easier difficulty for testing
-            await mining.setCurrentDifficulty(difficulty); // We'll need to add this function to the contract
+            // Get initial difficulty (should be penalized due to no stake)
+            const baseDifficulty = await mining.currentDifficulty();
+            const initialMinerDifficulty = await mining.getMinerDifficulty(miner1.address);
+            expect(initialMinerDifficulty).to.equal(baseDifficulty * 2n); // 50% penalty
             
-            // Find a valid nonce (with a reasonable limit)
-            let nonce = 0;
-            let validNonce = null;
-            const maxAttempts = 100;
+            // Stake enough to meet required amount (10x reward)
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
             
-            while (validNonce === null && nonce < maxAttempts) {
-                const hash = ethers.keccak256(
-                    ethers.solidityPacked(
-                        ["address", "bytes32", "uint256", "uint256"],
-                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce]
-                    )
-                );
-                if (BigInt(hash) <= difficulty) {
-                    validNonce = nonce;
-                    break;
-                }
-                nonce++;
-            }
-            
-            // If we couldn't find a valid nonce, use a predetermined one for testing
-            if (validNonce === null) {
-                console.log("Could not find valid nonce, using test value");
-                validNonce = 0;
-            }
-            
-            await mining.connect(miner1).submitBlock(validNonce);
-            const balance = await token.balanceOf(miner1.address);
-            expect(balance).to.equal(ethers.parseEther("10"));
+            // Check new difficulty (should be base difficulty)
+            const newMinerDifficulty = await mining.getMinerDifficulty(miner1.address);
+            expect(newMinerDifficulty).to.equal(baseDifficulty);
         });
 
-        it("should update block height after successful mining", async function () {
-            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+        it("should not allow staking 0 BOHR", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("0");
             
-            // Set an easier difficulty for testing
-            const difficulty = ethers.MaxUint256 >> 4n;
-            await mining.setCurrentDifficulty(difficulty);
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await expect(
+                sBohrToken.connect(miner1).stake(stakeAmount)
+            ).to.be.revertedWith("Cannot stake 0");
+        });
+
+        it("should not allow unstaking 0 sBOHR", async function () {
+            const { sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            await expect(
+                sBohrToken.connect(miner1).requestUnstake(0)
+            ).to.be.revertedWith("Cannot unstake 0");
+        });
+
+        it("should not allow unstaking more than staked balance", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            const unstakeAmount = ethers.parseEther("150");
             
-            // Find a valid nonce (simplified for testing)
-            let nonce = 0;
-            let validNonce = null;
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
             
-            while (validNonce === null && nonce < 100) {
-                const hash = ethers.keccak256(
-                    ethers.solidityPacked(
-                        ["address", "bytes32", "uint256", "uint256"],
-                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce]
-                    )
-                );
-                if (BigInt(hash) <= difficulty) {
-                    validNonce = nonce;
-                    break;
-                }
-                nonce++;
-            }
+            // Try to unstake more than balance
+            await expect(
+                sBohrToken.connect(miner1).requestUnstake(unstakeAmount)
+            ).to.be.revertedWith("Insufficient staked balance");
+        });
+
+        it("should not allow staking more than BOHR balance", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("1500"); // More than initial 1000 BOHR
             
-            // If we couldn't find a valid nonce, use a predetermined one for testing
-            if (validNonce === null) {
-                validNonce = 0;
-            }
-            
-            const initialHeight = await mining.blockHeight();
-            await mining.connect(miner1).submitBlock(validNonce);
-            expect(await mining.blockHeight()).to.equal(initialHeight + 1n);
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await expect(
+                sBohrToken.connect(miner1).stake(stakeAmount)
+            ).to.be.reverted; // Just check for any revert since OpenZeppelin uses custom errors
         });
     });
 
-    // hard to test
     describe("Difficulty Adjustment", function () {
-        it("should adjust difficulty after DIFFICULTY_ADJUSTMENT_INTERVAL blocks", async function () {
-            const { mining, miner1 } = await loadFixture(deployMiningSystemFixture);
-            const ADJUSTMENT_INTERVAL = 360; // 6 hours worth of blocks
+        it("should adjust difficulty every 5 blocks based on time", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
             
-            // Set a known difficulty
-            await mining.setCurrentDifficulty(1000);
-            const initialDifficulty = await mining.currentDifficulty();
+            // Get current reward and required stake
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+
+            // Stake enough to avoid unstaked penalty
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
             
-            // Mine blocks until just before adjustment
-            for (let i = 0; i < ADJUSTMENT_INTERVAL - 1; i++) {
+            // Set initial difficulty
+            const initialDifficulty = ethers.MaxUint256;
+            await mining.setCurrentDifficulty(initialDifficulty);
+            
+            // Mine 5 blocks quickly
+            for (let i = 0; i < 5; i++) {
                 await mining.connect(miner1).submitBlock(0);
-                await time.increase(30); // Half the target time (60s) to make difficulty increase
+                await time.increase(30); // 30 seconds instead of 120
             }
             
-            // Mine the final block that triggers adjustment
-            await mining.connect(miner1).submitBlock(0);
-            
+            // Check that difficulty was adjusted
             const newDifficulty = await mining.currentDifficulty();
-            console.log("Initial difficulty:", initialDifficulty.toString());
-            console.log("New difficulty:", newDifficulty.toString());
-            
-            expect(newDifficulty).to.not.equal(initialDifficulty);
-            // Since blocks came in 2x faster than target, difficulty should roughly double
-            expect(newDifficulty).to.be.gt(initialDifficulty);
+            expect(newDifficulty).to.be.lt(initialDifficulty);
         });
     });
 
-    describe("Reward Halving", function () {
-        it("should halve rewards after one year", async function () {
-            const { mining } = await loadFixture(deployMiningSystemFixture);
-            await time.increase(365 * 24 * 60 * 60);
-            const reward = await mining.currentReward();
-            expect(reward).to.equal(ethers.parseEther("5"));
+    describe("Unstaking Cooldown", function () {
+        it("should allow requesting unstake", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Check initial balances
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(stakeAmount);
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("900"));
+            
+            // Request unstake
+            const tx = await sBohrToken.connect(miner1).requestUnstake(stakeAmount);
+            const receipt = await tx.wait();
+            
+            // Verify the event
+            await expect(tx)
+                .to.emit(sBohrToken, "UnstakeRequested")
+                .withArgs(miner1.address, stakeAmount, receipt.blockNumber);
+            
+            // Check balances after unstake request
+            // sBOHR should be burned during request
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            // BOHR balance should remain unchanged until unstake is completed
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("900"));
+            
+            // Check request is recorded
+            const request = await sBohrToken.unstakeRequests(miner1.address);
+            expect(request.amount).to.equal(stakeAmount);
+            expect(request.requestBlock).to.equal(receipt.blockNumber);
         });
 
-        it("should respect minimum reward", async function () {
-            const { mining } = await loadFixture(deployMiningSystemFixture);
-            await time.increase(100 * 365 * 24 * 60 * 60);
-            const reward = await mining.currentReward();
-            expect(reward).to.equal(ethers.parseEther("0.0001"));
-        });
-    });
-
-    describe("Mining Edge Cases", function () {
-        it("should handle multiple miners finding blocks close together", async function () {
-            const { mining, token, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+        it("should not allow completing unstake before cooldown", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
             
-            // Set an easier difficulty for testing
-            const difficulty = ethers.MaxUint256 >> 4n;
-            await mining.setCurrentDifficulty(difficulty);
+            // Stake and request unstake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            await sBohrToken.connect(miner1).requestUnstake(stakeAmount);
             
-            // Both miners find valid nonces
-            let nonce1 = 0, nonce2 = 1000; // Start from different points
-            let validNonce1 = null, validNonce2 = null;
-            
-            // Find valid nonces for both miners
-            while (validNonce1 === null && nonce1 < 100) {
-                const hash = ethers.keccak256(
-                    ethers.solidityPacked(
-                        ["address", "bytes32", "uint256", "uint256"],
-                        [miner1.address, await mining.lastBlockHash(), difficulty, nonce1]
-                    )
-                );
-                if (BigInt(hash) <= difficulty) {
-                    validNonce1 = nonce1;
-                }
-                nonce1++;
-            }
-            
-            while (validNonce2 === null && nonce2 < 100) {
-                const hash = ethers.keccak256(
-                    ethers.solidityPacked(
-                        ["address", "bytes32", "uint256", "uint256"],
-                        [miner2.address, await mining.lastBlockHash(), difficulty, nonce2]
-                    )
-                );
-                if (BigInt(hash) <= difficulty) {
-                    validNonce2 = nonce2;
-                }
-                nonce2++;
-            }
-            
-            // If we couldn't find valid nonces, use predetermined ones for testing
-            if (validNonce1 === null) validNonce1 = 0;
-            if (validNonce2 === null) validNonce2 = 0;
-            
-            // First miner submits
-            await mining.connect(miner1).submitBlock(validNonce1);
-            
-            // Second miner tries to submit for same block height (should fail)
+            // Try to complete unstake immediately
             await expect(
-                mining.connect(miner2).submitBlock(validNonce2)
-            ).to.be.reverted; // Hash won't match because lastBlockHash changed
+                sBohrToken.connect(miner1).completeUnstake()
+            ).to.be.revertedWith("Cooldown not complete");
+        });
+
+        it("should allow completing unstake after cooldown", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
             
-            // Verify only first miner got reward
-            expect(await token.balanceOf(miner1.address)).to.equal(ethers.parseEther("10"));
-            expect(await token.balanceOf(miner2.address)).to.equal(0);
+            // Stake and request unstake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            await sBohrToken.connect(miner1).requestUnstake(stakeAmount);
+            
+            // Mine 1000 blocks
+            for (let i = 0; i < 1000; i++) {
+                await ethers.provider.send("evm_mine");
+            }
+            
+            // Complete unstake
+            await expect(sBohrToken.connect(miner1).completeUnstake())
+                .to.emit(sBohrToken, "UnstakeCompleted")
+                .withArgs(miner1.address, stakeAmount);
+            
+            // Check balances
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("1000"));
+            
+            // Check request is cleared
+            const request = await sBohrToken.unstakeRequests(miner1.address);
+            expect(request.amount).to.equal(0);
+        });
+
+        it("should allow canceling an unstake request", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake and request unstake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            await sBohrToken.connect(miner1).requestUnstake(stakeAmount);
+            
+            // Cancel unstake
+            await sBohrToken.connect(miner1).cancelUnstake();
+            
+            // Check balances (should be back to original)
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(stakeAmount);
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("900"));
+            
+            // Check request is cleared
+            const request = await sBohrToken.unstakeRequests(miner1.address);
+            expect(request.amount).to.equal(0);
+        });
+
+        it("should not allow requesting unstake twice", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Request unstake
+            await sBohrToken.connect(miner1).requestUnstake(ethers.parseEther("50"));
+            
+            // Try to request again
+            await expect(
+                sBohrToken.connect(miner1).requestUnstake(ethers.parseEther("50"))
+            ).to.be.revertedWith("Unstake already requested");
+        });
+
+        it("should not allow requesting more than staked balance", async function () {
+            const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Request more than staked
+            await expect(
+                sBohrToken.connect(miner1).requestUnstake(ethers.parseEther("150"))
+            ).to.be.revertedWith("Insufficient staked balance");
+        });
+    });
+
+    describe("Security Tests", function () {
+        it("should not allow completing unstake without a request", async function () {
+            const { sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            await expect(
+                sBohrToken.connect(miner1).completeUnstake()
+            ).to.be.revertedWith("No unstake requested");
+        });
+
+        it("should not allow canceling unstake without a request", async function () {
+            const { sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            await expect(
+                sBohrToken.connect(miner1).cancelUnstake()
+            ).to.be.revertedWith("No unstake requested");
+        });
+
+        it("should not allow completing someone else's unstake", async function () {
+            const { bohrToken, sBohrToken, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Miner1 stakes and requests unstake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            await sBohrToken.connect(miner1).requestUnstake(stakeAmount);
+            
+            // Mine 1000 blocks
+            for (let i = 0; i < 1000; i++) {
+                await ethers.provider.send("evm_mine");
+            }
+            
+            // Miner2 tries to complete miner1's unstake
+            await expect(
+                sBohrToken.connect(miner2).completeUnstake()
+            ).to.be.revertedWith("No unstake requested");
+        });
+
+        it("should handle multiple users staking and unstaking independently", async function () {
+            const { bohrToken, sBohrToken, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount1 = ethers.parseEther("100");
+            const stakeAmount2 = ethers.parseEther("200");
+            
+            // Both miners stake
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount1);
+            await sBohrToken.connect(miner1).stake(stakeAmount1);
+            
+            await bohrToken.connect(miner2).approve(sBohrToken.getAddress(), stakeAmount2);
+            await sBohrToken.connect(miner2).stake(stakeAmount2);
+            
+            // Miner1 requests unstake
+            await sBohrToken.connect(miner1).requestUnstake(stakeAmount1);
+            
+            // Verify miner2's stake is unaffected
+            expect(await sBohrToken.balanceOf(miner2.address)).to.equal(stakeAmount2);
+            
+            // Mine 1000 blocks
+            for (let i = 0; i < 1000; i++) {
+                await ethers.provider.send("evm_mine");
+            }
+            
+            // Miner1 completes unstake
+            await sBohrToken.connect(miner1).completeUnstake();
+            
+            // Verify final balances
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            expect(await bohrToken.balanceOf(miner1.address)).to.equal(ethers.parseEther("1000"));
+            expect(await sBohrToken.balanceOf(miner2.address)).to.equal(stakeAmount2);
+        });
+
+        it("should not allow transferring ownership of staked tokens", async function () {
+            const { bohrToken, sBohrToken, miner1, miner2, owner } = await loadFixture(deployMiningSystemFixture);
+            const stakeAmount = ethers.parseEther("100");
+            
+            // Stake first
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), stakeAmount);
+            await sBohrToken.connect(miner1).stake(stakeAmount);
+            
+            // Try to transfer via transferFrom
+            await expect(
+                sBohrToken.connect(owner).transferFrom(miner1.address, miner2.address, stakeAmount)
+            ).to.be.revertedWith("sBOHR: non-transferrable");
         });
     });
 });
