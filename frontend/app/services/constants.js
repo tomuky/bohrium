@@ -13,6 +13,11 @@ export const MINING_ABI = [
     "function lastBlockHash() view returns (bytes32)",
     "function blockHeight() view returns (uint256)",
     "function bohriumToken() view returns (address)",
+    "function stake(uint256 amount) external",
+    "function requestUnstake() external",
+    "function completeUnstake() external",
+    "function getMinerDifficulty(address miner) view returns (uint256)",
+    "function miners(address) view returns (uint256 stakedAmount, uint256 unstakeRequestBlock, uint256[] recentWinBlocks)",
 
     // Events
     {
@@ -41,6 +46,33 @@ export const MINING_ABI = [
             {"indexed": false, "internalType": "uint256", "name": "newReward", "type": "uint256"}
         ],
         "name": "RewardHalved",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "miner", "type": "address"},
+            {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
+        "name": "StakeDeposited",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "miner", "type": "address"},
+            {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
+        "name": "UnstakeRequested",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "miner", "type": "address"},
+            {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
+        "name": "UnstakeCompleted",
         "type": "event"
     }
 ];
