@@ -8,9 +8,14 @@ interface IBohriumToken {
     function mint(address to, uint256 amount) external;
 }
 
+interface IStakedBohrToken is IERC20 {
+    function getEffectiveBalance(address account) external view returns (uint256);
+    function delegatedBy(address account) external view returns (address);
+}
+
 contract BohriumMining is Ownable {
     IBohriumToken public immutable bohriumToken;
-    IERC20 public immutable stakedBohrToken;
+    IStakedBohrToken public immutable stakedBohrToken;
     
     uint256 public constant INITIAL_REWARD = 10 * 10**18; // 10 BOHR
     uint256 public constant HALVING_INTERVAL = 262800; // Number of blocks in a year with 2-minute blocks
@@ -31,7 +36,8 @@ contract BohriumMining is Ownable {
         uint256 indexed blockHeight,
         uint256 nonce,
         uint256 reward,
-        uint256 timeTaken
+        uint256 timeTaken,
+        address rewardRecipient
     );
     event DifficultyAdjusted(uint256 newDifficulty);
     event RewardHalved(uint256 newReward);
@@ -41,7 +47,7 @@ contract BohriumMining is Ownable {
         address _stakedBohrTokenAddress
     ) Ownable(msg.sender) {
         bohriumToken = IBohriumToken(_bohriumTokenAddress);
-        stakedBohrToken = IERC20(_stakedBohrTokenAddress);
+        stakedBohrToken = IStakedBohrToken(_stakedBohrTokenAddress);
         lastHalvingTimestamp = block.timestamp;
         lastBlockTimestamp = block.timestamp;
         baseDifficulty = type(uint256).max >> 16;
@@ -56,7 +62,7 @@ contract BohriumMining is Ownable {
     }
 
     function getMinerDifficulty(address miner) public view returns (uint256) {
-        uint256 stakedAmount = stakedBohrToken.balanceOf(miner);
+        uint256 stakedAmount = stakedBohrToken.getEffectiveBalance(miner);
         uint256 requiredStake = currentReward() * 10;
         uint256 difficulty = currentDifficulty;
 
@@ -106,9 +112,16 @@ contract BohriumMining is Ownable {
         // Adjust difficulty every block with a moderate step
         adjustDifficulty(timeElapsed);
         
-        // Mint reward
+        // Determine reward recipient (main wallet if delegated)
+        address rewardRecipient = msg.sender;
+        address mainWallet = stakedBohrToken.delegatedBy(msg.sender);
+        if (mainWallet != address(0)) {
+            rewardRecipient = mainWallet;
+        }
+        
+        // Mint reward to the appropriate recipient
         uint256 reward = currentReward();
-        bohriumToken.mint(msg.sender, reward);
+        bohriumToken.mint(rewardRecipient, reward);
         
         // Update state
         lastBlockHash = hash;
@@ -120,7 +133,7 @@ contract BohriumMining is Ownable {
             emit RewardHalved(currentReward());
         }
         
-        emit BlockMined(msg.sender, blockHeight, nonce, reward, timeElapsed);
+        emit BlockMined(msg.sender, blockHeight, nonce, reward, timeElapsed, rewardRecipient);
     }
     
     function adjustDifficulty(uint256 timeElapsed) internal {
