@@ -713,4 +713,206 @@ describe("Bohrium Mining System", function () {
             expect(await sBohrToken.delegatedBy(miner2.address)).to.equal(ethers.ZeroAddress);
         });
     });
+
+    describe("Delegation and Mining Rewards", function () {
+        it("should maintain normal staking benefits without delegation", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Get base difficulty
+            const baseDifficulty = await mining.currentDifficulty();
+            
+            // Check initial difficulty (should be penalized due to no stake)
+            const initialDifficulty = await mining.getMinerDifficulty(miner1.address);
+            expect(initialDifficulty).to.equal(baseDifficulty * 2n);
+            
+            // Stake enough to meet required amount
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Check difficulty after staking (should be base difficulty)
+            const difficultyAfterStake = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyAfterStake).to.equal(baseDifficulty);
+            
+            // Mint more tokens for the large stake test
+            await mining.mintForTesting(miner1.address, requiredStake * 10n);
+            
+            // Stake more to get additional benefits
+            const largeStake = requiredStake * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), largeStake);
+            await sBohrToken.connect(miner1).stake(largeStake);
+            
+            // Check difficulty with large stake (should be lower than base)
+            const difficultyWithLargeStake = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyWithLargeStake).to.be.lt(baseDifficulty);
+        });
+
+        it("should send rewards to miner when no delegation exists", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Stake enough to meet required amount
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Set difficulty to allow mining
+            const veryLowDifficulty = ethers.MaxUint256;
+            await mining.setCurrentDifficulty(veryLowDifficulty);
+            
+            // Get initial balance
+            const initialBalance = await bohrToken.balanceOf(miner1.address);
+            
+            // Mine a block
+            let mined = false;
+            for (let nonce = 0; nonce < 10 && !mined; nonce++) {
+                try {
+                    await mining.connect(miner1).submitBlock(nonce);
+                    mined = true;
+                } catch (error) {
+                    // Continue trying with next nonce
+                }
+            }
+            
+            // Verify mining succeeded
+            expect(mined).to.be.true;
+            
+            // Check rewards went to the miner
+            const newBalance = await bohrToken.balanceOf(miner1.address);
+            expect(newBalance > initialBalance).to.be.true;
+            expect(newBalance - initialBalance).to.equal(reward);
+        });
+
+        it("should send rewards to main wallet when session wallet mines with delegation", async function () {
+            const { bohrToken, sBohrToken, mining, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Set delegation
+            await sBohrToken.connect(miner1).setDelegation(miner2.address);
+            
+            // Stake from main wallet
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Set difficulty to allow mining
+            const veryLowDifficulty = ethers.MaxUint256;
+            await mining.setCurrentDifficulty(veryLowDifficulty);
+            
+            // Get initial balances
+            const initialMainBalance = await bohrToken.balanceOf(miner1.address);
+            const initialSessionBalance = await bohrToken.balanceOf(miner2.address);
+            
+            // Mine a block from session wallet
+            let mined = false;
+            for (let nonce = 0; nonce < 10 && !mined; nonce++) {
+                try {
+                    await mining.connect(miner2).submitBlock(nonce);
+                    mined = true;
+                } catch (error) {
+                    // Continue trying with next nonce
+                }
+            }
+            
+            // Verify mining succeeded
+            expect(mined).to.be.true;
+            
+            // Check rewards went to main wallet
+            const newMainBalance = await bohrToken.balanceOf(miner1.address);
+            const newSessionBalance = await bohrToken.balanceOf(miner2.address);
+            
+            expect(newMainBalance - initialMainBalance).to.equal(reward);
+            expect(newSessionBalance).to.equal(initialSessionBalance);
+        });
+
+        it("should send rewards to session wallet when it mines with its own stake", async function () {
+            const { bohrToken, sBohrToken, mining, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Session wallet stakes
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner2).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner2).stake(requiredStake);
+            
+            // Set difficulty to allow mining
+            const veryLowDifficulty = ethers.MaxUint256;
+            await mining.setCurrentDifficulty(veryLowDifficulty);
+            
+            // Get initial balance
+            const initialBalance = await bohrToken.balanceOf(miner2.address);
+            
+            // Mine a block
+            let mined = false;
+            for (let nonce = 0; nonce < 10 && !mined; nonce++) {
+                try {
+                    await mining.connect(miner2).submitBlock(nonce);
+                    mined = true;
+                } catch (error) {
+                    // Continue trying with next nonce
+                }
+            }
+            
+            // Verify mining succeeded
+            expect(mined).to.be.true;
+            
+            // Check rewards went to the session wallet
+            const newBalance = await bohrToken.balanceOf(miner2.address);
+            expect(newBalance - initialBalance).to.equal(reward);
+        });
+
+        it("should combine stakes from both wallets when both have staked", async function () {
+            const { bohrToken, sBohrToken, mining, miner1, miner2 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Get base difficulty
+            const baseDifficulty = await mining.currentDifficulty();
+            
+            // Calculate stakes
+            const reward = await mining.currentReward();
+            const mainStake = reward * 5n; // Half of required
+            const sessionStake = reward * 5n; // Other half of required
+            
+            // Main wallet stakes
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), mainStake);
+            await sBohrToken.connect(miner1).stake(mainStake);
+            
+            // Session wallet stakes
+            await bohrToken.connect(miner2).approve(sBohrToken.getAddress(), sessionStake);
+            await sBohrToken.connect(miner2).stake(sessionStake);
+            
+            // Set delegation
+            await sBohrToken.connect(miner1).setDelegation(miner2.address);
+            
+            // Check session wallet's difficulty (should benefit from combined stake)
+            const sessionDifficulty = await mining.getMinerDifficulty(miner2.address);
+            
+            // Combined stake should meet the requirement (10x reward)
+            expect(sessionDifficulty).to.equal(baseDifficulty);
+            
+            // Set difficulty to allow mining
+            const veryLowDifficulty = ethers.MaxUint256;
+            await mining.setCurrentDifficulty(veryLowDifficulty);
+            
+            // Get initial balances
+            const initialMainBalance = await bohrToken.balanceOf(miner1.address);
+            
+            // Mine a block from session wallet
+            let mined = false;
+            for (let nonce = 0; nonce < 10 && !mined; nonce++) {
+                try {
+                    await mining.connect(miner2).submitBlock(nonce);
+                    mined = true;
+                } catch (error) {
+                    // Continue trying with next nonce
+                }
+            }
+            
+            // Verify mining succeeded
+            expect(mined).to.be.true;
+            
+            // Check rewards went to main wallet (delegation takes precedence)
+            const newMainBalance = await bohrToken.balanceOf(miner1.address);
+            expect(newMainBalance - initialMainBalance).to.equal(reward);
+        });
+    });
 });
