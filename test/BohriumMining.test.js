@@ -153,7 +153,7 @@ describe("Bohrium Mining System", function () {
             expect(newDifficulty).to.be.lt(initialDifficulty);
         });
     });
-
+    
     describe("Unstaking Cooldown", function () {
         it("should allow requesting unstake", async function () {
             const { bohrToken, sBohrToken, miner1 } = await loadFixture(deployMiningSystemFixture);
@@ -281,6 +281,97 @@ describe("Bohrium Mining System", function () {
             await expect(
                 sBohrToken.connect(miner1).requestUnstake(ethers.parseEther("150"))
             ).to.be.revertedWith("Insufficient staked balance");
+        });
+    });
+
+    describe("Mining During Unstaking Cooldown", function () {
+        it("should lose staking benefit when sBOHR is burned during unstake request", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Get base difficulty
+            const baseDifficulty = await mining.currentDifficulty();
+            
+            // Stake enough to meet required amount (10x reward)
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Check difficulty with stake (should be base difficulty)
+            const difficultyWithStake = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyWithStake).to.equal(baseDifficulty);
+            
+            // Request unstake (burns sBOHR tokens)
+            await sBohrToken.connect(miner1).requestUnstake(requiredStake);
+            
+            // Verify sBOHR balance is now zero
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            
+            // Check difficulty after unstake request (should be back to higher difficulty due to no stake)
+            const difficultyDuringCooldown = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyDuringCooldown).to.equal(baseDifficulty * 2n); // Back to unstaked difficulty
+        });
+
+        it("should regain staking benefit after canceling unstake request", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Get base difficulty
+            const baseDifficulty = await mining.currentDifficulty();
+            
+            // Stake enough to meet required amount
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Request unstake
+            await sBohrToken.connect(miner1).requestUnstake(requiredStake);
+            
+            // Verify sBOHR balance is zero and mining difficulty is higher
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            const difficultyDuringCooldown = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyDuringCooldown).to.equal(baseDifficulty * 2n);
+            
+            // Cancel unstake request (gets sBOHR tokens back)
+            await sBohrToken.connect(miner1).cancelUnstake();
+            
+            // Verify sBOHR balance is restored
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(requiredStake);
+            
+            // Verify mining benefit is restored due to having sBOHR again
+            const difficultyAfterCancel = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyAfterCancel).to.equal(baseDifficulty);
+        });
+
+        it("should continue with higher difficulty after completing unstake", async function () {
+            const { bohrToken, sBohrToken, mining, miner1 } = await loadFixture(deployMiningSystemFixture);
+            
+            // Get base difficulty
+            const baseDifficulty = await mining.currentDifficulty();
+            
+            // Stake enough to meet required amount
+            const reward = await mining.currentReward();
+            const requiredStake = reward * 10n;
+            await bohrToken.connect(miner1).approve(sBohrToken.getAddress(), requiredStake);
+            await sBohrToken.connect(miner1).stake(requiredStake);
+            
+            // Request unstake
+            await sBohrToken.connect(miner1).requestUnstake(requiredStake);
+            
+            // Mine 1000 blocks
+            for (let i = 0; i < 1000; i++) {
+                await ethers.provider.send("evm_mine");
+            }
+            
+            // Complete unstake
+            await sBohrToken.connect(miner1).completeUnstake();
+            
+            // Verify sBOHR balance remains zero
+            expect(await sBohrToken.balanceOf(miner1.address)).to.equal(0);
+            
+            // Verify mining difficulty remains higher due to having no sBOHR
+            const difficultyAfterUnstake = await mining.getMinerDifficulty(miner1.address);
+            expect(difficultyAfterUnstake).to.equal(baseDifficulty * 2n);
         });
     });
 
