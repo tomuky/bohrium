@@ -1,15 +1,14 @@
 'use client'
 import styles from './AccountSession.module.css'
 import { useState, useContext } from 'react'
-import DepositModal from './DepositModal'
-import WithdrawModal from './WithdrawModal'
+import ActionModal from './ActionModal'
 import Image from 'next/image'
 import { useSessionWallet } from '../contexts/SessionWalletContext'
 
 const AccountSession = () => {
     const { sessionWalletAddress, balances, formattedBalances } = useSessionWallet();
-    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-    const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState('deposit');
     const [showCopied, setShowCopied] = useState(false);
 
     const copyToClipboard = async (text) => {
@@ -20,6 +19,11 @@ const AccountSession = () => {
         } catch (err) {
             console.error('Failed to copy address:', err);
         }
+    };
+
+    const openActionModal = (tab) => {
+        setActiveTab(tab);
+        setIsActionModalOpen(true);
     };
 
     return (
@@ -68,27 +72,18 @@ const AccountSession = () => {
                         <div className={styles.actions}>
                             <button 
                                 className={styles.actionButton}
-                                onClick={() => setIsDepositModalOpen(true)}
+                                onClick={() => openActionModal('deposit')}
                             >
-                                DEPOSIT
-                            </button>
-                            <button 
-                                className={styles.actionButton}
-                                onClick={() => setIsWithdrawModalOpen(true)}
-                            >
-                                WITHDRAW
+                                ACTIONS
                             </button>
                         </div>
                     </>
                 )}
             </div>
-            <DepositModal 
-                isOpen={isDepositModalOpen}
-                onClose={() => setIsDepositModalOpen(false)}
-            />
-            <WithdrawModal 
-                isOpen={isWithdrawModalOpen}
-                onClose={() => setIsWithdrawModalOpen(false)}
+            <ActionModal 
+                isOpen={isActionModalOpen}
+                onClose={() => setIsActionModalOpen(false)}
+                initialTab={activeTab}
             />
         </div>
     )

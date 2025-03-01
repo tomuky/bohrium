@@ -222,3 +222,158 @@
 .dropdownItem:hover {
     background-color: #333;
 }
+
+.tabsContainer {
+    display: flex;
+    border-bottom: 1px solid var(--border-color, #333);
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+
+.tabButton {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tabButton:hover {
+    color: var(--text-color);
+}
+
+.activeTab {
+    color: var(--text-color);
+    border-bottom: 2px solid var(--primary-color, #3b82f6);
+    font-weight: 600;
+}
+
+.actionButton {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    color: #000000;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 900;
+    margin-top: 8px;
+}
+
+.actionButton:hover {
+    opacity: 0.7;
+}
+
+.actionButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.balanceCard {
+    background: var(--background-hover);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.balanceLabel {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.balanceValue {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.unstakeRequestCard, .delegationCard {
+    background: var(--background-hover);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.cardTitle {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.unstakeDetails, .delegationDetails {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.detailLabel {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.detailValue {
+    margin-left: 8px;
+}
+
+.delegationDescription {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.buttonGroup {
+    display: flex;
+    gap: 8px;
+}
+
+.completeButton {
+    flex: 1;
+    padding: 10px;
+    background: var(--success-color, #22c55e);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.cancelButton {
+    flex: 1;
+    padding: 10px;
+    background: var(--danger-color, #ef4444);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.disabledButton {
+    flex: 1;
+    padding: 10px;
+    background: var(--disabled-color, #4b5563);
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 8px;
+    cursor: not-allowed;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+@media (max-width: 480px) {
+    .tabsContainer {
+        padding-bottom: 4px;
+    }
+    
+    .tabButton {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .unstakeDetails, .delegationDetails {
+        grid-template-columns: 1fr;
+    }
+}

@@ -278,13 +278,20 @@ class MiningService {
                             
                             // Only emit reward event if we found the BlockMined event
                             if (miningEvent) {
-                                console.log('mining event: ',this.miningContract.interface.parseLog(miningEvent).args)
-                                const minedBlockHeight = this.miningContract.interface.parseLog(miningEvent).args.blockHeight;
+                                const parsedEvent = this.miningContract.interface.parseLog(miningEvent).args;
+                                const minedBlockHeight = parsedEvent.blockHeight;
                                 const formattedReward = ethers.formatUnits(this.currentBlockReward, 18);
+                                const rewardRecipient = parsedEvent.rewardRecipient;
+                                
+                                // Check if reward went to a different wallet
+                                const isDelegated = rewardRecipient.toLowerCase() !== this.signerAddress.toLowerCase();
+                                
                                 this.emit('reward', {
                                     message: `Mined Block #${minedBlockHeight}`,
                                     pill: `+${formattedReward} BOHR`,
-                                    icon: '/images/earned.png'
+                                    icon: '/images/earned.png',
+                                    delegated: isDelegated,
+                                    recipient: rewardRecipient
                                 });
                             }
                         }

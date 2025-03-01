@@ -27,7 +27,8 @@ export const MINING_ABI = [
             {"indexed": true, "internalType": "uint256", "name": "blockHeight", "type": "uint256"},
             {"indexed": false, "internalType": "uint256", "name": "nonce", "type": "uint256"},
             {"indexed": false, "internalType": "uint256", "name": "reward", "type": "uint256"},
-            {"indexed": false, "internalType": "uint256", "name": "timeTaken", "type": "uint256"}
+            {"indexed": false, "internalType": "uint256", "name": "timeTaken", "type": "uint256"},
+            {"indexed": false, "internalType": "address", "name": "rewardRecipient", "type": "address"}
         ],
         "name": "BlockMined",
         "type": "event"
@@ -126,5 +127,41 @@ export const TOKEN_ABI = [
                 "type": "bool"
             }
         ]
+    }
+];
+
+export const STAKED_BOHR_ABI = [
+    // Existing methods
+    "function stake(uint256 amount) external",
+    "function requestUnstake(uint256 amount) external",
+    "function completeUnstake() external",
+    "function cancelUnstake() external",
+    "function balanceOf(address account) view returns (uint256)",
+    "function getEffectiveBalance(address account) view returns (uint256)",
+    
+    // Add delegation methods
+    "function setDelegation(address sessionWallet) external",
+    "function removeDelegation() external",
+    "function delegatedBy(address) view returns (address)",
+    "function delegatedTo(address) view returns (address)",
+    
+    // Add delegation events
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "sessionWallet", "type": "address"},
+            {"indexed": true, "internalType": "address", "name": "mainWallet", "type": "address"}
+        ],
+        "name": "DelegationSet",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "sessionWallet", "type": "address"},
+            {"indexed": true, "internalType": "address", "name": "mainWallet", "type": "address"}
+        ],
+        "name": "DelegationRemoved",
+        "type": "event"
     }
 ];
