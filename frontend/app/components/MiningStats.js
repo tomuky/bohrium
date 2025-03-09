@@ -1,6 +1,6 @@
 'use client'
 import { useAccount, useBalance, useReadContract } from 'wagmi'
-import { MINING_CONTRACT_ADDRESS, MINING_ABI } from '../wagmi'
+import { MINING_CONTRACT_ADDRESS, MINING_ABI } from '../../wagmi'
 
 export default function MiningStats() {
   const { address } = useAccount()

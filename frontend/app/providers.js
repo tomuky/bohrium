@@ -1,33 +1,24 @@
-'use client'
-import '@rainbow-me/rainbowkit/styles.css'
-import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiProvider } from 'wagmi'
-import { baseSepolia, base } from 'wagmi/chains'
+
 import { MiningProvider } from './contexts/MiningContext'
 import { SessionWalletProvider } from './contexts/SessionWalletContext'
+import { SmartSessionProvider } from './contexts/SmartSessionContext'
+import { headers } from 'next/headers'
+import ContextProvider from '../ContextProvider'
 
-const config = getDefaultConfig({
-  appName: 'Bohrium',
-  projectId: 'b95c18e2f7c838c9e3ef9ae47e7bf081',
-  chains: [baseSepolia],
-  ssr: true
-})
+export async function Providers({ children }) {
 
-const queryClient = new QueryClient()
+  const headersObj = await headers();
+  const cookies = headersObj.get('cookie')
 
-export function Providers({ children }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
-          <SessionWalletProvider>
-            <MiningProvider>
-              {children}
-            </MiningProvider>
-          </SessionWalletProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <ContextProvider cookies={cookies}>
+      <SmartSessionProvider>
+        <SessionWalletProvider>
+          <MiningProvider>
+            {children}
+          </MiningProvider>
+        </SessionWalletProvider>
+      </SmartSessionProvider>
+    </ContextProvider>
   )
 }
