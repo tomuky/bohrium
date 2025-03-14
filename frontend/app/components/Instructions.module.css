@@ -62,10 +62,10 @@
 }
 
 .tooltipIcon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
 .tooltipText {
