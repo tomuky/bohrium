@@ -14,7 +14,8 @@ export function MiningProvider({ children }) {
     const [walletError, setWalletError] = useState(null);
     const [currentHashRate, setCurrentHashRate] = useState(0);
     const [bestHash, setBestHash] = useState(null);
-    const [currentDifficulty, setCurrentDifficulty] = useState(null);
+    const [baseDifficulty, setBaseDifficulty] = useState(null);
+    const [minerDifficulty, setMinerDifficulty] = useState(null);
     const [blockHeight, setBlockHeight] = useState(null);
     const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
     const [progress, setProgress] = useState(0);
@@ -79,7 +80,8 @@ export function MiningProvider({ children }) {
         if (!isMining) {
             setCurrentHashRate(0);
             setBestHash(null);
-            setCurrentDifficulty(null);
+            setBaseDifficulty(null);
+            setMinerDifficulty(null);
             setBlockHeight(null);
             setCurrentCheckingHash(null);
             setProgress(0);
@@ -90,7 +92,8 @@ export function MiningProvider({ children }) {
         const metricsInterval = setInterval(() => {
             setCurrentHashRate(miningService.currentHashRate);
             setBestHash(miningService.getBestHash());
-            setCurrentDifficulty(miningService.getDifficulty());
+            setBaseDifficulty(miningService.getBaseDifficulty());
+            setMinerDifficulty(miningService.getMinerDifficulty());
             setBlockHeight(miningService.getBlockHeight());
             setProgress(miningService.getProgress());
             setCurrentCheckingHash(miningService.getCurrentCheckingHash());
@@ -165,7 +168,8 @@ export function MiningProvider({ children }) {
             clearConsole,
             currentHashRate,
             bestHash,
-            currentDifficulty,
+            baseDifficulty,
+            minerDifficulty,
             blockHeight,
             currentCheckingHash,
             progress,

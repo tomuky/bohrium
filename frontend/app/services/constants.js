@@ -6,19 +6,63 @@ export const MINING_CONFIG = {
 };
 
 export const MINING_ABI = [
-    // Human-readable function signatures
-    "function submitBlock(uint256 nonce) external",
-    "function currentReward() view returns (uint256)",
-    "function currentDifficulty() view returns (uint256)",
-    "function lastBlockHash() view returns (bytes32)",
-    "function blockHeight() view returns (uint256)",
-    "function bohriumToken() view returns (address)",
-    "function stake(uint256 amount) external",
-    "function requestUnstake() external",
-    "function completeUnstake() external",
-    "function getMinerDifficulty(address miner) view returns (uint256)",
-    "function miners(address) view returns (uint256 stakedAmount, uint256 unstakeRequestBlock, uint256[] recentWinBlocks)",
-
+    // Function definitions in full object format
+    {
+        "name": "submitBlock",
+        "type": "function",
+        "inputs": [{"name": "nonce", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "currentReward",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "baseDifficulty",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "lastBlockHash",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "blockHeight",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "bohriumToken",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "stakedBohrToken",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "getMinerDifficulty",
+        "type": "function",
+        "inputs": [{"name": "miner", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
     // Events
     {
         "anonymous": false,
@@ -127,25 +171,105 @@ export const TOKEN_ABI = [
                 "type": "bool"
             }
         ]
+    },
+    {
+        "name": "approve",
+        "type": "function",
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ]
     }
 ];
 
 export const STAKED_BOHR_ABI = [
-    // Existing methods
-    "function stake(uint256 amount) external",
-    "function requestUnstake(uint256 amount) external",
-    "function completeUnstake() external",
-    "function cancelUnstake() external",
-    "function balanceOf(address account) view returns (uint256)",
-    "function getEffectiveBalance(address account) view returns (uint256)",
+    // Convert string format to object format
+    {
+        "name": "stake",
+        "type": "function",
+        "inputs": [{"name": "amount", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "requestUnstake",
+        "type": "function",
+        "inputs": [{"name": "amount", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "completeUnstake",
+        "type": "function",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "cancelUnstake",
+        "type": "function",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "balanceOf",
+        "type": "function",
+        "inputs": [{"name": "account", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "getEffectiveBalance",
+        "type": "function",
+        "inputs": [{"name": "account", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
     
-    // Add delegation methods
-    "function setDelegation(address sessionWallet) external",
-    "function removeDelegation() external",
-    "function delegatedBy(address) view returns (address)",
-    "function delegatedTo(address) view returns (address)",
+    // Delegation methods
+    {
+        "name": "setDelegation",
+        "type": "function",
+        "inputs": [{"name": "sessionWallet", "type": "address"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "removeDelegation",
+        "type": "function",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "delegatedBy",
+        "type": "function",
+        "inputs": [{"name": "", "type": "address"}],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "delegatedTo",
+        "type": "function",
+        "inputs": [{"name": "", "type": "address"}],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
     
-    // Add delegation events
+    // Delegation events - these are already in object format
     {
         "anonymous": false,
         "inputs": [

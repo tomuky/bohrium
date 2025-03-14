@@ -10,7 +10,7 @@ const Account = () => {
     const { 
         currentHashRate, 
         bestHash, 
-        currentDifficulty, 
+        minerDifficulty, 
         currentCheckingHash,
         progress
     } = useMining()
@@ -28,7 +28,7 @@ const Account = () => {
                 <div className={styles.metricCard}>
                     <h3>Progress</h3>
                     <div>
-                        {isConnected && bestHash && currentDifficulty ? (
+                        {isConnected && bestHash && minerDifficulty ? (
                             <>
                                 <div className={styles.progressBar}>
                                     <div 
@@ -60,7 +60,7 @@ const Account = () => {
                             Target
                         </h3>
                         <div className={styles.address}>
-                            {currentDifficulty ? `0x${currentDifficulty.substring(0, 10)}...` : '-'}
+                            {minerDifficulty ? `0x${minerDifficulty.substring(0, 10)}...` : '-'}
                         </div>
                     </div>
                 </div>

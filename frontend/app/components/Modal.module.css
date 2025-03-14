@@ -376,4 +376,8 @@
     .unstakeDetails, .delegationDetails {
         grid-template-columns: 1fr;
     }
+    .modalContent{
+        width: 90%;
+        max-width: 90%;
+    }
 }

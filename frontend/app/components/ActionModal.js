@@ -11,7 +11,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
     const [activeTab, setActiveTab] = useState(initialTab);
     const [amount, setAmount] = useState('');
     const [selectedToken, setSelectedToken] = useState('ETH');
-    const [sessionWalletAddress, setSessionWalletAddress] = useState('');
     const [error, setError] = useState('');
     const [txHash, setTxHash] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
@@ -24,17 +23,16 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         sessionWallet: null,
         mainWallet: null
     });
-    const [balances, setBalances] = useState({ bohr: '0', sBohr: '0' });
 
     // Session wallet context for deposit/withdraw
     const { 
+        sessionWalletAddress,
         deposit, 
         withdraw, 
         isLoading: sessionWalletLoading, 
         error: sessionWalletError, 
         isSuccess: sessionWalletSuccess,
-        balances: sessionBalances,
-        balancesMain
+        balances
     } = useSessionWallet();
 
     // Reset state when modal opens or tab changes
@@ -65,10 +63,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
     const fetchData = async () => {
         try {
             await stakingService.connect();
-            
-            // Get balances
-            const balancesData = await stakingService.getBalances();
-            setBalances(balancesData);
             
             // Get unstake request
             const request = await stakingService.getUnstakeRequest();
@@ -137,12 +131,12 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 return;
             }
 
-            if (selectedToken === 'BOHR' && Number(amount) > Number(balancesMain.bohr)) {
-                setError('Insufficient balance');
+            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.main.bohr.value)) {
+                setError('Insufficient BOHR balance');
                 return;
             }
-            if (selectedToken === 'ETH' && Number(amount) > Number(balancesMain.eth)) {
-                setError('Insufficient balance');
+            if (selectedToken === 'ETH' && Number(amount) > Number(balances.main.eth.value)) {
+                setError('Insufficient ETH balance');
                 return;
             }
             
@@ -166,12 +160,12 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 return;
             }
 
-            if (selectedToken === 'BOHR' && Number(amount) > Number(sessionBalances.bohr)) {
-                setError('Insufficient balance');
+            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.session.bohr.value)) {
+                setError('Insufficient BOHR balance');
                 return;
             }
-            if (selectedToken === 'ETH' && Number(amount) > Number(sessionBalances.eth)) {
-                setError('Insufficient balance');
+            if (selectedToken === 'ETH' && Number(amount) > Number(balances.session.eth.value)) {
+                setError('Insufficient ETH balance');
                 return;
             }
 
@@ -194,6 +188,11 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 setError('Please enter a valid amount');
                 return;
             }
+
+            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.main.bohr.value)) {
+                setError('Insufficient BOHR balance');
+                return;
+            }
             
             setLoading(true);
             await stakingService.stake(amount);
@@ -212,6 +211,11 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             setError('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
+                return;
+            }
+
+            if (Number(amount) > Number(balances.main.sbohr.value)) {
+                setError('Insufficient sBOHR balance');
                 return;
             }
             
@@ -266,7 +270,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             setLoading(true);
             await stakingService.setDelegation(sessionWalletAddress);
             setLoading(false);
-            setSessionWalletAddress('');
         } catch (err) {
             setLoading(false);
             setError(err.message || 'Failed to set delegation');
@@ -332,11 +335,11 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     className={`${styles.recommendation} ${styles.recommendationClickable}`}
                     onClick={() => {
                         if (selectedToken === 'ETH') setAmount('0.01');
-                        if (selectedToken === 'BOHR') setAmount(balancesMain.bohr?.toString() || '');
+                        if (selectedToken === 'BOHR') setAmount(balances.main.bohr.value || '');
                     }}
                 >
                     {selectedToken === 'ETH' && 'Recommended: 0.01'}
-                    {selectedToken === 'BOHR' && `Balance: ${balancesMain.bohr}`}
+                    {selectedToken === 'BOHR' && `Balance: ${balances.main.bohr.formatted}`}
                 </span>
                 <span className={`${styles.recommendation} ${styles.recommendationRed}`}>
                     Keep low balances
@@ -389,10 +392,10 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 </div>
             </div>
             <p 
-                className={styles.recommendation}
-                onClick={() => setAmount(selectedToken === 'ETH' ? sessionBalances.eth : sessionBalances.bohr)}
+                className={`${styles.recommendation} ${styles.recommendationClickable}`}
+                onClick={() => setAmount(selectedToken === 'ETH' ? balances.session.eth.value : balances.session.bohr.value)}
             >
-                Balance: {selectedToken === 'ETH' ? sessionBalances.eth : sessionBalances.bohr}
+                Balance: {selectedToken === 'ETH' ? balances.session.eth.value : balances.session.bohr.value}
             </p>
             <button 
                 className={styles.actionButton}
@@ -405,18 +408,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
     );
 
     const renderStakeTab = () => (
-        <>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className={styles.balanceCard}>
-                    <div className={styles.balanceLabel}>BOHR Balance</div>
-                    <div className={styles.balanceValue}>{balances.bohr}</div>
-                </div>
-                <div className={styles.balanceCard}>
-                    <div className={styles.balanceLabel}>Staked BOHR</div>
-                    <div className={styles.balanceValue}>{balances.sBohr}</div>
-                </div>
-            </div>
-            
+        <>  
             <div className={styles.inputGroup}>
                 <input
                     type="number"
@@ -428,9 +420,9 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             </div>
             <p 
                 className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                onClick={() => setAmount(balances.bohr)}
+                onClick={() => setAmount(balances.main.bohr.value)}
             >
-                Available: {balances.bohr} BOHR
+                Available: {balances.main.bohr.formatted} BOHR
             </p>
             <button 
                 className={styles.actionButton}
@@ -446,11 +438,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         <>
             {!unstakeRequest ? (
                 <>
-                    <div className={styles.balanceCard}>
-                        <div className={styles.balanceLabel}>Staked BOHR</div>
-                        <div className={styles.balanceValue}>{balances.sBohr}</div>
-                    </div>
-                    
                     <div className={styles.inputGroup}>
                         <input
                             type="number"
@@ -462,9 +449,9 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     </div>
                     <p 
                         className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                        onClick={() => setAmount(balances.sBohr)}
+                        onClick={() => setAmount(balances.main.sbohr.value)}
                     >
-                        Available: {balances.sBohr} sBOHR
+                        Available: {balances.main.sbohr.formatted} sBOHR
                     </p>
                     <button 
                         className={styles.actionButton}
@@ -559,9 +546,9 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     
                     <div className={styles.inputGroup}>
                         <input
+                            disabled={true}
                             type="text"
                             value={sessionWalletAddress}
-                            onChange={(e) => setSessionWalletAddress(e.target.value)}
                             placeholder="Enter session wallet address (0x...)"
                             className={styles.input}
                         />
@@ -613,12 +600,12 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     >
                         Unstake
                     </button>
-                    <button 
+                    {/* <button 
                         className={`${styles.tabButton} ${activeTab === 'delegate' ? styles.activeTab : ''}`}
                         onClick={() => setActiveTab('delegate')}
                     >
                         Delegate
-                    </button>
+                    </button> */}
                 </div>
                 
                 <div className={styles.modalBody}>
@@ -626,7 +613,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     {activeTab === 'withdraw' && renderWithdrawTab()}
                     {activeTab === 'stake' && renderStakeTab()}
                     {activeTab === 'unstake' && renderUnstakeTab()}
-                    {activeTab === 'delegate' && renderDelegateTab()}
+                    {/* {activeTab === 'delegate' && renderDelegateTab()} */}
                     
                     {error && (
                         <p className={styles.error}>

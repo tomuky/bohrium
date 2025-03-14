@@ -1,7 +1,16 @@
 import { ethers } from 'ethers';
-import { BOHR_ABI, STAKED_BOHR_ABI } from './constants';
-import { getContractAddresses } from './config';
+import { TOKEN_ABI as BOHR_ABI, STAKED_BOHR_ABI } from './constants';
 import EventEmitter from 'events';
+import { NETWORKS } from './config';
+
+// Add Mining contract interface
+const MINING_CONTRACT_ABI = [
+    "function bohriumToken() external view returns (address)",
+    "function stakedBohrToken() external view returns (address)"
+];
+
+// Known Mining contract address
+const MINING_CONTRACT_ADDRESS = NETWORKS.baseSepolia.contracts.mining;
 
 class StakingService extends EventEmitter {
     constructor() {
@@ -27,18 +36,25 @@ class StakingService extends EventEmitter {
                 throw new Error("No Ethereum provider found");
             }
             
-            // Get contract addresses
-            const addresses = getContractAddresses();
+            // Get token addresses from mining contract
+            const miningContract = new ethers.Contract(
+                MINING_CONTRACT_ADDRESS,
+                MINING_CONTRACT_ABI,
+                this.provider
+            );
+            
+            const bohrTokenAddress = await miningContract.bohriumToken();
+            const sBohrTokenAddress = await miningContract.stakedBohrToken();
             
             // Initialize contracts
             this.bohrContract = new ethers.Contract(
-                addresses.bohrToken,
+                bohrTokenAddress,
                 BOHR_ABI,
                 this.signer
             );
             
             this.sBohrContract = new ethers.Contract(
-                addresses.stakedBohrToken,
+                sBohrTokenAddress,
                 STAKED_BOHR_ABI,
                 this.signer
             );
@@ -112,7 +128,7 @@ class StakingService extends EventEmitter {
         if (!this.isConnected) await this.connect();
         
         try {
-            const amountWei = ethers.parseUnits(amount, 18);
+            const amountWei = ethers.parseUnits(amount.toString(), 18);
             
             // First approve the transfer
             const approveTx = await this.bohrContract.approve(
@@ -143,7 +159,7 @@ class StakingService extends EventEmitter {
         if (!this.isConnected) await this.connect();
         
         try {
-            const amountWei = ethers.parseUnits(amount, 18);
+            const amountWei = ethers.parseUnits(amount.toString(), 18);
             
             const tx = await this.sBohrContract.requestUnstake(amountWei);
             await tx.wait();
@@ -209,11 +225,11 @@ class StakingService extends EventEmitter {
             const tx = await this.sBohrContract.setDelegation(sessionWalletAddress);
             await tx.wait();
             
-            this.emit('delegation_set', {
-                message: "Delegation set successfully",
-                sessionWallet: sessionWalletAddress,
-                icon: '/images/link.png'
-            });
+            // this.emit('delegation_set', {
+            //     message: "Delegation set successfully",
+            //     sessionWallet: sessionWalletAddress,
+            //     icon: '/images/link.png'
+            // });
             
             return true;
         } catch (error) {

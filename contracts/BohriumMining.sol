@@ -24,7 +24,6 @@ contract BohriumMining is Ownable {
     
     // Additional state variables
     uint256 public baseDifficulty;
-    uint256 public currentDifficulty;
     uint256 public lastHalvingTimestamp;
     uint256 public lastBlockTimestamp;
     uint256 public blockHeight;
@@ -51,7 +50,6 @@ contract BohriumMining is Ownable {
         lastHalvingTimestamp = block.timestamp;
         lastBlockTimestamp = block.timestamp;
         baseDifficulty = type(uint256).max >> 16;
-        currentDifficulty = baseDifficulty;
         lastBlockHash = bytes32(0);
     }
 
@@ -64,7 +62,7 @@ contract BohriumMining is Ownable {
     function getMinerDifficulty(address miner) public view returns (uint256) {
         uint256 stakedAmount = stakedBohrToken.getEffectiveBalance(miner);
         uint256 requiredStake = currentReward() * 10;
-        uint256 difficulty = currentDifficulty;
+        uint256 difficulty = baseDifficulty;
 
         // Apply penalty for unstaked miners (make mining harder)
         if (stakedAmount < requiredStake) {
@@ -149,36 +147,26 @@ contract BohriumMining is Ownable {
             return;
         }
         
-        uint256 timespan = block.timestamp - adjustmentStartTimestamp;
-        uint256 targetTimespan = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_BLOCKS;
-        
         // Apply dampening (4x max change)
-        timespan = timespan < targetTimespan / 4 ? targetTimespan / 4 : 
-                   timespan > targetTimespan * 4 ? targetTimespan * 4 : 
-                   timespan;
+        timeElapsed = timeElapsed < TARGET_BLOCK_TIME / 4 ? TARGET_BLOCK_TIME / 4 : 
+                      timeElapsed > TARGET_BLOCK_TIME * 4 ? TARGET_BLOCK_TIME * 4 : 
+                      timeElapsed;
         
-        // Use bitwise operations for more gas-efficient adjustments
-        // Shift right (divide by 2) if blocks are too slow
-        // Shift left (multiply by 2) if blocks are too fast
-        uint256 newDifficulty = currentDifficulty;
-        if (timespan > targetTimespan * 2) {
-            newDifficulty = newDifficulty >> 1;  // Halve difficulty
-        } else if (timespan < targetTimespan / 2) {
-            newDifficulty = newDifficulty << 1;  // Double difficulty
-        }
+        // Calculate new difficulty using actual ratio
+        uint256 newDifficulty = (baseDifficulty * timeElapsed) / TARGET_BLOCK_TIME;
         
         // Apply safety bounds
         uint256 minDifficulty = type(uint256).max >> 32;
         newDifficulty = newDifficulty < minDifficulty ? minDifficulty : newDifficulty;
         
-        currentDifficulty = newDifficulty;
-        emit DifficultyAdjusted(currentDifficulty);
+        baseDifficulty = newDifficulty;
+        emit DifficultyAdjusted(baseDifficulty);
     }
 
     // Add this function for testing purposes only
     function setCurrentDifficulty(uint256 _difficulty) external {
-        currentDifficulty = _difficulty;
-        emit DifficultyAdjusted(currentDifficulty);
+        baseDifficulty = _difficulty;
+        emit DifficultyAdjusted(baseDifficulty);
     }
 
     // Add this function for testing purposes only

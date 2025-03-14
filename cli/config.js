@@ -20,8 +20,9 @@ const ENV_CONFIG = {
     },
     baseSepolia: {
         RPC_URL: "https://sepolia.base.org",
-        MINING_CONTRACT_ADDRESS: "0xACeE79D68d42d2f2d71Aa96D0F8510A8ADD4a8B3", // testnet address
-        BOHR_TOKEN_ADDRESS: "0xe248Dc8Ef9163DADDbd65609413F7b3d16A22Ecb", // testnet address
+        MINING_CONTRACT_ADDRESS: "0xA9b60d4cAC4B0320cB974a9eC43b610df6E958B6", // testnet address
+        BOHR_TOKEN_ADDRESS: "0xDBeDf34C4724DB2122BE07cf109593e5D46F907C", // testnet address
+        STAKED_BOHR_TOKEN_ADDRESS: "0x57b26a9401Ef5CBAD49bF040B824f6dd6A9BAa90", // testnet address
         CONFIRMATIONS: 2,
         GAS_MULTIPLIER: 2
     },

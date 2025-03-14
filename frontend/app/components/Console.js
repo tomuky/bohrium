@@ -6,6 +6,7 @@ import ConsoleMiningItem from './ConsoleMiningItem'
 import ConsoleRainbowItem from './ConsoleRainbowItem'
 import ConsoleTransactionItem from './ConsoleTransactionItem'
 import { memo } from 'react'
+import { useSessionWallet } from '../contexts/SessionWalletContext';
 
 // Memoize the item renderer function
 const ConsoleItemRenderer = memo(({ item, index }) => {
@@ -48,18 +49,21 @@ ConsoleItemRenderer.displayName = 'ConsoleItemRenderer';
 // Memoize the Console component
 const Console = memo(() => {
     const { consoleItems } = useMining();
-
-    return (
-        <div className={styles.list}>
-            {[...consoleItems].map((item, index) => (
-                <ConsoleItemRenderer 
-                    key={`${item.type}-${index}`}
-                    item={item}
-                    index={index}
-                />
-            ))}
-        </div>
-    );
+    const { hasSessionWallet, sessionHasEth, isDelegated } = useSessionWallet();
+    
+    if(hasSessionWallet && sessionHasEth && isDelegated){
+        return (
+            <div className={styles.list}>
+                {[...consoleItems].map((item, index) => (
+                    <ConsoleItemRenderer 
+                        key={`${item.type}-${index}`}
+                        item={item}
+                        index={index}
+                    />
+                ))}
+            </div>
+        );
+    }
 });
 
 Console.displayName = 'Console';

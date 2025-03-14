@@ -11,7 +11,7 @@ const Header = () => {
                 <h1 className={styles.title}>BOHRIUM</h1>
             </div>
             <div className={styles.right}>
-                <ConnectButton chainStatus="full" accountStatus="address" />
+                <ConnectButton chainStatus="full" accountStatus="address" showBalance={false}/>
             </div>
         </div>
     )

@@ -1,11 +1,12 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useBalance, useReadContract, useWriteContract, useSendTransaction } from 'wagmi';
-import { TOKEN_ABI } from '../services/constants';
+import { useBalance, useWriteContract, useSendTransaction, useReadContracts } from 'wagmi';
+import { TOKEN_ABI as abi, MINING_ABI, STAKED_BOHR_ABI } from '../services/constants';
 import { NETWORKS } from '../services/config';  
 import { parseEther, formatEther } from 'viem';
 import { ethers } from 'ethers';
 import { useAccount } from 'wagmi';
+import stakingService from '../services/stakingService';
 
 const SessionWalletContext = createContext();
 
@@ -14,6 +15,51 @@ export function SessionWalletProvider({ children }) {
     const [sessionWallet, setSessionWallet] = useState(null);
     const [hasSessionWallet, setHasSessionWallet] = useState(false);
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
+    const [isDelegated, setIsDelegated] = useState(false);
+
+    // Add contract reads to get token addresses
+    const { data: tokenAddresses } = useReadContracts({
+        contracts: [
+            {
+                address: NETWORKS.baseSepolia.contracts.mining,
+                abi: MINING_ABI,
+                functionName: 'bohriumToken',
+            },
+            {
+                address: NETWORKS.baseSepolia.contracts.mining,
+                abi: MINING_ABI,
+                functionName: 'stakedBohrToken',
+            }
+        ],
+    });
+    const bohrAddress = tokenAddresses?.[0]?.result;
+    const sBohrAddress = tokenAddresses?.[1]?.result;
+
+    // Check if session wallet is delegated to main wallet
+    const { data: delegationData } = useReadContracts({
+        contracts: sBohrAddress && sessionWalletAddress && mainWalletAddress ? [
+            {
+                address: sBohrAddress,
+                abi: STAKED_BOHR_ABI,
+                functionName: 'delegatedBy',
+                args: [sessionWalletAddress],
+            }
+        ] : [],
+        query: {
+            refetchInterval: 5000,
+            enabled: Boolean(sBohrAddress && sessionWalletAddress && mainWalletAddress)
+        }
+    });
+
+    // Update delegation status when data changes
+    useEffect(() => {
+        if (delegationData && delegationData[0]?.result) {
+            const delegatedByAddress = delegationData[0].result;
+            setIsDelegated(delegatedByAddress.toLowerCase() === mainWalletAddress?.toLowerCase());
+        } else {
+            setIsDelegated(false);
+        }
+    }, [delegationData, mainWalletAddress]);
 
     // Add useEffect to watch for main wallet changes
     useEffect(() => {
@@ -23,8 +69,8 @@ export function SessionWalletProvider({ children }) {
         setHasSessionWallet(false);
     }, [mainWalletAddress]);
 
-    // Get ETH balance using wagmi's useBalance hook
-    const { data: ethBalanceData } = useBalance({
+    // Get ETH balance of session wallet
+    const { data: sessionEthBalanceData } = useBalance({
         address: sessionWalletAddress,
         watch: true,
         query: {
@@ -33,7 +79,7 @@ export function SessionWalletProvider({ children }) {
     });
 
     // Get ETH balance of main wallet
-    const { data: ethBalanceMain } = useBalance({
+    const { data: mainEthBalanceData } = useBalance({
         address: mainWalletAddress,
         watch: true,
         query: {
@@ -41,27 +87,36 @@ export function SessionWalletProvider({ children }) {
         }
     });
 
-    // Get BOHR balance
-    const { data: bohrBalance } = useReadContract({
-        address: NETWORKS.baseSepolia.contracts.bohr,
-        abi: TOKEN_ABI,
-        functionName: 'balanceOf',
-        args: [sessionWalletAddress],
+    // Get BOHR and staked BOHR balances
+    const { data: balancesData, error: balancesError } = useReadContracts({
+        contracts: bohrAddress && sBohrAddress && sessionWalletAddress && mainWalletAddress ? [
+            {
+                address: bohrAddress,
+                abi,
+                functionName: 'balanceOf',
+                args: [sessionWalletAddress],
+            },
+            {
+                address: bohrAddress,
+                abi,
+                functionName: 'balanceOf',
+                args: [mainWalletAddress],
+            },
+            {
+                address: sBohrAddress,
+                abi,
+                functionName: 'balanceOf',
+                args: [mainWalletAddress],
+            }
+        ] : [],
         query: {
             refetchInterval: 2000,
+            enabled: Boolean(bohrAddress && sBohrAddress && sessionWalletAddress && mainWalletAddress)
         }
     });
-
-    // Get BOHR balance for main wallet
-    const { data: bohrBalanceMain } = useReadContract({
-        address: NETWORKS.baseSepolia.contracts.bohr,
-        abi: TOKEN_ABI,
-        functionName: 'balanceOf',
-        args: [mainWalletAddress],
-        query: {
-            refetchInterval: 2000,
-        }
-    });
+    
+    // Destructure the results
+    const [sessionBohrBalanceData, mainBohrBalanceData, mainSbohrBalanceData] = balancesData || [];
 
     // Separate hooks for ETH and token transfers
     const { data: ethData, sendTransactionAsync, isPending: isEthPending, isSuccess: isEthSuccess } = useSendTransaction();
@@ -70,6 +125,10 @@ export function SessionWalletProvider({ children }) {
     // Add new state variables for withdraw transactions
     const [isWithdrawPending, setIsWithdrawPending] = useState(false);
     const [isWithdrawSuccess, setIsWithdrawSuccess] = useState(false);
+
+    // Add new state for delegation operations
+    const [isDelegationLoading, setIsDelegationLoading] = useState(false);
+    const [delegationError, setDelegationError] = useState(null);
 
     const getSessionWallet = async () => {
         if (!sessionWallet && mainWalletAddress) {
@@ -112,8 +171,8 @@ export function SessionWalletProvider({ children }) {
                 return hash;
             } else if (token === 'BOHR') {
                 const result = await writeContractAsync({
-                    address: NETWORKS.baseSepolia.contracts.bohr,
-                    abi: TOKEN_ABI,
+                    address: bohrAddress,
+                    abi,
                     functionName: 'transfer',
                     args: [sessionWalletAddress, parsedAmount],
                 });
@@ -133,7 +192,7 @@ export function SessionWalletProvider({ children }) {
 
         setIsWithdrawPending(true);
         setIsWithdrawSuccess(false);
-        const parsedAmount = parseEther(amount);
+        const parsedAmount = parseEther(amount.toString());
 
         try {
             if (!sessionWallet) {
@@ -150,8 +209,8 @@ export function SessionWalletProvider({ children }) {
                 return result;
             } else if (token === 'BOHR') {
                 const tokenContract = new ethers.Contract(
-                    NETWORKS.baseSepolia.contracts.bohr,
-                    TOKEN_ABI,
+                    bohrAddress,
+                    abi,
                     sessionWallet
                 );
                 const result = await tokenContract.transfer(mainWalletAddress, parsedAmount);
@@ -161,34 +220,95 @@ export function SessionWalletProvider({ children }) {
             }
         } catch (err) {
             console.error('Withdraw error:', err);
+            setIsWithdrawPending(false);
             throw err;
         } finally {
             setIsWithdrawPending(false);
         }
     };
 
+    // Add a new method to handle delegation
+    const setDelegation = async () => {
+        if (isDelegationLoading || !sessionWalletAddress || !mainWalletAddress) return;
+        
+        try {
+            setDelegationError(null);
+            setIsDelegationLoading(true);
+            await stakingService.setDelegation(sessionWalletAddress);
+            setIsDelegationLoading(false);
+        } catch (err) {
+            setIsDelegationLoading(false);
+            setDelegationError(err.message || 'Failed to set delegation');
+            console.error('Set delegation error:', err);
+            throw err;
+        }
+    };
+    
+    // Add a new method to handle removing delegation
+    const removeDelegation = async () => {
+        if (isDelegationLoading || !mainWalletAddress) return;
+        
+        try {
+            setDelegationError(null);
+            setIsDelegationLoading(true);
+            await stakingService.removeDelegation();
+            setIsDelegationLoading(false);
+        } catch (err) {
+            setIsDelegationLoading(false);
+            setDelegationError(err.message || 'Failed to remove delegation');
+            console.error('Remove delegation error:', err);
+            throw err;
+        }
+    };
+
     const value = {
-        sessionWalletAddress,
         balances: {
-            eth: ethBalanceData?.value ? Number(formatEther(ethBalanceData.value)).toFixed(7) : '0',
-            bohr: bohrBalance ? formatEther(bohrBalance) : '0'
+            main: {
+                eth: {
+                    value: mainEthBalanceData ? (Number(mainEthBalanceData.value))/(10**mainEthBalanceData.decimals) : '0',
+                    formatted: mainEthBalanceData ? Number(formatEther(Number(mainEthBalanceData.value))).toLocaleString() : '0',
+                },
+                bohr: {
+                    value: mainBohrBalanceData?.result ? formatEther(mainBohrBalanceData.result) : '0',
+                    formatted: mainBohrBalanceData?.result ? Number(formatEther(mainBohrBalanceData.result)).toLocaleString() : '0'
+                },
+                sbohr: {
+                    value: mainSbohrBalanceData?.result ? formatEther(mainSbohrBalanceData.result) : '0',
+                    formatted: mainSbohrBalanceData?.result ? Number(formatEther(mainSbohrBalanceData.result)).toLocaleString() : '0'
+                }
+            },
+            session: {
+                eth: {
+                    value: sessionEthBalanceData?.value ? Number(formatEther(sessionEthBalanceData.value)).toFixed(7) : '0',
+                    formatted: sessionEthBalanceData?.value ? Number(formatEther(sessionEthBalanceData.value)).toLocaleString(undefined, { minimumFractionDigits: 7, maximumFractionDigits: 7 }) : '0'
+                },
+                bohr: {
+                    value: sessionBohrBalanceData?.result ? formatEther(sessionBohrBalanceData.result) : '0',
+                    formatted: sessionBohrBalanceData?.result ? Number(formatEther(sessionBohrBalanceData.result)).toLocaleString() : '0'
+                },
+                sbohr: {
+                    value: 0,
+                    formatted: '0'
+                }
+            },
         },
-        formattedBalances: {
-            eth: ethBalanceData?.value ? Number(formatEther(ethBalanceData.value)).toLocaleString(undefined, { minimumFractionDigits: 7, maximumFractionDigits: 7 }) : '0',
-            bohr: bohrBalance ? Number(formatEther(bohrBalance)).toLocaleString() : '0'
-        },
+        sessionWalletAddress,
+        sessionHasEth: sessionEthBalanceData?.value ? Number(formatEther(sessionEthBalanceData.value)) > 0 : false,
         isLoading: isEthPending || isTokenPending || isWithdrawPending,
         isSuccess: isEthSuccess || isTokenSuccess || isWithdrawSuccess,
         error: null,
+
         deposit,
         withdraw,
         getSessionWallet,
         hasSessionWallet,
         data: ethData || tokenData,
-        balancesMain: {
-            bohr: bohrBalanceMain ? formatEther(bohrBalanceMain) : '0',
-            eth: ethBalanceMain ? Number(formatEther(ethBalanceMain)).toFixed(7) : '0'
-        }
+
+        isDelegated,
+        isDelegationLoading,
+        delegationError,
+        setDelegation,
+        removeDelegation
     };
 
     return (

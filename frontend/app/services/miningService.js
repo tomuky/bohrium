@@ -22,7 +22,6 @@ class MiningService {
 
         this.bohrToken = null;
 
-        this.currentDifficulty = null;
         this.latestBlockHash = null;
         this.currentBlockHeight = 0;
         this.currentBlockReward = 0;
@@ -39,6 +38,9 @@ class MiningService {
 
         this.lastParamsChangedTime = 0;
         this.paramsChangedCooldown = 2000; // 2 second cooldown
+
+        this.baseDifficulty = null;
+        this.minerDifficulty = null;
     }
 
     // Add event listener
@@ -118,7 +120,8 @@ class MiningService {
 
             // Update mining parameters
             this.latestBlockHash = await this.miningContract.lastBlockHash();
-            this.currentDifficulty = await this.miningContract.currentDifficulty();
+            this.minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
+            this.baseDifficulty = await this.miningContract.baseDifficulty();
             this.currentBlockHeight = await this.miningContract.blockHeight();
             this.currentBlockReward = await this.miningContract.currentReward();
             this.startTime = Date.now();
@@ -161,18 +164,19 @@ class MiningService {
                         this.lastParamsChangedTime = now;
                     }
 
-                    const newDifficulty = await this.miningContract.currentDifficulty();
-                    if(newDifficulty !== this.currentDifficulty) {
+                    const newBaseDifficulty = await this.miningContract.baseDifficulty();
+                    if(newBaseDifficulty !== this.baseDifficulty) {
                         this.emit('difficulty_change', {
                             message: "Difficulty changed",
                             icon: '/images/gauge.png',
-                            difficulty: newDifficulty
+                            difficulty: newBaseDifficulty
                         });
                     }
 
                     // Update mining parameters
                     this.latestBlockHash = currentLastBlockHash;
-                    this.currentDifficulty = newDifficulty;
+                    this.baseDifficulty = newBaseDifficulty;
+                    this.minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
                     this.currentBlockHeight = await this.miningContract.blockHeight();
                     this.currentBlockReward = await this.miningContract.currentReward();
                     this.startTime = Date.now();
@@ -320,11 +324,13 @@ class MiningService {
     }
 
     async updateMiningParameters() {
-        const [blockHash, difficulty, blockHeight, reward] = await Promise.all([
+        // Get both base difficulty and miner-specific difficulty
+        const [blockHash, minerDifficulty, blockHeight, reward, baseDifficulty] = await Promise.all([
             this.miningContract.lastBlockHash(),
-            this.miningContract.currentDifficulty(),
+            this.miningContract.getMinerDifficulty(this.signerAddress),
             this.miningContract.blockHeight(),
-            this.miningContract.currentReward()
+            this.miningContract.currentReward(),
+            this.miningContract.baseDifficulty() 
         ]);
 
         if (blockHash !== this.latestBlockHash) {
@@ -336,17 +342,18 @@ class MiningService {
                 pill: `#${blockHeight}`
             });
 
-            if (difficulty !== this.currentDifficulty) {
+            if (baseDifficulty !== this.baseDifficulty) {
                 this.emit('difficulty_change', {
                     message: "Difficulty changed",
                     icon: '/images/params.png',
-                    difficulty
+                    difficulty: baseDifficulty,
                 });
             }
         }
 
         this.latestBlockHash = blockHash;
-        this.currentDifficulty = difficulty;
+        this.minerDifficulty = minerDifficulty; // Store miner's personalized difficulty
+        this.baseDifficulty = baseDifficulty; // Store base network difficulty
         this.currentBlockHeight = blockHeight;
         this.currentBlockReward = reward;
         this.startTime = Date.now();
@@ -363,8 +370,12 @@ class MiningService {
         while (this.isRunning) {
             // Check block parameters less frequently (every 10 batches)
             if (hashCount % (MINING_CONFIG.MINING_BATCH_SIZE * 10) === 0) {
-                const currentBlockHash = await this.miningContract.lastBlockHash();
-                if (currentBlockHash !== this.latestBlockHash) {
+                const [currentBlockHash, currentMinerDifficulty] = await Promise.all([
+                    this.miningContract.lastBlockHash(),
+                    this.miningContract.getMinerDifficulty(this.signerAddress)
+                ]);
+                
+                if (currentBlockHash !== this.latestBlockHash || currentMinerDifficulty !== this.minerDifficulty) {
                     return null;
                 }
             }
@@ -389,7 +400,7 @@ class MiningService {
                 const hash = ethers.keccak256(
                     ethers.solidityPacked(
                         ["address", "bytes32", "uint256", "uint256"],
-                        [this.signerAddress, this.latestBlockHash, this.currentDifficulty, nonce]
+                        [this.signerAddress, this.latestBlockHash, this.minerDifficulty, nonce]
                     )
                 );
 
@@ -398,7 +409,7 @@ class MiningService {
                 
                 if (hashValue < this.bestHash) {
                     this.bestHash = hashValue;
-                    if (hashValue <= this.currentDifficulty) {
+                    if (hashValue <= this.minerDifficulty) {
                         this.progress = 100;
                     }
                 }
@@ -407,7 +418,7 @@ class MiningService {
                     this.currentCheckingHash = hashValue.toString(16);
                 }
 
-                if (hashValue <= this.currentDifficulty) {
+                if (hashValue <= this.minerDifficulty) {
                     this.emit('nonce_found', {
                         icon: '/images/trophy.png',
                         text: 'Hash found',
@@ -457,11 +468,6 @@ class MiningService {
         return this.bestHash ? this.bestHash.toString(16) : null;
     }
 
-    // Add this getter method
-    getDifficulty() {
-        return this.currentDifficulty ? this.currentDifficulty.toString(16) : null;
-    }
-
     // Add getter method
     getBlockHeight() {
         return this.currentBlockHeight;
@@ -499,6 +505,16 @@ class MiningService {
     // Add this new method to set the context
     setSessionWalletContext(context) {
         this.sessionWalletContext = context;
+    }
+
+    // Add getter for base difficulty
+    getBaseDifficulty() {
+        return this.baseDifficulty ? this.baseDifficulty.toString(16) : null;
+    }
+
+    // Add getter for miner difficulty
+    getMinerDifficulty() {
+        return this.minerDifficulty ? this.minerDifficulty.toString(16) : null;
     }
 }
 

@@ -116,13 +116,20 @@
     }
     .balances {
         flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
     }
     .balanceItem{
-        flex: 1;
+        flex: 0 0 calc(50% - 5px);
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 5px;
+        padding: 10px;
+    }
+    .balanceItemAsset{
+        width: 100%;
+        text-align: left;
     }
     .tokenAmount{
         font-size: 1.2rem;
