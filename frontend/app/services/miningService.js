@@ -108,7 +108,7 @@ class MiningService {
 
                 this.emit('start',{
                     icon: '/images/rocket.png',
-                    text: 'Mining started'
+                    text: 'Starting...'
                 });
                 
                 this.startParameterCheck(); // Start mining parameters checking timer

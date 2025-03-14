@@ -30,7 +30,7 @@
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.00);
     border-radius: 10px;
-    width: 320px;
+    width: 340px;
 }
 .itemCompleted{
     background-color: rgba(0, 255, 0, 0.1);
@@ -54,4 +54,50 @@
 }
 .itemContent p {
     min-width: 115px;
+}
+
+.tooltipContainer {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltipIcon {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.tooltipText {
+    visibility: hidden;
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%);
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px 12px;
+    width: 200px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-right: 10px;
+}
+
+.tooltipText::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent #333;
+}
+
+.showTooltip {
+    visibility: visible;
+    opacity: 1;
 }

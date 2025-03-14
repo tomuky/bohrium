@@ -63,10 +63,10 @@ export function SessionWalletProvider({ children }) {
 
     // Add useEffect to watch for main wallet changes
     useEffect(() => {
-        // Reset session wallet when main wallet changes or disconnects
         setSessionWallet(null);
         setSessionWalletAddress(null);
         setHasSessionWallet(false);
+        setIsDelegated(false);
     }, [mainWalletAddress]);
 
     // Get ETH balance of session wallet
