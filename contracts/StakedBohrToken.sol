@@ -5,10 +5,17 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IBohriumMining {
+    function blockHeight() external view returns (uint256);
+}
+
 contract StakedBohrToken is ERC20, Ownable {
     IERC20 public immutable bohrToken;
     
     uint256 public constant UNSTAKING_COOLDOWN_BLOCKS = 1000;
+    
+    // Reference to the mining contract to access Bohrium block height
+    address public miningContract;
     
     // Mapping to track unstaking requests
     mapping(address => UnstakeRequest) public unstakeRequests;
@@ -19,16 +26,28 @@ contract StakedBohrToken is ERC20, Ownable {
     
     struct UnstakeRequest {
         uint256 amount;
-        uint256 requestBlock;
+        uint256 requestBohriumBlock; // Changed from requestBlock to requestBohriumBlock
     }
     
-    event UnstakeRequested(address indexed user, uint256 amount, uint256 requestBlock);
+    event UnstakeRequested(address indexed user, uint256 amount, uint256 requestBohriumBlock);
     event UnstakeCompleted(address indexed user, uint256 amount);
     event DelegationSet(address indexed sessionWallet, address indexed mainWallet);
     event DelegationRemoved(address indexed sessionWallet, address indexed mainWallet);
     
     constructor(address _bohrToken) ERC20("Staked BOHR", "sBOHR") Ownable(msg.sender) {
         bohrToken = IERC20(_bohrToken);
+    }
+    
+    // Set the mining contract address (only owner can do this)
+    function setMiningContract(address _miningContract) external onlyOwner {
+        require(_miningContract != address(0), "Invalid mining contract address");
+        miningContract = _miningContract;
+    }
+    
+    // Get current Bohrium block height
+    function getCurrentBohriumBlock() public view returns (uint256) {
+        require(miningContract != address(0), "Mining contract not set");
+        return IBohriumMining(miningContract).blockHeight();
     }
     
     // Override transfer functions to make sBOHR non-transferrable
@@ -55,24 +74,32 @@ contract StakedBohrToken is ERC20, Ownable {
         require(amount > 0, "Cannot unstake 0");
         require(balanceOf(msg.sender) >= amount, "Insufficient staked balance");
         require(unstakeRequests[msg.sender].amount == 0, "Unstake already requested");
+        require(miningContract != address(0), "Mining contract not set");
         
         // Lock the tokens by burning them
         _burn(msg.sender, amount);
         
+        // Get current Bohrium block height
+        uint256 currentBohriumBlock = getCurrentBohriumBlock();
+        
         // Record the unstake request
         unstakeRequests[msg.sender] = UnstakeRequest({
             amount: amount,
-            requestBlock: block.number
+            requestBohriumBlock: currentBohriumBlock
         });
         
-        emit UnstakeRequested(msg.sender, amount, block.number);
+        emit UnstakeRequested(msg.sender, amount, currentBohriumBlock);
     }
     
     // Complete unstake after cooldown
     function completeUnstake() external {
         UnstakeRequest memory request = unstakeRequests[msg.sender];
         require(request.amount > 0, "No unstake requested");
-        require(block.number >= request.requestBlock + UNSTAKING_COOLDOWN_BLOCKS, "Cooldown not complete");
+        
+        // Check if enough Bohrium blocks have passed
+        uint256 currentBohriumBlock = getCurrentBohriumBlock();
+        require(currentBohriumBlock >= request.requestBohriumBlock + UNSTAKING_COOLDOWN_BLOCKS, 
+                "Cooldown not complete");
         
         // Clear the request
         uint256 amount = request.amount;

@@ -124,20 +124,30 @@ class StakingService extends EventEmitter {
         };
     }
     
-    async stake(amount) {
+    async checkApproval(amount) {
+        if (!this.isConnected) await this.connect();
+        
+        try {
+            const amountWei = ethers.parseUnits(amount.toString(), 18);
+            const sBohrAddress = await this.sBohrContract.getAddress();
+            
+            // Check if the user has already approved enough tokens
+            const allowance = await this.bohrContract.allowance(this.address, sBohrAddress);
+            
+            return allowance >= amountWei;
+        } catch (error) {
+            console.error("Check approval error:", error);
+            return false;
+        }
+    }
+    
+    async stakeWithoutApproval(amount) {
         if (!this.isConnected) await this.connect();
         
         try {
             const amountWei = ethers.parseUnits(amount.toString(), 18);
             
-            // First approve the transfer
-            const approveTx = await this.bohrContract.approve(
-                await this.sBohrContract.getAddress(),
-                amountWei
-            );
-            await approveTx.wait();
-            
-            // Then stake
+            // Skip approval and go straight to staking
             const stakeTx = await this.sBohrContract.stake(amountWei);
             await stakeTx.wait();
             
@@ -155,22 +165,68 @@ class StakingService extends EventEmitter {
         }
     }
     
+    async approve(amount) {
+        if (!this.isConnected) await this.connect();
+        
+        try {
+            const amountWei = ethers.parseUnits(amount.toString(), 18);
+            const sBohrAddress = await this.sBohrContract.getAddress();
+            
+            // Approve the transfer
+            const approveTx = await this.bohrContract.approve(
+                sBohrAddress,
+                amountWei
+            );
+            const approveReceipt = await approveTx.wait();
+            
+            return { success: true, txHash: approveReceipt.hash };
+        } catch (error) {
+            console.error("Approval error:", error);
+            this.emit('error', { message: "Approval failed", error: error.message });
+            return false;
+        }
+    }
+    
+    async stake(amount) {
+        if (!this.isConnected) await this.connect();
+        
+        try {
+            const amountWei = ethers.parseUnits(amount.toString(), 18);
+            
+            // Stake tokens
+            const stakeTx = await this.sBohrContract.stake(amountWei);
+            await stakeTx.wait();
+            
+            return { success: true, txHash: stakeTx.hash };
+        } catch (error) {
+            console.error("Staking error:", error);
+            this.emit('error', { message: "Staking failed", error: error.message });
+            return false;
+        }
+    }
+    
     async requestUnstake(amount) {
         if (!this.isConnected) await this.connect();
         
         try {
             const amountWei = ethers.parseUnits(amount.toString(), 18);
             
+            // Check if user has enough staked balance
+            const sBohrBalance = await this.sBohrContract.balanceOf(this.address);
+            if (sBohrBalance < amountWei) {
+                throw new Error("Insufficient staked balance");
+            }
+            
+            // Check if there's an existing unstake request
+            const existingRequest = await this.sBohrContract.unstakeRequests(this.address);
+            if (existingRequest.amount.toString() !== "0") {
+                throw new Error("You already have an active unstake request");
+            }
+            
             const tx = await this.sBohrContract.requestUnstake(amountWei);
-            await tx.wait();
+            const receipt = await tx.wait();
             
-            this.emit('unstake_requested', {
-                message: "Unstake requested",
-                amount,
-                icon: '/images/unstake.png'
-            });
-            
-            return true;
+            return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Unstake request error:", error);
             this.emit('error', { message: "Unstake request failed", error: error.message });
@@ -183,14 +239,9 @@ class StakingService extends EventEmitter {
         
         try {
             const tx = await this.sBohrContract.completeUnstake();
-            await tx.wait();
+            const receipt = await tx.wait();
             
-            this.emit('unstake_completed', {
-                message: "Unstake completed",
-                icon: '/images/completed.png'
-            });
-            
-            return true;
+            return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Complete unstake error:", error);
             this.emit('error', { message: "Complete unstake failed", error: error.message });
@@ -203,14 +254,9 @@ class StakingService extends EventEmitter {
         
         try {
             const tx = await this.sBohrContract.cancelUnstake();
-            await tx.wait();
+            const receipt = await tx.wait();
             
-            this.emit('unstake_cancelled', {
-                message: "Unstake cancelled",
-                icon: '/images/cancel.png'
-            });
-            
-            return true;
+            return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Cancel unstake error:", error);
             this.emit('error', { message: "Cancel unstake failed", error: error.message });
@@ -223,15 +269,9 @@ class StakingService extends EventEmitter {
         
         try {
             const tx = await this.sBohrContract.setDelegation(sessionWalletAddress);
-            await tx.wait();
+            const receipt = await tx.wait();
             
-            // this.emit('delegation_set', {
-            //     message: "Delegation set successfully",
-            //     sessionWallet: sessionWalletAddress,
-            //     icon: '/images/link.png'
-            // });
-            
-            return true;
+            return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Set delegation error:", error);
             this.emit('error', { message: "Set delegation failed", error: error.message });
@@ -244,14 +284,9 @@ class StakingService extends EventEmitter {
         
         try {
             const tx = await this.sBohrContract.removeDelegation();
-            await tx.wait();
+            const receipt = await tx.wait();
             
-            this.emit('delegation_removed', {
-                message: "Delegation removed",
-                icon: '/images/unlink.png'
-            });
-            
-            return true;
+            return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Remove delegation error:", error);
             this.emit('error', { message: "Remove delegation failed", error: error.message });
@@ -268,14 +303,15 @@ class StakingService extends EventEmitter {
             return null;
         }
         
-        const currentBlock = await this.provider.getBlockNumber();
+        const currentBohriumBlock = await this.sBohrContract.getCurrentBohriumBlock();
         const cooldownBlocks = 1000; // This should match the contract's UNSTAKING_COOLDOWN_BLOCKS
-        const blocksRemaining = request.requestBlock + BigInt(cooldownBlocks) - BigInt(currentBlock);
+        
+        const blocksRemaining = request[1] + BigInt(cooldownBlocks) - BigInt(currentBohriumBlock);
         
         return {
             amount: ethers.formatUnits(request.amount, 18),
-            requestBlock: request.requestBlock.toString(),
-            currentBlock: currentBlock.toString(),
+            requestBlock: request[1].toString(),
+            currentBlock: currentBohriumBlock.toString(),
             blocksRemaining: blocksRemaining > 0 ? blocksRemaining.toString() : "0",
             canComplete: blocksRemaining <= 0
         };

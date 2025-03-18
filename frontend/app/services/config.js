@@ -14,7 +14,7 @@ export const NETWORKS = {
         rpcUrl: 'https://sepolia.base.org',
         baseScanUrl: 'https://sepolia.basescan.org',
         contracts: {
-            mining: '0x92D682fcA9e2B3D2A04eDdC268Dc4AAAfD15D390'
+            mining: '0xB4E9443fAb13a4fd22ff2EBce1Df9A718276589A'
         }
     },
     baseMainnet: {

@@ -3,10 +3,12 @@
 :root {
     --blue: #3898ff;
     --blue-hover: #2c78c9;
-    --red: #ff3838;
+    --red: #ef4444;
+    --green: #22c55e;
     --red-hover: #c92c2c;
     --background: #000000;
     --background-hover: #1a1a1a;
+    --disabled-color: #4b5563;
     --border: #2f3336;
     --text-primary: #fff;
     --white-hover: rgba(255,255,255,0.5);

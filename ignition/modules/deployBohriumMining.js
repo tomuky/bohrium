@@ -12,6 +12,9 @@ module.exports = buildModule("BohriumMining", (m) => {
     
     // Transfer ownership of token to mining contract
     const transferOwnership = m.call(token, "transferOwnership", [mining]);
+    
+    // Set the mining contract address in the staked token contract
+    const setMiningContract = m.call(stakedToken, "setMiningContract", [mining]);
 
     return { token, stakedToken, mining };
 });

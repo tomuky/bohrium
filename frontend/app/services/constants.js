@@ -191,6 +191,27 @@ export const TOKEN_ABI = [
                 "type": "bool"
             }
         ]
+    },
+    {
+        "name": "allowance",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [
+            {
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "name": "spender",
+                "type": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256"
+            }
+        ]
     }
 ];
 
@@ -286,6 +307,74 @@ export const STAKED_BOHR_ABI = [
             {"indexed": true, "internalType": "address", "name": "mainWallet", "type": "address"}
         ],
         "name": "DelegationRemoved",
+        "type": "event"
+    },
+    
+    // Add unstakeRequests mapping accessor
+    {
+        "name": "unstakeRequests",
+        "type": "function",
+        "inputs": [{"name": "", "type": "address"}],
+        "outputs": [
+            {"name": "amount", "type": "uint256"},
+            {"name": "requestBlock", "type": "uint256"}
+        ],
+        "stateMutability": "view"
+    },
+    
+    // Add missing functions
+    {
+        "name": "setMiningContract",
+        "type": "function",
+        "inputs": [{"name": "miningContract", "type": "address"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "getCurrentBohriumBlock",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "miningContract",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "bohrToken",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "UNSTAKING_COOLDOWN_BLOCKS",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+    },
+    {
+        "name": "cancelUnstake",
+        "type": "function",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    
+    // Add missing events
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
+            {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
+            {"indexed": false, "internalType": "uint256", "name": "requestBohriumBlock", "type": "uint256"}
+        ],
+        "name": "UnstakeRequested",
         "type": "event"
     }
 ];

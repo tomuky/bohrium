@@ -20,6 +20,7 @@ export function MiningProvider({ children }) {
     const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
     const [progress, setProgress] = useState(0);
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
+    const [difficultyModifier, setDifficultyModifier] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
@@ -85,6 +86,7 @@ export function MiningProvider({ children }) {
             setBlockHeight(null);
             setCurrentCheckingHash(null);
             setProgress(0);
+            setDifficultyModifier(null);
             return;
         }
 
@@ -97,6 +99,23 @@ export function MiningProvider({ children }) {
             setBlockHeight(miningService.getBlockHeight());
             setProgress(miningService.getProgress());
             setCurrentCheckingHash(miningService.getCurrentCheckingHash());
+            
+            // Calculate difficulty modifier
+            const baseDiff = miningService.getBaseDifficulty();
+            const minerDiff = miningService.getMinerDifficulty();
+            
+            if (baseDiff && minerDiff) {
+                const baseValue = BigInt(`0x${baseDiff}`);
+                const minerValue = BigInt(`0x${minerDiff}`);
+                
+                if (baseValue > 0n) {
+                    // Calculate percentage difference
+                    // If minerValue > baseValue, it's a penalty (harder to mine)
+                    // If minerValue < baseValue, it's a benefit (easier to mine)
+                    const diffPercentage = Number((baseValue - minerValue) * 100n / baseValue);
+                    setDifficultyModifier(diffPercentage);
+                }
+            }
         }, 1000);
 
         return () => {
@@ -174,7 +193,8 @@ export function MiningProvider({ children }) {
             currentCheckingHash,
             progress,
             sessionWalletAddress,
-            mainWalletAddress: address
+            mainWalletAddress: address,
+            difficultyModifier
         }}>
             {children}
         </MiningContext.Provider>

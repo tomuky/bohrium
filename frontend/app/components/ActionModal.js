@@ -17,11 +17,18 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [unstakeRequest, setUnstakeRequest] = useState(null);
+    const [blockRefreshInterval, setBlockRefreshInterval] = useState(null);
     const [delegationInfo, setDelegationInfo] = useState({
         isMainWallet: false,
         isSessionWallet: false,
         sessionWallet: null,
         mainWallet: null
+    });
+    const [approvalStatus, setApprovalStatus] = useState({
+        isApproving: false,
+        isApproved: false,
+        txHash: '',
+        checkingApproval: false
     });
 
     // Session wallet context for deposit/withdraw
@@ -42,7 +49,14 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             setError('');
             setTxHash('');
             setSuccessMessage('');
-            fetchData();
+            // Reset approval status
+            setApprovalStatus({
+                isApproving: false,
+                isApproved: false,
+                txHash: '',
+                checkingApproval: false
+            });
+            fetchStakingAndDelegationData();
         }
     }, [isOpen, activeTab]);
 
@@ -55,18 +69,24 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
 
     useEffect(() => {
         if (sessionWalletError) {
-            setError(sessionWalletError.message || 'Transaction failed');
+            if (sessionWalletError.code === 4001 || sessionWalletError.message?.includes('user rejected')) {
+                setError('User rejected action');
+            } else {
+                setError('Transaction failed');
+            }
+            console.error('Session wallet error:', sessionWalletError);
         }
     }, [sessionWalletError]);
 
     // Fetch staking and delegation data
-    const fetchData = async () => {
+    const fetchStakingAndDelegationData = async () => {
         try {
             await stakingService.connect();
             
             // Get unstake request
             const request = await stakingService.getUnstakeRequest();
             setUnstakeRequest(request);
+            console.log('unstakeRequest', request);
             
             // Get delegation info
             const info = await stakingService.getDelegationInfo();
@@ -76,19 +96,86 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         }
     };
 
+    // Set up interval to refresh unstake request data
+    useEffect(() => {
+        // Only set up interval if modal is open and we're on the unstake tab with an active request
+        if (isOpen && activeTab === 'unstake' && unstakeRequest) {
+            // Clear any existing interval
+            if (blockRefreshInterval) {
+                clearInterval(blockRefreshInterval);
+            }
+            
+            // Set up new interval to refresh every 2 minutes (120000 ms)
+            const interval = setInterval(async () => {
+                try {
+                    const updatedRequest = await stakingService.getUnstakeRequest();
+                    if (updatedRequest) {
+                        setUnstakeRequest(updatedRequest);
+                        console.log('Updated unstakeRequest', updatedRequest);
+                    } else {
+                        // If request is completed/cancelled, clear interval
+                        clearInterval(interval);
+                        setBlockRefreshInterval(null);
+                    }
+                } catch (error) {
+                    console.error("Error refreshing unstake data:", error);
+                }
+            }, 120000); // 2 minutes
+            
+            setBlockRefreshInterval(interval);
+            
+            // Clean up interval on unmount or tab change
+            return () => {
+                clearInterval(interval);
+                setBlockRefreshInterval(null);
+            };
+        } else if (blockRefreshInterval) {
+            // Clear interval if conditions no longer met
+            clearInterval(blockRefreshInterval);
+            setBlockRefreshInterval(null);
+        }
+    }, [isOpen, activeTab, unstakeRequest]);
+
+    // Clean up interval when modal closes
+    useEffect(() => {
+        return () => {
+            if (blockRefreshInterval) {
+                clearInterval(blockRefreshInterval);
+                setBlockRefreshInterval(null);
+            }
+        };
+    }, []);
+
     // Set up event listeners for staking service
     useEffect(() => {
         const handleSuccess = () => {
-            fetchData();
+            fetchStakingAndDelegationData();
             setAmount('');
             setSuccessMessage('Transaction successful');
         };
         
         const handleError = (data) => {
-            setError(data.error || 'Transaction failed');
+            // More user-friendly error message in UI
+            if (data.code === 4001 || data.error?.includes('user rejected')) {
+                setError('User rejected action');
+            } else {
+                setError('Transaction failed');
+            }
+            // Log the full error to console
+            console.error('Staking service error:', data);
+        };
+        
+        const handleApprovalSuccess = () => {
+            setApprovalStatus(prev => ({
+                ...prev,
+                isApproving: false,
+                isApproved: true
+            }));
+            setSuccessMessage('Approval successful');
         };
         
         stakingService.on('stake_success', handleSuccess);
+        stakingService.on('approval_success', handleApprovalSuccess);
         stakingService.on('unstake_requested', handleSuccess);
         stakingService.on('unstake_completed', handleSuccess);
         stakingService.on('unstake_cancelled', handleSuccess);
@@ -98,6 +185,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         return () => {
             stakingService.removeListener('stake_success', handleSuccess);
+            stakingService.removeListener('approval_success', handleApprovalSuccess);
             stakingService.removeListener('unstake_requested', handleSuccess);
             stakingService.removeListener('unstake_completed', handleSuccess);
             stakingService.removeListener('unstake_cancelled', handleSuccess);
@@ -106,6 +194,37 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             stakingService.removeListener('error', handleError);
         };
     }, []);
+
+    // Check for existing approval when amount changes in stake tab
+    useEffect(() => {
+        setSuccessMessage('');
+        setError('');
+        setTxHash('');
+        const checkApproval = async () => {
+            if (activeTab === 'stake' && amount && Number(amount) > 0 && !approvalStatus.isApproving) {
+                try {
+                    setApprovalStatus(prev => ({ ...prev, checkingApproval: true }));
+                    const hasApproval = await stakingService.checkApproval(amount);
+                    setApprovalStatus({
+                        isApproving: false,
+                        isApproved: hasApproval,
+                        txHash: '',
+                        checkingApproval: false
+                    });
+                } catch (err) {
+                    console.error("Error checking approval:", err);
+                    setApprovalStatus({
+                        isApproving: false,
+                        isApproved: false,
+                        txHash: '',
+                        checkingApproval: false
+                    });
+                }
+            }
+        };
+
+        checkApproval();
+    }, [activeTab, amount]);
 
     const handleClose = () => {
         setTxHash('');
@@ -126,6 +245,8 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setError('');
+            setSuccessMessage('');
+            setTxHash('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
                 return;
@@ -143,9 +264,16 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             const hash = await deposit(amount, selectedToken);
             if (hash) {
                 setTxHash(hash);
+                setSuccessMessage('Deposit successful');
             }
         } catch (err) {
-            setError(err.message || 'Transaction failed');
+            // More user-friendly error message in UI
+            if (err.code === 4001 || err.message?.includes('user rejected')) {
+                setError('User rejected action');
+            } else {
+                setError('Transaction failed');
+            }
+            // Log the full error to console
             console.error('Deposit failed:', err);
         }
     };
@@ -155,6 +283,8 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setError('');
+            setSuccessMessage('');
+            setTxHash('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
                 return;
@@ -172,10 +302,67 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             const tx = await withdraw(amount, selectedToken);
             if (tx.hash) {
                 setTxHash(tx.hash);
+                setSuccessMessage('Withdrawal successful');
             }
         } catch (err) {
             setError(err.message || 'Failed to withdraw');
             console.error('Withdrawal error:', err);
+        }
+    };
+
+    const handleApprove = async () => {
+        if (loading || approvalStatus.isApproving) return;
+        
+        try {
+            setError('');
+            setTxHash('');
+            setSuccessMessage('');
+            if (!amount || Number(amount) <= 0) {
+                setError('Please enter a valid amount');
+                return;
+            }
+
+            if (Number(amount) > Number(balances.main.bohr.value)) {
+                setError('Insufficient BOHR balance');
+                return;
+            }
+            
+            // Update approval status
+            setApprovalStatus(prev => ({
+                ...prev,
+                isApproving: true,
+                isApproved: false,
+                txHash: ''
+            }));
+            
+            setLoading(true);
+            const result = await stakingService.approve(amount);
+            
+            if (result.success) {
+                setApprovalStatus(prev => ({
+                    ...prev,
+                    isApproving: false,
+                    isApproved: true
+                }));
+                setTxHash(result.txHash);
+                setSuccessMessage('Approval successful');
+            } else {
+                setApprovalStatus(prev => ({
+                    ...prev,
+                    isApproving: false,
+                    isApproved: false
+                }));
+            }
+            setLoading(false);
+        } catch (err) {
+            setLoading(false);
+            setApprovalStatus(prev => ({
+                ...prev,
+                isApproving: false,
+                isApproved: false
+            }));
+            setError(err.message || 'Failed to approve');
+            console.error('Approval error:', err);
         }
     };
 
@@ -184,18 +371,30 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setError('');
+            setSuccessMessage('');
+            setTxHash('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
                 return;
             }
 
-            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.main.bohr.value)) {
+            if (Number(amount) > Number(balances.main.bohr.value)) {
                 setError('Insufficient BOHR balance');
                 return;
             }
             
+            // Check if approval is needed
+            if (!approvalStatus.isApproved) {
+                setError('Please approve first');
+                return;
+            }
+            
             setLoading(true);
-            await stakingService.stake(amount);
+            const result = await stakingService.stake(amount);
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Staking successful');
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -209,6 +408,8 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setError('');
+            setSuccessMessage('');
+            setTxHash('');
             if (!amount || Number(amount) <= 0) {
                 setError('Please enter a valid amount');
                 return;
@@ -220,7 +421,12 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             }
             
             setLoading(true);
-            await stakingService.requestUnstake(amount);
+            const result = await stakingService.requestUnstake(amount);
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Unstake requested');
+                fetchStakingAndDelegationData();
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -234,7 +440,13 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setLoading(true);
-            await stakingService.completeUnstake();
+            setTxHash('');
+            setSuccessMessage('');
+            const result = await stakingService.completeUnstake();
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Unstake completed');
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -248,7 +460,14 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setLoading(true);
-            await stakingService.cancelUnstake();
+            setTxHash('');
+            setSuccessMessage('');
+            const result = await stakingService.cancelUnstake();
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Unstake cancelled');
+                fetchStakingAndDelegationData();
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -262,13 +481,19 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setError('');
+            setSuccessMessage('');
+            setTxHash('');
             if (!sessionWalletAddress) {
                 setError('Please enter a session wallet address');
                 return;
             }
             
             setLoading(true);
-            await stakingService.setDelegation(sessionWalletAddress);
+            const result = await stakingService.setDelegation(sessionWalletAddress);
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Delegation set');
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -282,7 +507,13 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         try {
             setLoading(true);
-            await stakingService.removeDelegation();
+            setTxHash('');
+            setSuccessMessage('');
+            const result = await stakingService.removeDelegation();
+            if (result.success) {
+                setTxHash(result.txHash);
+                setSuccessMessage('Delegation removed');
+            }
             setLoading(false);
         } catch (err) {
             setLoading(false);
@@ -424,13 +655,25 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             >
                 Available: {balances.main.bohr.formatted} BOHR
             </p>
-            <button 
-                className={styles.actionButton}
-                onClick={handleStake}
-                disabled={loading || !amount}
-            >
-                {loading ? 'STAKING...' : 'STAKE'}
-            </button>
+            
+            {!approvalStatus.isApproved ? (
+                <button 
+                    className={styles.actionButton}
+                    onClick={handleApprove}
+                    disabled={loading || approvalStatus.isApproving || approvalStatus.checkingApproval || !amount}
+                >
+                    {approvalStatus.checkingApproval ? 'CHECKING...' :
+                     approvalStatus.isApproving ? 'APPROVING...' : 'APPROVE'}
+                </button>
+            ) : (
+                <button 
+                    className={styles.actionButton}
+                    onClick={handleStake}
+                    disabled={loading || !amount}
+                >
+                    {loading ? 'STAKING...' : 'STAKE'}
+                </button>
+            )}
         </>
     );
 
@@ -463,7 +706,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 </>
             ) : (
                 <div className={styles.unstakeRequestCard}>
-                    <h3 className={styles.cardTitle}>Pending Unstake Request</h3>
+                    <h3 className={styles.cardTitle}>Unstake Request Cooldown</h3>
                     <div className={styles.unstakeDetails}>
                         <div>
                             <span className={styles.detailLabel}>Amount:</span>
@@ -489,7 +732,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                                 disabled={true}
                                 className={styles.disabledButton}
                             >
-                                WAITING FOR COOLDOWN
+                                WAITING
                             </button>
                         )}
                         
@@ -569,7 +812,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         <div className={styles.modalOverlay} onClick={handleClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
-                    <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+                    <h2>Actions</h2>
                     <button className={styles.closeButton} onClick={handleClose}>
                         <Image src="/images/close.png" alt="Close" width={16} height={16} />
                     </button>
@@ -620,6 +863,11 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                             {error}
                         </p>
                     )}
+                    {successMessage && (
+                        <p className={`${styles.message} ${styles.successMessage}`}>
+                            {successMessage}
+                        </p>
+                    )}
                     {txHash && (
                         <p className={styles.message}>
                             <a 
@@ -630,11 +878,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                             >
                                 View on explorer
                             </a>
-                        </p>
-                    )}
-                    {successMessage && (
-                        <p className={styles.message}>
-                            {successMessage}
                         </p>
                     )}
                 </div>

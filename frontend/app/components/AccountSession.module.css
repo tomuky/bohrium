@@ -26,8 +26,9 @@
 .balances {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     margin: 20px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
 }
 
 .balanceItem {
@@ -35,8 +36,6 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
 }
 .balanceItemAsset{
     display: flex;
@@ -75,7 +74,6 @@
     transition: all 0.2s;
     font-weight: bold;
 }
-
 .actionButton:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.3);

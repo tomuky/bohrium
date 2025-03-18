@@ -12,9 +12,10 @@ const Account = () => {
         bestHash, 
         minerDifficulty, 
         currentCheckingHash,
-        progress
+        progress,
+        difficultyModifier
     } = useMining()
-    
+
     return (
         <div className={styles.accountArea}>
 

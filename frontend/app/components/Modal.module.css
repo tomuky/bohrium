@@ -15,9 +15,10 @@
 .modalContent {
     background: var(--background-hover);
     border-radius: 12px;
-    padding: 24px;
+    padding: 20px;
     width: 90%;
     max-width: 400px;
+    min-height: 288px;
     animation: slideUp 0.15s ease-out;
 }
 .modalBody{
@@ -225,6 +226,7 @@
 
 .tabsContainer {
     display: flex;
+    justify-content: space-between;
     border-bottom: 1px solid var(--border-color, #333);
     margin-bottom: 16px;
     overflow-x: auto;
@@ -260,7 +262,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-weight: 900;
-    margin-top: 8px;
+    margin: 4px 0;
 }
 
 .actionButton:hover {
@@ -291,7 +293,7 @@
 
 .unstakeRequestCard, .delegationCard {
     background: var(--background-hover);
-    padding: 16px;
+    padding: 10px;
     border-radius: 8px;
     margin-bottom: 16px;
 }
@@ -332,7 +334,7 @@
 .completeButton {
     flex: 1;
     padding: 10px;
-    background: var(--success-color, #22c55e);
+    background: var(--green, #22c55e);
     color: white;
     border: none;
     border-radius: 8px;
@@ -343,7 +345,7 @@
 .cancelButton {
     flex: 1;
     padding: 10px;
-    background: var(--danger-color, #ef4444);
+    background: var(--red, #ef4444);
     color: white;
     border: none;
     border-radius: 8px;
@@ -361,6 +363,10 @@
     cursor: not-allowed;
     font-weight: 600;
     opacity: 0.7;
+}
+
+.successMessage{
+    color: var(--green);
 }
 
 @media (max-width: 480px) {

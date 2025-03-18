@@ -4,13 +4,11 @@ import { useState } from 'react'
 import ActionModal from './ActionModal'
 import { useSessionWallet } from '../contexts/SessionWalletContext'
 import AccountBalanceItem from './AccountBalanceItem'
-import { useClipboard } from '../hooks/useClipboard'
 
 const AccountSession = () => {
     const {sessionWalletAddress, balances} = useSessionWallet();
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('deposit');
-    // const {showCopied, copyToClipboard} = useClipboard();
 
     const openActionModal = (tab) => {
         setActiveTab(tab);
@@ -31,18 +29,6 @@ const AccountSession = () => {
                     <>
                         <div className={`${styles.sessionAreaBlockTitle}`}>
                             <h3 style={{marginBottom: '0px'}}>Balances</h3>
-                            {/* <p 
-                                onClick={() => copyToClipboard(sessionWalletAddress)}
-                                className={styles.addressText}
-                                title="Click to copy address"
-                            >
-                                {sessionWalletAddress.slice(0, 6)}...{sessionWalletAddress.slice(-4)}
-                                {showCopied && (
-                                    <span className={styles.tooltip}>
-                                        Copied!
-                                    </span>
-                                )}
-                            </p> */}
                         </div>
                         <div className={styles.balances}>
                             <AccountBalanceItem 
@@ -51,23 +37,24 @@ const AccountSession = () => {
                                 symbol="ETH"
                             />
                             <AccountBalanceItem 
-                                value={balances.main.bohr.formatted}
-                                icon="/images/bohr.png"
-                                symbol="BOHR"
-                            />
-                            <AccountBalanceItem 
                                 value={balances.session.eth.formatted}
                                 icon="/images/sessioneth2.png"
                                 symbol="Session ETH"
                             />
                             <AccountBalanceItem 
+                                value={balances.main.bohr.formatted}
+                                icon="/images/bohr.png"
+                                symbol="BOHR"
+                            />
+                            <AccountBalanceItem 
                                 value={balances.main.sbohr.formatted}
                                 icon="/images/sbohr.png"
-                                symbol="Staked BOHR"
+                                symbol="sBOHR"
                             />
                         </div>
                         <div className={styles.actions}>
                             <button 
+                                style={{cursor: 'pointer'}}
                                 className={styles.actionButton}
                                 onClick={() => openActionModal('deposit')}
                             >
