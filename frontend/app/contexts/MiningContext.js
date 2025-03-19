@@ -17,7 +17,6 @@ export function MiningProvider({ children }) {
     const [baseDifficulty, setBaseDifficulty] = useState(null);
     const [minerDifficulty, setMinerDifficulty] = useState(null);
     const [blockHeight, setBlockHeight] = useState(null);
-    const [currentCheckingHash, setCurrentCheckingHash] = useState(null);
     const [progress, setProgress] = useState(0);
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
     const [difficultyModifier, setDifficultyModifier] = useState(null);
@@ -84,7 +83,6 @@ export function MiningProvider({ children }) {
             setBaseDifficulty(null);
             setMinerDifficulty(null);
             setBlockHeight(null);
-            setCurrentCheckingHash(null);
             setProgress(0);
             setDifficultyModifier(null);
             return;
@@ -98,7 +96,6 @@ export function MiningProvider({ children }) {
             setMinerDifficulty(miningService.getMinerDifficulty());
             setBlockHeight(miningService.getBlockHeight());
             setProgress(miningService.getProgress());
-            setCurrentCheckingHash(miningService.getCurrentCheckingHash());
             
             // Calculate difficulty modifier
             const baseDiff = miningService.getBaseDifficulty();
@@ -109,11 +106,11 @@ export function MiningProvider({ children }) {
                 const minerValue = BigInt(`0x${minerDiff}`);
                 
                 if (baseValue > 0n) {
-                    // Calculate percentage difference
-                    // If minerValue > baseValue, it's a penalty (harder to mine)
-                    // If minerValue < baseValue, it's a benefit (easier to mine)
-                    const diffPercentage = Number((baseValue - minerValue) * 100n / baseValue);
-                    setDifficultyModifier(diffPercentage);
+                    // Calculate difficulty factor
+                    // If minerValue > baseValue, it's a penalty (harder to mine) -> factor < 1
+                    // If minerValue < baseValue, it's a benefit (easier to mine) -> factor > 1
+                    const factor = Number(baseValue) / Number(minerValue);
+                    setDifficultyModifier(Number(factor.toFixed(2)));
                 }
             }
         }, 1000);
@@ -190,7 +187,6 @@ export function MiningProvider({ children }) {
             baseDifficulty,
             minerDifficulty,
             blockHeight,
-            currentCheckingHash,
             progress,
             sessionWalletAddress,
             mainWalletAddress: address,

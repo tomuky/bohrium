@@ -1,0 +1,58 @@
+.metricsArea{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+}
+.metricsAreaTitle{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.metricsAreaTitle h3{
+    font-size: 0.9rem;
+    color: #888;
+    margin: 0 0 0.5rem 0;
+    line-height: 14px;
+}
+.metricsRow{
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+}
+.metricsRowTitle{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.metricsRowTitle h3{
+    font-size: 0.9rem;
+    color: #888;
+    line-height: 14px;
+}
+.metricsRowValue{
+    font-size: 1rem;
+    font-family: monospace;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex: 1;
+}
+
+.progressBar {
+    width: 100%;
+    height: 8px;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    background-color: #4CAF50;
+    transition: width 0.3s ease-in-out;
+}

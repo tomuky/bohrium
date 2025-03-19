@@ -27,7 +27,6 @@ class MiningService {
         this.currentBlockReward = 0;
         this.startTime = null;
 
-        this.currentCheckingHash = null;
         this.progress = 0;
         this.parameterCheckInterval = null;
         this.shouldRestartMining = false;
@@ -413,10 +412,6 @@ class MiningService {
                         this.progress = 100;
                     }
                 }
-                
-                if (i % 20000 === 0) {
-                    this.currentCheckingHash = hashValue.toString(16);
-                }
 
                 if (hashValue <= this.minerDifficulty) {
                     this.emit('nonce_found', {
@@ -471,11 +466,6 @@ class MiningService {
     // Add getter method
     getBlockHeight() {
         return this.currentBlockHeight;
-    }
-
-    // Add getter for currentCheckingHash
-    getCurrentCheckingHash() {
-        return this.currentCheckingHash;
     }
 
     // Update progress based purely on elapsed time

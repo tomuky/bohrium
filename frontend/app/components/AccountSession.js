@@ -17,7 +17,8 @@ const AccountSession = () => {
 
     return (
         <div className={styles.sessionArea}>
-            <div className={styles.sessionAreaBlock}>
+            <div className={`${styles.sessionAreaBlock} ${styles.desktopOnly}`}>
+
                 {!sessionWalletAddress && (
                     <div className={`${styles.sessionAreaBlockTitle}`}>
                         <h3>Session Wallet</h3>
@@ -28,18 +29,13 @@ const AccountSession = () => {
                 {sessionWalletAddress && (
                     <>
                         <div className={`${styles.sessionAreaBlockTitle}`}>
-                            <h3 style={{marginBottom: '0px'}}>Balances</h3>
+                            <h3 style={{marginBottom: '0px'}}>Main Wallet</h3>
                         </div>
                         <div className={styles.balances}>
                             <AccountBalanceItem 
                                 value={balances.main.eth.formatted}
                                 icon="/images/eth.png"
                                 symbol="ETH"
-                            />
-                            <AccountBalanceItem 
-                                value={balances.session.eth.formatted}
-                                icon="/images/sessioneth2.png"
-                                symbol="Session ETH"
                             />
                             <AccountBalanceItem 
                                 value={balances.main.bohr.formatted}
@@ -50,6 +46,16 @@ const AccountSession = () => {
                                 value={balances.main.sbohr.formatted}
                                 icon="/images/sbohr.png"
                                 symbol="sBOHR"
+                            />
+                        </div>
+                        <div className={`${styles.sessionAreaBlockTitle}`}>
+                            <h3 style={{marginBottom: '0px'}}>Session Wallet</h3>
+                        </div>
+                        <div className={styles.balances}>
+                            <AccountBalanceItem 
+                                value={balances.session.eth.formatted}
+                                icon="/images/eth.png"
+                                symbol="ETH"
                             />
                         </div>
                         <div className={styles.actions}>
