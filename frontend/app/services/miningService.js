@@ -417,7 +417,7 @@ class MiningService {
                     this.emit('nonce_found', {
                         icon: '/images/trophy.png',
                         text: 'Hash found',
-                        pill: `${nonce}`,
+                        pill: `0x${hashValue.toString(16).substring(0,8)}…`,
                     });
                     return { nonce, hashValue };
                 }
