@@ -5,13 +5,14 @@
     gap: 10px;
     max-height: calc(100vh - 185px);
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #888 #f1f1f1;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
 }
 
-/* For Webkit browsers (Chrome, Safari) */
+/* Hide scrollbar for Webkit browsers (Chrome, Safari) */
 .list::-webkit-scrollbar {
-    width: 8px;
+    display: none;
+    width: 0;
 }
 
 .list::-webkit-scrollbar-track {
