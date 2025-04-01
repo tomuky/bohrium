@@ -216,7 +216,6 @@ export const TOKEN_ABI = [
 ];
 
 export const STAKED_BOHR_ABI = [
-    // Convert string format to object format
     {
         "name": "stake",
         "type": "function",
@@ -260,9 +259,23 @@ export const STAKED_BOHR_ABI = [
         "stateMutability": "view"
     },
     
-    // Delegation methods
+    // New delegation methods
     {
-        "name": "setDelegation",
+        "name": "requestDelegation",
+        "type": "function",
+        "inputs": [{"name": "sessionWallet", "type": "address"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "acceptDelegation",
+        "type": "function",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "name": "cancelDelegationRequest",
         "type": "function",
         "inputs": [{"name": "sessionWallet", "type": "address"}],
         "outputs": [],
@@ -289,8 +302,15 @@ export const STAKED_BOHR_ABI = [
         "outputs": [{"name": "", "type": "address"}],
         "stateMutability": "view"
     },
+    {
+        "name": "pendingDelegations",
+        "type": "function",
+        "inputs": [{"name": "", "type": "address"}],
+        "outputs": [{"name": "", "type": "address"}],
+        "stateMutability": "view"
+    },
     
-    // Delegation events - these are already in object format
+    // Contract events
     {
         "anonymous": false,
         "inputs": [
@@ -309,20 +329,38 @@ export const STAKED_BOHR_ABI = [
         "name": "DelegationRemoved",
         "type": "event"
     },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "sessionWallet", "type": "address"},
+            {"indexed": true, "internalType": "address", "name": "mainWallet", "type": "address"}
+        ],
+        "name": "DelegationRequested",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "sessionWallet", "type": "address"},
+            {"indexed": true, "internalType": "address", "name": "mainWallet", "type": "address"}
+        ],
+        "name": "DelegationRequestCancelled",
+        "type": "event"
+    },
     
-    // Add unstakeRequests mapping accessor
+    // Unstake requests mapping accessor
     {
         "name": "unstakeRequests",
         "type": "function",
         "inputs": [{"name": "", "type": "address"}],
         "outputs": [
             {"name": "amount", "type": "uint256"},
-            {"name": "requestBlock", "type": "uint256"}
+            {"name": "requestBohriumBlock", "type": "uint256"}
         ],
         "stateMutability": "view"
     },
     
-    // Add missing functions
+    // Other contract functions
     {
         "name": "setMiningContract",
         "type": "function",
@@ -358,15 +396,8 @@ export const STAKED_BOHR_ABI = [
         "outputs": [{"name": "", "type": "uint256"}],
         "stateMutability": "view"
     },
-    {
-        "name": "cancelUnstake",
-        "type": "function",
-        "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
     
-    // Add missing events
+    // Contract events
     {
         "anonymous": false,
         "inputs": [
@@ -375,6 +406,15 @@ export const STAKED_BOHR_ABI = [
             {"indexed": false, "internalType": "uint256", "name": "requestBohriumBlock", "type": "uint256"}
         ],
         "name": "UnstakeRequested",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
+            {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
+        "name": "UnstakeCompleted",
         "type": "event"
     }
 ];

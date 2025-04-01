@@ -24,6 +24,9 @@ contract StakedBohrToken is ERC20, Ownable {
     mapping(address => address) public delegatedBy; // session wallet => main wallet
     mapping(address => address) public delegatedTo; // main wallet => session wallet
     
+    // Pending delegations that need to be accepted
+    mapping(address => address) public pendingDelegations; // session wallet => main wallet
+    
     struct UnstakeRequest {
         uint256 amount;
         uint256 requestBohriumBlock; // Changed from requestBlock to requestBohriumBlock
@@ -33,6 +36,8 @@ contract StakedBohrToken is ERC20, Ownable {
     event UnstakeCompleted(address indexed user, uint256 amount);
     event DelegationSet(address indexed sessionWallet, address indexed mainWallet);
     event DelegationRemoved(address indexed sessionWallet, address indexed mainWallet);
+    event DelegationRequested(address indexed sessionWallet, address indexed mainWallet);
+    event DelegationRequestCancelled(address indexed sessionWallet, address indexed mainWallet);
     
     constructor(address _bohrToken) ERC20("Staked BOHR", "sBOHR") Ownable(msg.sender) {
         bohrToken = IERC20(_bohrToken);
@@ -123,20 +128,44 @@ contract StakedBohrToken is ERC20, Ownable {
         _mint(msg.sender, amount);
     }
     
-    // Set delegation from main wallet to session wallet
-    function setDelegation(address sessionWallet) external {
+    // Request delegation from main wallet to session wallet
+    function requestDelegation(address sessionWallet) external {
         require(sessionWallet != address(0), "Invalid session wallet");
         require(sessionWallet != msg.sender, "Cannot delegate to self");
         require(delegatedTo[msg.sender] == address(0), "Already delegated");
-        require(delegatedBy[sessionWallet] == address(0), "Session already delegated");
         
         // Add this check to prevent circular delegations
         require(delegatedTo[sessionWallet] == address(0), "Circular delegation not allowed");
         
-        delegatedBy[sessionWallet] = msg.sender;
-        delegatedTo[msg.sender] = sessionWallet;
+        // Store the pending delegation request
+        pendingDelegations[sessionWallet] = msg.sender;
         
-        emit DelegationSet(sessionWallet, msg.sender);
+        emit DelegationRequested(sessionWallet, msg.sender);
+    }
+    
+    // Accept delegation (must be called by the session wallet)
+    function acceptDelegation() external {
+        address mainWallet = pendingDelegations[msg.sender];
+        require(mainWallet != address(0), "No pending delegation");
+        require(delegatedBy[msg.sender] == address(0), "Already a session wallet");
+        
+        // Clear the pending request
+        delete pendingDelegations[msg.sender];
+        
+        // Set up the delegation
+        delegatedBy[msg.sender] = mainWallet;
+        delegatedTo[mainWallet] = msg.sender;
+        
+        emit DelegationSet(msg.sender, mainWallet);
+    }
+    
+    // Cancel a pending delegation request (called by main wallet)
+    function cancelDelegationRequest(address sessionWallet) external {
+        require(pendingDelegations[sessionWallet] == msg.sender, "Not your delegation request");
+        
+        delete pendingDelegations[sessionWallet];
+        
+        emit DelegationRequestCancelled(sessionWallet, msg.sender);
     }
     
     // Remove delegation

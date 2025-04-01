@@ -338,15 +338,29 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             setLoading(true);
             const result = await stakingService.approve(amount);
             
+            if(result.hash) {
+                setTxHash(result.hash);
+            }
+
             if (result.success) {
-                setApprovalStatus(prev => ({
-                    ...prev,
-                    isApproving: false,
-                    isApproved: true
-                }));
-                setTxHash(result.txHash);
-                setSuccessMessage('Approval successful');
+                const finalResult = await result.wait();
+                if (finalResult.success) {
+                    setApprovalStatus(prev => ({
+                        ...prev,
+                        isApproving: false,
+                        isApproved: true
+                    }));
+                    setSuccessMessage('Approval successful');
+                } else {
+                    setError(finalResult.error);
+                    setApprovalStatus(prev => ({
+                        ...prev,
+                        isApproving: false,
+                        isApproved: false
+                    }));
+                }
             } else {
+                setError(result.error);
                 setApprovalStatus(prev => ({
                     ...prev,
                     isApproving: false,
@@ -858,16 +872,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                     {activeTab === 'unstake' && renderUnstakeTab()}
                     {/* {activeTab === 'delegate' && renderDelegateTab()} */}
                     
-                    {error && (
-                        <p className={styles.error}>
-                            {error}
-                        </p>
-                    )}
-                    {successMessage && (
-                        <p className={`${styles.message} ${styles.successMessage}`}>
-                            {successMessage}
-                        </p>
-                    )}
+
                     {txHash && (
                         <p className={styles.message}>
                             <a 
@@ -878,6 +883,16 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                             >
                                 View on explorer
                             </a>
+                        </p>
+                    )}
+                    {error && (
+                        <p className={styles.error}>
+                            {error}
+                        </p>
+                    )}
+                    {successMessage && (
+                        <p className={`${styles.message} ${styles.successMessage}`}>
+                            {successMessage}
                         </p>
                     )}
                 </div>

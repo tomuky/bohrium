@@ -20,14 +20,6 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Hash Rate</h3>
-                </div>
-                <div className={styles.metricsRowValue}>
-                    {isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}
-                </div>
-            </div>
-            <div className={styles.metricsRow}>
-                <div className={styles.metricsRowTitle}>
                     <h3>Progress</h3>
                 </div>
                 <div className={styles.metricsRowValue}>
@@ -46,6 +38,14 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
+                    <h3>Hash Rate</h3>
+                </div>
+                <div className={styles.metricsRowValue}>
+                    {isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}
+                </div>
+            </div>
+            <div className={styles.metricsRow}>
+                <div className={styles.metricsRowTitle}>
                     <h3>Difficulty</h3>
                 </div>
                 <div className={styles.metricsRowValue}>
@@ -57,7 +57,15 @@ const AccountMetrics = () => {
                     <h3>Modifier</h3>
                 </div>
                 <div className={styles.metricsRowValue}>
-                    {difficultyModifier ? `${difficultyModifier}x` : '-'}
+                    {difficultyModifier ? (
+                        <span className={
+                            difficultyModifier < 1.0 ? styles.redText :
+                            difficultyModifier === 1.0 ? styles.yellowText :
+                            styles.greenText
+                        }>
+                            {`${difficultyModifier}x`}
+                        </span>
+                    ) : '-'}
                 </div>
             </div>
         </div>

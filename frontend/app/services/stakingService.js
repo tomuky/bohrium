@@ -141,30 +141,6 @@ class StakingService extends EventEmitter {
         }
     }
     
-    async stakeWithoutApproval(amount) {
-        if (!this.isConnected) await this.connect();
-        
-        try {
-            const amountWei = ethers.parseUnits(amount.toString(), 18);
-            
-            // Skip approval and go straight to staking
-            const stakeTx = await this.sBohrContract.stake(amountWei);
-            await stakeTx.wait();
-            
-            this.emit('stake_success', {
-                message: "Staking successful",
-                amount,
-                icon: '/images/stake.png'
-            });
-            
-            return true;
-        } catch (error) {
-            console.error("Staking error:", error);
-            this.emit('error', { message: "Staking failed", error: error.message });
-            return false;
-        }
-    }
-    
     async approve(amount) {
         if (!this.isConnected) await this.connect();
         
@@ -172,18 +148,26 @@ class StakingService extends EventEmitter {
             const amountWei = ethers.parseUnits(amount.toString(), 18);
             const sBohrAddress = await this.sBohrContract.getAddress();
             
-            // Approve the transfer
             const approveTx = await this.bohrContract.approve(
                 sBohrAddress,
                 amountWei
             );
-            const approveReceipt = await approveTx.wait();
             
-            return { success: true, txHash: approveReceipt.hash };
+            return { 
+                success: true, 
+                hash: approveTx.hash,
+                wait: async () => {
+                    try {
+                        const receipt = await approveTx.wait();
+                        return { success: true, receipt };
+                    } catch (error) {
+                        return { success: false, error };
+                    }
+                }
+            };
         } catch (error) {
             console.error("Approval error:", error);
-            this.emit('error', { message: "Approval failed", error: error.message });
-            return false;
+            return { success: false, error: error.message };
         }
     }
     
@@ -200,7 +184,6 @@ class StakingService extends EventEmitter {
             return { success: true, txHash: stakeTx.hash };
         } catch (error) {
             console.error("Staking error:", error);
-            this.emit('error', { message: "Staking failed", error: error.message });
             return false;
         }
     }
@@ -264,17 +247,32 @@ class StakingService extends EventEmitter {
         }
     }
     
-    async setDelegation(sessionWalletAddress) {
+    async requestDelegation(sessionWalletAddress) {
         if (!this.isConnected) await this.connect();
         
         try {
-            const tx = await this.sBohrContract.setDelegation(sessionWalletAddress);
+            const tx = await this.sBohrContract.requestDelegation(sessionWalletAddress);
             const receipt = await tx.wait();
             
             return { success: true, txHash: receipt.hash };
         } catch (error) {
-            console.error("Set delegation error:", error);
-            this.emit('error', { message: "Set delegation failed", error: error.message });
+            console.error("Request delegation error:", error);
+            this.emit('error', { message: "Request delegation failed", error: error.message });
+            return false;
+        }
+    }
+    
+    async cancelDelegationRequest(sessionWalletAddress) {
+        if (!this.isConnected) await this.connect();
+        
+        try {
+            const tx = await this.sBohrContract.cancelDelegationRequest(sessionWalletAddress);
+            const receipt = await tx.wait();
+            
+            return { success: true, txHash: receipt.hash };
+        } catch (error) {
+            console.error("Cancel delegation request error:", error);
+            this.emit('error', { message: "Cancel delegation request failed", error: error.message });
             return false;
         }
     }

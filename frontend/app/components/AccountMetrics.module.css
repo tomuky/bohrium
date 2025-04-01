@@ -53,6 +53,15 @@
 
 .progressFill {
     height: 100%;
-    background-color: #4CAF50;
+    background-color: var(--green);
     transition: width 0.3s ease-in-out;
+}
+.redText{
+    color: indianred;
+}
+.yellowText{
+    color: yellow;
+}
+.greenText{
+    color: var(--green);;
 }

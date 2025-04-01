@@ -234,12 +234,31 @@ export function SessionWalletProvider({ children }) {
         try {
             setDelegationError(null);
             setIsDelegationLoading(true);
-            await stakingService.setDelegation(sessionWalletAddress);
+            
+            // Step 1: Request delegation from main wallet
+            await stakingService.requestDelegation(sessionWalletAddress);
+            
+            // Step 2: Accept delegation using session wallet
+            if (!sessionWallet) {
+                await getSessionWallet();
+            }
+            
+            // Create contract instance with session wallet
+            const sBohrContract = new ethers.Contract(
+                sBohrAddress,
+                STAKED_BOHR_ABI,
+                sessionWallet
+            );
+            
+            // Accept the delegation using session wallet
+            const acceptTx = await sBohrContract.acceptDelegation();
+            await acceptTx.wait(); // Wait for transaction confirmation
+            
             setIsDelegationLoading(false);
         } catch (err) {
             setIsDelegationLoading(false);
-            setDelegationError(err.message || 'Failed to set delegation');
-            console.error('Set delegation error:', err);
+            setDelegationError(err.message || 'Failed to set up delegation');
+            console.error('Delegation error:', err);
             throw err;
         }
     };
