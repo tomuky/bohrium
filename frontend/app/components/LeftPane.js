@@ -9,9 +9,9 @@ const LeftPane = () => {
 
     return (
         <div className={styles.leftPane}>
-            <div className={styles.testnet}>
+            {/* <div className={styles.testnet}>
                 <p>Base Sepolia Testnet Only</p>
-            </div>
+            </div> */}
             {hasSessionWallet && <Account />}
             <Socials />
         </div>

@@ -17,7 +17,7 @@ const AccountSession = () => {
 
     return (
         <div className={styles.sessionArea}>
-            <div className={`${styles.sessionAreaBlock} ${styles.desktopOnly}`}>
+            <div className={`${styles.sessionAreaBlock}`}>
 
                 {!sessionWalletAddress && (
                     <div className={`${styles.sessionAreaBlockTitle}`}>
