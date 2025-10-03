@@ -46,10 +46,18 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
+                    <h3>Best Hash</h3>
+                </div>
+                <div className={`${styles.metricsRowValue} ${bestHash ? styles.metricsRowValueSmall : ''}`}>
+                    {bestHash ? `0x${bestHash.padStart(64, '0').substring(0, 12)}…` : '-'}
+                </div>
+            </div>
+            <div className={styles.metricsRow}>
+                <div className={styles.metricsRowTitle}>
                     <h3>Difficulty</h3>
                 </div>
-                <div className={`${styles.metricsRowValue} ${styles.metricsRowValueSmall}`}>
-                    {minerDifficulty ? `0x${minerDifficulty.substring(0, 14)}…` : '-'}
+                <div className={`${styles.metricsRowValue} ${minerDifficulty ? styles.metricsRowValueSmall : ''}`}>
+                    {minerDifficulty ? `0x${minerDifficulty.padStart(64, '0').substring(0, 12)}…` : '-'}
                 </div>
             </div>
             <div className={styles.metricsRow}>
