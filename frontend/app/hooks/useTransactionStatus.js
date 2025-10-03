@@ -1,30 +1,51 @@
-import { useTransaction } from 'wagmi';
+import { useState } from 'react';
 
-export function useTransactionStatus(txHash) {
-  const { data, isLoading, isError } = useTransaction({
-    hash: txHash,
-  });
+export const useTransactionStatus = () => {
+    const [error, setError] = useState('');
+    const [txHash, setTxHash] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const transactionStatus = {
-    isLoading,
-    isError,
-    isReverted: false,
-    isSuccessful: false,
-    receipt: data,
-  };
+    const resetStatus = () => {
+        setError('');
+        setTxHash('');
+        setSuccessMessage('');
+        setLoading(false);
+    };
 
-  if (data) {
-    // Check the `status` field if available
-    if (data.status === 1) {
-      transactionStatus.isSuccessful = true;
-    } else if (data.status === 0) {
-      transactionStatus.isReverted = true;
-    } else {
-      // Optional: fallback logic if `status` is missing
-      transactionStatus.isReverted =
-        data.gasUsed === data.gasLimit && (!data.logs || data.logs.length === 0);
-    }
-  }
+    const setSuccess = (message, hash = '') => {
+        setSuccessMessage(message);
+        setTxHash(hash);
+        setError('');
+    };
 
-  return transactionStatus;
-}
+    const setErrorState = (errorMessage) => {
+        setError(errorMessage);
+        setSuccessMessage('');
+        setTxHash('');
+    };
+
+    const handleUserRejectedError = (err) => {
+        if (err.code === 4001 || err.message?.includes('user rejected')) {
+            setErrorState('User rejected action');
+        } else {
+            setErrorState('Transaction failed');
+        }
+        console.error('Transaction error:', err);
+    };
+
+    return {
+        error,
+        txHash,
+        successMessage,
+        loading,
+        setError,
+        setTxHash,
+        setSuccessMessage,
+        setLoading,
+        resetStatus,
+        setSuccess,
+        setErrorState,
+        handleUserRejectedError
+    };
+};

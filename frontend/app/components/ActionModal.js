@@ -5,16 +5,18 @@ import stakingService from '../services/stakingService';
 import styles from './Modal.module.css';
 import Image from 'next/image';
 import { DEFAULT_NETWORK } from '../services/config';
-import { formatAddress } from '../services/utils';
+import ActionModalDeposit from './ActionModalDeposit';
+import ActionModalWithdraw from './ActionModalWithdraw';
+import ActionModalStake from './ActionModalStake';
+import ActionModalUnstake from './ActionModalUnstake';
+import ActionModalDelegate from './ActionModalDelegate';
 
 const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
     const [activeTab, setActiveTab] = useState(initialTab);
     const [amount, setAmount] = useState('');
-    const [selectedToken, setSelectedToken] = useState('ETH');
     const [error, setError] = useState('');
     const [txHash, setTxHash] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [unstakeRequest, setUnstakeRequest] = useState(null);
     const [blockRefreshInterval, setBlockRefreshInterval] = useState(null);
@@ -23,12 +25,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         isSessionWallet: false,
         sessionWallet: null,
         mainWallet: null
-    });
-    const [approvalStatus, setApprovalStatus] = useState({
-        isApproving: false,
-        isApproved: false,
-        txHash: '',
-        checkingApproval: false
     });
 
     // Session wallet context for deposit/withdraw
@@ -49,13 +45,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             setError('');
             setTxHash('');
             setSuccessMessage('');
-            // Reset approval status
-            setApprovalStatus({
-                isApproving: false,
-                isApproved: false,
-                txHash: '',
-                checkingApproval: false
-            });
             fetchStakingAndDelegationData();
         }
     }, [isOpen, activeTab]);
@@ -165,17 +154,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             console.error('Staking service error:', data);
         };
         
-        const handleApprovalSuccess = () => {
-            setApprovalStatus(prev => ({
-                ...prev,
-                isApproving: false,
-                isApproved: true
-            }));
-            setSuccessMessage('Approval successful');
-        };
-        
         stakingService.on('stake_success', handleSuccess);
-        stakingService.on('approval_success', handleApprovalSuccess);
         stakingService.on('unstake_requested', handleSuccess);
         stakingService.on('unstake_completed', handleSuccess);
         stakingService.on('unstake_cancelled', handleSuccess);
@@ -185,7 +164,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         
         return () => {
             stakingService.removeListener('stake_success', handleSuccess);
-            stakingService.removeListener('approval_success', handleApprovalSuccess);
             stakingService.removeListener('unstake_requested', handleSuccess);
             stakingService.removeListener('unstake_completed', handleSuccess);
             stakingService.removeListener('unstake_cancelled', handleSuccess);
@@ -195,36 +173,6 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         };
     }, []);
 
-    // Check for existing approval when amount changes in stake tab
-    useEffect(() => {
-        setSuccessMessage('');
-        setError('');
-        setTxHash('');
-        const checkApproval = async () => {
-            if (activeTab === 'stake' && amount && Number(amount) > 0 && !approvalStatus.isApproving) {
-                try {
-                    setApprovalStatus(prev => ({ ...prev, checkingApproval: true }));
-                    const hasApproval = await stakingService.checkApproval(amount);
-                    setApprovalStatus({
-                        isApproving: false,
-                        isApproved: hasApproval,
-                        txHash: '',
-                        checkingApproval: false
-                    });
-                } catch (err) {
-                    console.error("Error checking approval:", err);
-                    setApprovalStatus({
-                        isApproving: false,
-                        isApproved: false,
-                        txHash: '',
-                        checkingApproval: false
-                    });
-                }
-            }
-        };
-
-        checkApproval();
-    }, [activeTab, amount]);
 
     const handleClose = () => {
         setTxHash('');
@@ -234,593 +182,44 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
         onClose();
     };
 
-    const handleTokenSelect = (token) => {
-        setSelectedToken(token);
-        setIsDropdownOpen(false);
+    // Simplified action handlers that call staking service
+    const handleApprove = async (amount) => {
+        return await stakingService.approve(amount);
     };
 
-    // Action handlers
-    const handleDeposit = async () => {
-        if (sessionWalletLoading || loading) return;
-        
-        try {
-            setError('');
-            setSuccessMessage('');
-            setTxHash('');
-            if (!amount || Number(amount) <= 0) {
-                setError('Please enter a valid amount');
-                return;
-            }
-
-            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.main.bohr.value)) {
-                setError('Insufficient BOHR balance');
-                return;
-            }
-            if (selectedToken === 'ETH' && Number(amount) > Number(balances.main.eth.value)) {
-                setError('Insufficient ETH balance');
-                return;
-            }
-            
-            const hash = await deposit(amount, selectedToken);
-            if (hash) {
-                setTxHash(hash);
-                setSuccessMessage('Deposit successful');
-            }
-        } catch (err) {
-            // More user-friendly error message in UI
-            if (err.code === 4001 || err.message?.includes('user rejected')) {
-                setError('User rejected action');
-            } else {
-                setError('Transaction failed');
-            }
-            // Log the full error to console
-            console.error('Deposit failed:', err);
-        }
+    const handleStake = async (amount) => {
+        return await stakingService.stake(amount);
     };
 
-    const handleWithdraw = async () => {
-        if (sessionWalletLoading || loading) return;
-        
-        try {
-            setError('');
-            setSuccessMessage('');
-            setTxHash('');
-            if (!amount || Number(amount) <= 0) {
-                setError('Please enter a valid amount');
-                return;
-            }
-
-            if (selectedToken === 'BOHR' && Number(amount) > Number(balances.session.bohr.value)) {
-                setError('Insufficient BOHR balance');
-                return;
-            }
-            if (selectedToken === 'ETH' && Number(amount) > Number(balances.session.eth.value)) {
-                setError('Insufficient ETH balance');
-                return;
-            }
-
-            const tx = await withdraw(amount, selectedToken);
-            if (tx.hash) {
-                setTxHash(tx.hash);
-                setSuccessMessage('Withdrawal successful');
-            }
-        } catch (err) {
-            setError(err.message || 'Failed to withdraw');
-            console.error('Withdrawal error:', err);
+    const handleRequestUnstake = async (amount) => {
+        const result = await stakingService.requestUnstake(amount);
+        if (result.success) {
+            fetchStakingAndDelegationData();
         }
-    };
-
-    const handleApprove = async () => {
-        if (loading || approvalStatus.isApproving) return;
-        
-        try {
-            setError('');
-            setTxHash('');
-            setSuccessMessage('');
-            if (!amount || Number(amount) <= 0) {
-                setError('Please enter a valid amount');
-                return;
-            }
-
-            if (Number(amount) > Number(balances.main.bohr.value)) {
-                setError('Insufficient BOHR balance');
-                return;
-            }
-            
-            // Update approval status
-            setApprovalStatus(prev => ({
-                ...prev,
-                isApproving: true,
-                isApproved: false,
-                txHash: ''
-            }));
-            
-            setLoading(true);
-            const result = await stakingService.approve(amount);
-            
-            if(result.hash) {
-                setTxHash(result.hash);
-            }
-
-            if (result.success) {
-                const finalResult = await result.wait();
-                if (finalResult.success) {
-                    setApprovalStatus(prev => ({
-                        ...prev,
-                        isApproving: false,
-                        isApproved: true
-                    }));
-                    setSuccessMessage('Approval successful');
-                } else {
-                    setError(finalResult.error);
-                    setApprovalStatus(prev => ({
-                        ...prev,
-                        isApproving: false,
-                        isApproved: false
-                    }));
-                }
-            } else {
-                setError(result.error);
-                setApprovalStatus(prev => ({
-                    ...prev,
-                    isApproving: false,
-                    isApproved: false
-                }));
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setApprovalStatus(prev => ({
-                ...prev,
-                isApproving: false,
-                isApproved: false
-            }));
-            setError(err.message || 'Failed to approve');
-            console.error('Approval error:', err);
-        }
-    };
-
-    const handleStake = async () => {
-        if (loading) return;
-        
-        try {
-            setError('');
-            setSuccessMessage('');
-            setTxHash('');
-            if (!amount || Number(amount) <= 0) {
-                setError('Please enter a valid amount');
-                return;
-            }
-
-            if (Number(amount) > Number(balances.main.bohr.value)) {
-                setError('Insufficient BOHR balance');
-                return;
-            }
-            
-            // Check if approval is needed
-            if (!approvalStatus.isApproved) {
-                setError('Please approve first');
-                return;
-            }
-            
-            setLoading(true);
-            const result = await stakingService.stake(amount);
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Staking successful');
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to stake');
-            console.error('Staking error:', err);
-        }
-    };
-
-    const handleRequestUnstake = async () => {
-        if (loading) return;
-        
-        try {
-            setError('');
-            setSuccessMessage('');
-            setTxHash('');
-            if (!amount || Number(amount) <= 0) {
-                setError('Please enter a valid amount');
-                return;
-            }
-
-            if (Number(amount) > Number(balances.main.sbohr.value)) {
-                setError('Insufficient sBOHR balance');
-                return;
-            }
-            
-            setLoading(true);
-            const result = await stakingService.requestUnstake(amount);
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Unstake requested');
-                fetchStakingAndDelegationData();
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to request unstake');
-            console.error('Unstake request error:', err);
-        }
+        return result;
     };
 
     const handleCompleteUnstake = async () => {
-        if (loading) return;
-        
-        try {
-            setLoading(true);
-            setTxHash('');
-            setSuccessMessage('');
-            const result = await stakingService.completeUnstake();
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Unstake completed');
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to complete unstake');
-            console.error('Complete unstake error:', err);
-        }
+        return await stakingService.completeUnstake();
     };
 
     const handleCancelUnstake = async () => {
-        if (loading) return;
-        
-        try {
-            setLoading(true);
-            setTxHash('');
-            setSuccessMessage('');
-            const result = await stakingService.cancelUnstake();
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Unstake cancelled');
-                fetchStakingAndDelegationData();
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to cancel unstake');
-            console.error('Cancel unstake error:', err);
+        const result = await stakingService.cancelUnstake();
+        if (result.success) {
+            fetchStakingAndDelegationData();
         }
+        return result;
     };
 
-    const handleSetDelegation = async () => {
-        if (loading) return;
-        
-        try {
-            setError('');
-            setSuccessMessage('');
-            setTxHash('');
-            if (!sessionWalletAddress) {
-                setError('Please enter a session wallet address');
-                return;
-            }
-            
-            setLoading(true);
-            const result = await stakingService.setDelegation(sessionWalletAddress);
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Delegation set');
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to set delegation');
-            console.error('Set delegation error:', err);
-        }
+    const handleSetDelegation = async (sessionWalletAddress) => {
+        return await stakingService.setDelegation(sessionWalletAddress);
     };
 
     const handleRemoveDelegation = async () => {
-        if (loading) return;
-        
-        try {
-            setLoading(true);
-            setTxHash('');
-            setSuccessMessage('');
-            const result = await stakingService.removeDelegation();
-            if (result.success) {
-                setTxHash(result.txHash);
-                setSuccessMessage('Delegation removed');
-            }
-            setLoading(false);
-        } catch (err) {
-            setLoading(false);
-            setError(err.message || 'Failed to remove delegation');
-            console.error('Remove delegation error:', err);
-        }
+        return await stakingService.removeDelegation();
     };
 
     if (!isOpen) return null;
-
-    // Tab content components
-    const renderDepositTab = () => (
-        <>
-            <div className={styles.inputGroup}>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className={styles.input}
-                />
-                <div className={styles.customDropdown}>
-                    <div 
-                        className={styles.dropdownHeader} 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                        {selectedToken}
-                        <span className={styles.dropdownArrow}>▼</span>
-                    </div>
-                    {isDropdownOpen && (
-                        <div className={styles.dropdownContent}>
-                            <div 
-                                className={styles.dropdownItem}
-                                onClick={() => handleTokenSelect('ETH')}
-                            >
-                                ETH
-                            </div>
-                            <div 
-                                className={styles.dropdownItem}
-                                onClick={() => handleTokenSelect('BOHR')}
-                            >
-                                BOHR
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-            <div className={styles.recommendationContainer}>
-                <span 
-                    className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                    onClick={() => {
-                        if (selectedToken === 'ETH') setAmount('0.01');
-                        if (selectedToken === 'BOHR') setAmount(balances.main.bohr.value || '');
-                    }}
-                >
-                    {selectedToken === 'ETH' && 'Recommended: 0.01'}
-                    {selectedToken === 'BOHR' && `Balance: ${balances.main.bohr.formatted}`}
-                </span>
-                <span className={`${styles.recommendation} ${styles.recommendationRed}`}>
-                    Keep low balances
-                </span>
-            </div>
-            <button 
-                className={styles.actionButton} 
-                onClick={handleDeposit}
-                disabled={sessionWalletLoading || !amount}
-            >
-                {sessionWalletLoading ? 'DEPOSITING...' : 'DEPOSIT'}
-            </button>
-        </>
-    );
-
-    const renderWithdrawTab = () => (
-        <>
-            <div className={styles.inputGroup}>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className={styles.input}
-                />
-                <div className={styles.customDropdown}>
-                    <div 
-                        className={styles.dropdownHeader} 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                        {selectedToken}
-                        <span className={styles.dropdownArrow}>▼</span>
-                    </div>
-                    {isDropdownOpen && (
-                        <div className={styles.dropdownContent}>
-                            <div 
-                                className={styles.dropdownItem}
-                                onClick={() => handleTokenSelect('ETH')}
-                            >
-                                ETH
-                            </div>
-                            <div 
-                                className={styles.dropdownItem}
-                                onClick={() => handleTokenSelect('BOHR')}
-                            >
-                                BOHR
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-            <p 
-                className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                onClick={() => setAmount(selectedToken === 'ETH' ? balances.session.eth.value : balances.session.bohr.value)}
-            >
-                Balance: {selectedToken === 'ETH' ? balances.session.eth.value : balances.session.bohr.value}
-            </p>
-            <button 
-                className={styles.actionButton}
-                onClick={handleWithdraw}
-                disabled={sessionWalletLoading}
-            >
-                {sessionWalletLoading ? 'WITHDRAWING...' : 'WITHDRAW'}
-            </button>
-        </>
-    );
-
-    const renderStakeTab = () => (
-        <>  
-            <div className={styles.inputGroup}>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter amount to stake"
-                    className={styles.input}
-                />
-            </div>
-            <p 
-                className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                onClick={() => setAmount(balances.main.bohr.value)}
-            >
-                Available: {balances.main.bohr.formatted} BOHR
-            </p>
-            
-            {!approvalStatus.isApproved ? (
-                <button 
-                    className={styles.actionButton}
-                    onClick={handleApprove}
-                    disabled={loading || approvalStatus.isApproving || approvalStatus.checkingApproval || !amount}
-                >
-                    {approvalStatus.checkingApproval ? 'CHECKING...' :
-                     approvalStatus.isApproving ? 'APPROVING...' : 'APPROVE'}
-                </button>
-            ) : (
-                <button 
-                    className={styles.actionButton}
-                    onClick={handleStake}
-                    disabled={loading || !amount}
-                >
-                    {loading ? 'STAKING...' : 'STAKE'}
-                </button>
-            )}
-        </>
-    );
-
-    const renderUnstakeTab = () => (
-        <>
-            {!unstakeRequest ? (
-                <>
-                    <div className={styles.inputGroup}>
-                        <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="Enter amount to unstake"
-                            className={styles.input}
-                        />
-                    </div>
-                    <p 
-                        className={`${styles.recommendation} ${styles.recommendationClickable}`}
-                        onClick={() => setAmount(balances.main.sbohr.value)}
-                    >
-                        Available: {balances.main.sbohr.formatted} sBOHR
-                    </p>
-                    <button 
-                        className={styles.actionButton}
-                        onClick={handleRequestUnstake}
-                        disabled={loading || !amount}
-                    >
-                        {loading ? 'REQUESTING...' : 'REQUEST UNSTAKE'}
-                    </button>
-                </>
-            ) : (
-                <div className={styles.unstakeRequestCard}>
-                    <h3 className={styles.cardTitle}>Unstake Request Cooldown</h3>
-                    <div className={styles.unstakeDetails}>
-                        <div>
-                            <span className={styles.detailLabel}>Amount:</span>
-                            <span className={styles.detailValue}>{unstakeRequest.amount} BOHR</span>
-                        </div>
-                        <div>
-                            <span className={styles.detailLabel}>Blocks Remaining:</span>
-                            <span className={styles.detailValue}>{unstakeRequest.blocksRemaining}</span>
-                        </div>
-                    </div>
-                    
-                    <div className={styles.buttonGroup}>
-                        {unstakeRequest.canComplete ? (
-                            <button
-                                onClick={handleCompleteUnstake}
-                                disabled={loading}
-                                className={styles.completeButton}
-                            >
-                                {loading ? 'COMPLETING...' : 'COMPLETE UNSTAKE'}
-                            </button>
-                        ) : (
-                            <button
-                                disabled={true}
-                                className={styles.disabledButton}
-                            >
-                                WAITING
-                            </button>
-                        )}
-                        
-                        <button
-                            onClick={handleCancelUnstake}
-                            disabled={loading}
-                            className={styles.cancelButton}
-                        >
-                            {loading ? 'CANCELLING...' : 'CANCEL'}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-
-    const renderDelegateTab = () => (
-        <>
-            {delegationInfo.isMainWallet ? (
-                <div className={styles.delegationCard}>
-                    <h3 className={styles.cardTitle}>Active Delegation</h3>
-                    <div className={styles.delegationDetails}>
-                        <span className={styles.detailLabel}>Session Wallet:</span>
-                        <span className={styles.detailValue}>{formatAddress(delegationInfo.sessionWallet)}</span>
-                    </div>
-                    <p className={styles.delegationDescription}>
-                        Your main wallet is delegated to this session wallet. Mining rewards from the session wallet will be sent to your main wallet.
-                    </p>
-                    <button
-                        onClick={handleRemoveDelegation}
-                        disabled={loading}
-                        className={styles.cancelButton}
-                    >
-                        {loading ? 'REMOVING...' : 'REMOVE DELEGATION'}
-                    </button>
-                </div>
-            ) : delegationInfo.isSessionWallet ? (
-                <div className={styles.delegationCard}>
-                    <h3 className={styles.cardTitle}>Delegated Session Wallet</h3>
-                    <div className={styles.delegationDetails}>
-                        <span className={styles.detailLabel}>Main Wallet:</span>
-                        <span className={styles.detailValue}>{formatAddress(delegationInfo.mainWallet)}</span>
-                    </div>
-                    <p className={styles.delegationDescription}>
-                        This session wallet is delegated from the main wallet above. Mining rewards will be sent to the main wallet.
-                    </p>
-                </div>
-            ) : (
-                <>
-                    <p className={styles.delegationDescription}>
-                        Delegation allows you to separate your main wallet (which holds funds) from your session wallet (which does the mining). 
-                        Stake BOHR from your main wallet and have it count for your session wallet's mining difficulty.
-                    </p>
-                    
-                    <div className={styles.inputGroup}>
-                        <input
-                            disabled={true}
-                            type="text"
-                            value={sessionWalletAddress}
-                            placeholder="Enter session wallet address (0x...)"
-                            className={styles.input}
-                        />
-                    </div>
-                    <button
-                        onClick={handleSetDelegation}
-                        disabled={loading || !sessionWalletAddress}
-                        className={styles.actionButton}
-                    >
-                        {loading ? 'SETTING...' : 'SET DELEGATION'}
-                    </button>
-                </>
-            )}
-        </>
-    );
 
     return (
         <div className={styles.modalOverlay} onClick={handleClose}>
@@ -866,12 +265,52 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
                 </div>
                 
                 <div className={styles.modalBody}>
-                    {activeTab === 'deposit' && renderDepositTab()}
-                    {activeTab === 'withdraw' && renderWithdrawTab()}
-                    {activeTab === 'stake' && renderStakeTab()}
-                    {activeTab === 'unstake' && renderUnstakeTab()}
-                    {/* {activeTab === 'delegate' && renderDelegateTab()} */}
-                    
+                    {activeTab === 'deposit' && (
+                        <ActionModalDeposit
+                            amount={amount}
+                            setAmount={setAmount}
+                            balances={balances}
+                            sessionWalletLoading={sessionWalletLoading}
+                            onDeposit={deposit}
+                        />
+                    )}
+                    {activeTab === 'withdraw' && (
+                        <ActionModalWithdraw
+                            amount={amount}
+                            setAmount={setAmount}
+                            balances={balances}
+                            sessionWalletLoading={sessionWalletLoading}
+                            onWithdraw={withdraw}
+                        />
+                    )}
+                    {activeTab === 'stake' && (
+                        <ActionModalStake
+                            amount={amount}
+                            setAmount={setAmount}
+                            balances={balances}
+                            onApprove={handleApprove}
+                            onStake={handleStake}
+                        />
+                    )}
+                    {activeTab === 'unstake' && (
+                        <ActionModalUnstake
+                            amount={amount}
+                            setAmount={setAmount}
+                            balances={balances}
+                            unstakeRequest={unstakeRequest}
+                            onRequestUnstake={handleRequestUnstake}
+                            onCompleteUnstake={handleCompleteUnstake}
+                            onCancelUnstake={handleCancelUnstake}
+                        />
+                    )}
+                    {/* {activeTab === 'delegate' && (
+                        <ActionModalDelegate
+                            sessionWalletAddress={sessionWalletAddress}
+                            delegationInfo={delegationInfo}
+                            onSetDelegation={handleSetDelegation}
+                            onRemoveDelegation={handleRemoveDelegation}
+                        />
+                    )} */}
 
                     {txHash && (
                         <p className={styles.message}>

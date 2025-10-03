@@ -1,6 +1,6 @@
 import styles from './AccountMetrics.module.css';
 import { useMining } from '../contexts/MiningContext';
-import { formatHashRate } from '../services/utils';
+import { formatHashRate, formatElapsedTime } from '../services/utils';
 import { useAccount } from 'wagmi';
 
 const AccountMetrics = () => {
@@ -10,7 +10,8 @@ const AccountMetrics = () => {
         bestHash, 
         minerDifficulty, 
         progress,
-        difficultyModifier
+        difficultyModifier,
+        elapsedTime
     } = useMining()
 
     return (
@@ -42,6 +43,14 @@ const AccountMetrics = () => {
                 </div>
                 <div className={styles.metricsRowValue}>
                     {isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}
+                </div>
+            </div>
+            <div className={styles.metricsRow}>
+                <div className={styles.metricsRowTitle}>
+                    <h3>Elapsed Time</h3>
+                </div>
+                <div className={styles.metricsRowValue}>
+                    {isConnected && elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '-'}
                 </div>
             </div>
             <div className={styles.metricsRow}>

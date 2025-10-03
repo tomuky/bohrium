@@ -20,6 +20,8 @@ export function MiningProvider({ children }) {
     const [progress, setProgress] = useState(0);
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
     const [difficultyModifier, setDifficultyModifier] = useState(null);
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const [miningStartTime, setMiningStartTime] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
@@ -49,6 +51,8 @@ export function MiningProvider({ children }) {
                 // Handle the stopping mining
                 if (event.type === 'stop') {
                     setIsMining(false);
+                    setMiningStartTime(null);
+                    setElapsedTime(0);
                 }
             }
         });
@@ -66,12 +70,20 @@ export function MiningProvider({ children }) {
                 return;
             }
 
+            // Set mining start time when mining begins
+            setMiningStartTime(Date.now());
+            setElapsedTime(0);
+
             miningService.start().catch(error => {
                 setWalletError(error.message);
                 setIsMining(false);
+                setMiningStartTime(null);
+                setElapsedTime(0);
             });
         } else {
             miningService.stop();
+            setMiningStartTime(null);
+            setElapsedTime(0);
         }
     }, [isMining, isConnected]);
 
@@ -119,6 +131,23 @@ export function MiningProvider({ children }) {
             clearInterval(metricsInterval);
         };
     }, [isMining]);
+
+    // Timer effect to update elapsed time while mining
+    useEffect(() => {
+        if (!isMining || !miningStartTime) {
+            return;
+        }
+
+        const timer = setInterval(() => {
+            const now = Date.now();
+            const elapsed = Math.floor((now - miningStartTime) / 1000); // elapsed time in seconds
+            setElapsedTime(elapsed);
+        }, 1000); // Update every second
+
+        return () => {
+            clearInterval(timer);
+        };
+    }, [isMining, miningStartTime]);
 
     useEffect(() => {
         if (sessionWalletContext) {
@@ -190,7 +219,8 @@ export function MiningProvider({ children }) {
             progress,
             sessionWalletAddress,
             mainWalletAddress: address,
-            difficultyModifier
+            difficultyModifier,
+            elapsedTime
         }}>
             {children}
         </MiningContext.Provider>
