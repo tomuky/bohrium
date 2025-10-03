@@ -59,7 +59,7 @@ const ActionModalDeposit = ({
     return (
         <>
             <div className={styles.explanationText}>
-                <p>Deposit assets from connected wallet to session wallet for mining operations</p>
+                <p>Deposit assets from connected wallet to session wallet for mining operations.</p>
             </div>
             <div className={styles.inputGroup}>
                 <input
@@ -106,7 +106,7 @@ const ActionModalDeposit = ({
                     {selectedToken === 'ETH' && 'Recommended: 0.01'}
                     {selectedToken === 'BOHR' && `Balance: ${balances.main.bohr.formatted}`}
                 </span>
-                <span className={`${styles.recommendation} ${styles.recommendationRed}`}>
+                <span className={`${styles.recommendation} ${styles.recommendationYellow}`}>
                     Keep low balances
                 </span>
             </div>

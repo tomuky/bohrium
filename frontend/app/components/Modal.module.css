@@ -134,6 +134,9 @@
 .recommendationRed{
     color: indianred;
 }
+.recommendationYellow{
+    color: yellow;
+}
 
 .depositButton {
     width: 100%;
