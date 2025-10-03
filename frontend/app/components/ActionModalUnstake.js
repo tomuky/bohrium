@@ -79,7 +79,7 @@ const ActionModalUnstake = ({
     return (
         <>
             <div className={styles.explanationText}>
-                <p>Unstake sBOHR tokens to get your BOHR back. (Requires cooldown)</p>
+                <p>Unstake sBOHR tokens to get your BOHR back.</p><p>(Requires cooldown)</p>
             </div>
             {!unstakeRequest ? (
                 <>

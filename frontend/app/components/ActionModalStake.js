@@ -103,7 +103,7 @@ const ActionModalStake = ({
     return (
         <>  
             <div className={styles.explanationText}>
-                <p>Stake BOHR to improve your mining difficulty. (Minimum 100 BOHR)</p>
+                <p>Stake BOHR to make difficulty easier.</p><p>(Minimum 100 BOHR to impact mining difficulty)</p>
             </div>
             <div className={styles.inputGroup}>
                 <input
