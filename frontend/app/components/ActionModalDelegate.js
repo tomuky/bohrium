@@ -30,9 +30,7 @@ const ActionModalDelegate = ({
             }
             
             const result = await onSetDelegation(sessionWalletAddress);
-            if (result.success) {
-                setSuccess('Delegation set', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to set delegation');
             console.error('Set delegation error:', err);
@@ -45,9 +43,7 @@ const ActionModalDelegate = ({
         try {
             resetStatus();
             const result = await onRemoveDelegation();
-            if (result.success) {
-                setSuccess('Delegation removed', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to remove delegation');
             console.error('Remove delegation error:', err);

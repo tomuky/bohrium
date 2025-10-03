@@ -37,9 +37,7 @@ const ActionModalUnstake = ({
             }
             
             const result = await onRequestUnstake(amount);
-            if (result.success) {
-                setSuccess('Unstake requested', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to request unstake');
             console.error('Unstake request error:', err);
@@ -52,9 +50,7 @@ const ActionModalUnstake = ({
         try {
             resetStatus();
             const result = await onCompleteUnstake();
-            if (result.success) {
-                setSuccess('Unstake completed', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to complete unstake');
             console.error('Complete unstake error:', err);
@@ -67,9 +63,7 @@ const ActionModalUnstake = ({
         try {
             resetStatus();
             const result = await onCancelUnstake();
-            if (result.success) {
-                setSuccess('Unstake cancelled', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to cancel unstake');
             console.error('Cancel unstake error:', err);

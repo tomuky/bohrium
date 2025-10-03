@@ -134,7 +134,6 @@ class MiningService {
                 error: error.message, 
                 message: "There was an error" 
             });
-            console.log('Mining error:', error);
             this.stop();
         }
     }
@@ -152,7 +151,6 @@ class MiningService {
 
                 // Compare with current values before updating the latest values
                 if (currentLastBlockHash !== this.latestBlockHash) {
-                    console.log('Mining parameters changed, flagging for restart');
                     
                     const now = Date.now();
                     // Only emit if enough time has passed since last emission
@@ -176,9 +174,29 @@ class MiningService {
                     // Update mining parameters
                     this.latestBlockHash = currentLastBlockHash;
                     this.baseDifficulty = newBaseDifficulty;
-                    this.minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
-                    this.currentBlockHeight = await this.miningContract.blockHeight();
-                    this.currentBlockReward = await this.miningContract.currentReward();
+                    
+                    // Add error handling for individual contract calls
+                    try {
+                        this.minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
+                    } catch (error) {
+                        console.error('Error getting miner difficulty:', error);
+                        // Don't update minerDifficulty if call fails
+                    }
+                    
+                    try {
+                        this.currentBlockHeight = await this.miningContract.blockHeight();
+                    } catch (error) {
+                        console.error('Error getting block height:', error);
+                        // Don't update currentBlockHeight if call fails
+                    }
+                    
+                    try {
+                        this.currentBlockReward = await this.miningContract.currentReward();
+                    } catch (error) {
+                        console.error('Error getting current reward:', error);
+                        // Don't update currentBlockReward if call fails
+                    }
+                    
                     this.startTime = Date.now();
 
                     // Flag for restart
@@ -192,7 +210,6 @@ class MiningService {
 
     async stop() {
         if (this.isRunning) {
-            console.log('Stopping mining');
             this.isRunning = false;
             this.startTime = null;
             this.emit('stop',{
@@ -255,7 +272,6 @@ class MiningService {
                     lastParamCheck = now;
                 }
 
-                console.log('Mining loop');
                 this.emit('mining', { 
                     message: "Mining"
                 });
@@ -363,14 +379,43 @@ class MiningService {
     }
 
     async updateMiningParameters() {
-        // Get both base difficulty and miner-specific difficulty
-        const [blockHash, minerDifficulty, blockHeight, reward, baseDifficulty] = await Promise.all([
-            this.miningContract.lastBlockHash(),
-            this.miningContract.getMinerDifficulty(this.signerAddress),
-            this.miningContract.blockHeight(),
-            this.miningContract.currentReward(),
-            this.miningContract.baseDifficulty() 
-        ]);
+        // Get parameters individually with error handling
+        let blockHash, minerDifficulty, blockHeight, reward, baseDifficulty;
+        
+        try {
+            blockHash = await this.miningContract.lastBlockHash();
+        } catch (error) {
+            console.error('Error getting last block hash:', error);
+            return; // Don't update if we can't get the block hash
+        }
+        
+        try {
+            minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
+        } catch (error) {
+            console.error('Error getting miner difficulty:', error);
+            // Keep existing minerDifficulty value
+        }
+        
+        try {
+            blockHeight = await this.miningContract.blockHeight();
+        } catch (error) {
+            console.error('Error getting block height:', error);
+            // Keep existing blockHeight value
+        }
+        
+        try {
+            reward = await this.miningContract.currentReward();
+        } catch (error) {
+            console.error('Error getting current reward:', error);
+            // Keep existing reward value
+        }
+        
+        try {
+            baseDifficulty = await this.miningContract.baseDifficulty();
+        } catch (error) {
+            console.error('Error getting base difficulty:', error);
+            // Keep existing baseDifficulty value
+        }
 
         if (blockHash !== this.latestBlockHash) {
             this.emit('new_block', {
@@ -391,10 +436,10 @@ class MiningService {
         }
 
         this.latestBlockHash = blockHash;
-        this.minerDifficulty = minerDifficulty; // Store miner's personalized difficulty
-        this.baseDifficulty = baseDifficulty; // Store base network difficulty
-        this.currentBlockHeight = blockHeight;
-        this.currentBlockReward = reward;
+        if (minerDifficulty !== undefined) this.minerDifficulty = minerDifficulty;
+        if (baseDifficulty !== undefined) this.baseDifficulty = baseDifficulty;
+        if (blockHeight !== undefined) this.currentBlockHeight = blockHeight;
+        if (reward !== undefined) this.currentBlockReward = reward;
         this.startTime = Date.now();
     }
 
@@ -447,30 +492,20 @@ class MiningService {
                 const hashValue = BigInt(hash);
                 
                 if (hashValue < this.bestHash) {
-                    // Log the new best hash to console
-                    const hashHex = hashValue.toString(16);
-                    const formattedHash = `0x${hashHex.padStart(64, '0')}`;
-                    console.log(`🔍 New best hash found: ${formattedHash}`);
-                    console.log(`Hash vs Difficulty: ${formattedHash} vs 0x${this.minerDifficulty.toString(16).padStart(64, '0')}`);
-                    console.log(`Is valid: ${hashValue <= this.minerDifficulty}`);
                     
                     this.bestHash = hashValue;
                     this.previousBestHash = hashValue;
                     
                     if (hashValue <= this.minerDifficulty) {
-                        console.log(`🎯 VALID HASH FOUND! Setting progress to 100%`);
                         this.progress = 100;
                     }
                 }
 
                 if (hashValue <= this.minerDifficulty) {
-                    console.log(`🎯 VALID HASH FOUND! Returning nonce for submission`);
-                    console.log(`Final hash: 0x${hashValue.toString(16).padStart(64, '0')}`);
-                    console.log(`Final difficulty: 0x${this.minerDifficulty.toString(16).padStart(64, '0')}`);
                     this.emit('nonce_found', {
                         icon: '/images/trophy.png',
                         text: 'Hash found',
-                        pill: `0x${hashValue.toString(16).substring(0,8)}…`,
+                        pill: `0x${hashValue.padStart(64, '0').substring(0, 12)}…`,
                     });
                     return { nonce, hashValue };
                 }

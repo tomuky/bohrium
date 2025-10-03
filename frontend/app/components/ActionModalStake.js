@@ -91,9 +91,7 @@ const ActionModalStake = ({
             }
             
             const result = await onStake(amount);
-            if (result.success) {
-                setSuccess('Staking successful', result.txHash);
-            }
+            // Success message is handled by ActionModal via stakingService event
         } catch (err) {
             setErrorState(err.message || 'Failed to stake');
             console.error('Staking error:', err);
