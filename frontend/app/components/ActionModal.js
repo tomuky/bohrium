@@ -86,7 +86,7 @@ const ActionModal = ({ isOpen, onClose, initialTab = 'deposit' }) => {
             // Get unstake request
             const request = await stakingService.getUnstakeRequest();
             setUnstakeRequest(request);
-            console.log('unstakeRequest', request);
+            //console.log('unstakeRequest', request);
             
             // Get delegation info
             const info = await stakingService.getDelegationInfo();

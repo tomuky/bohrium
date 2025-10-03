@@ -48,8 +48,8 @@ const AccountMetrics = () => {
                 <div className={styles.metricsRowTitle}>
                     <h3>Difficulty</h3>
                 </div>
-                <div className={styles.metricsRowValue}>
-                    {minerDifficulty ? `0x${minerDifficulty.substring(0, 10)}…` : '-'}
+                <div className={`${styles.metricsRowValue} ${styles.metricsRowValueSmall}`}>
+                    {minerDifficulty ? `0x${minerDifficulty.substring(0, 14)}…` : '-'}
                 </div>
             </div>
             <div className={styles.metricsRow}>

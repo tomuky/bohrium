@@ -41,6 +41,9 @@
     gap: 10px;
     flex: 1;
 }
+.metricsRowValueSmall{
+    font-size: 0.7rem;
+}
 
 .progressBar {
     width: 100%;

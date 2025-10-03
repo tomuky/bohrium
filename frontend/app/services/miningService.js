@@ -116,6 +116,7 @@ class MiningService {
             this.isRunning = true;
             this.bestHash = null;
             this.bestNonce = null;
+            this.previousBestHash = null;
 
             // Update mining parameters
             this.latestBlockHash = await this.miningContract.lastBlockHash();
@@ -263,10 +264,25 @@ class MiningService {
                 const result = await this.findValidNonce();
                 
                 if (result?.nonce) {
+                    let tx;
                     try {
-                        const tx = await this.submitBlock(result.nonce);
+                        tx = await this.submitBlock(result.nonce);
                         this.emit('transaction', { hash: tx.hash });
-                        
+                    } catch (error) {
+                        // Handle submission errors
+                        if (error.code === "ACTION_REJECTED") {
+                            break; // Stop mining if user rejected
+                        }
+                        console.error('Error submitting block:', error);
+                        this.emit('error', {
+                            message: "Failed to submit block",
+                            error: error.message,
+                            icon: '/images/error.png'
+                        });
+                        continue; // Skip to next iteration
+                    }
+
+                    try {
                         // Listen for mining success event
                         const receipt = await tx.wait();
                         if (receipt.status === 1) {
@@ -297,18 +313,42 @@ class MiningService {
                                     recipient: rewardRecipient
                                 });
                             }
+                        } else {
+                            // Transaction was reverted
+                            this.emit('error', {
+                                message: "Block submission reverted",
+                                icon: '/images/error.png'
+                            });
                         }
-                    } catch (error) {
-                        if (error.code === "ACTION_REJECTED") {
-                            break; // Stop mining if user rejected
+                    } catch (receiptError) {
+                        // Handle confirmation errors separately
+                        console.error('Error waiting for transaction receipt:', receiptError);
+                        
+                        // Check if it's a rate limit or RPC error
+                        if (receiptError.code === -32005 || 
+                            receiptError.message?.includes('Request exceeds defined limit') ||
+                            receiptError.message?.includes('Quorum') ||
+                            receiptError.message?.includes('RPC Error')) {
+                            this.emit('error', {
+                                message: "RPC rate limit reached, retrying...",
+                                icon: '/images/wait.png'
+                            });
+                            // Add a small delay before continuing
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        } else {
+                            this.emit('error', {
+                                message: "Transaction confirmation failed",
+                                error: receiptError.message,
+                                icon: '/images/error.png'
+                            });
                         }
-                        console.error('Error submitting hash:', error);
                     }
                 }
                 
                 // Reset mining state for next iteration
                 this.bestNonce = null;
                 this.bestHash = null;
+                this.previousBestHash = null;
                 this.startTime = Date.now();
                 this.progress = 0;
             }
@@ -407,13 +447,26 @@ class MiningService {
                 const hashValue = BigInt(hash);
                 
                 if (hashValue < this.bestHash) {
+                    // Log the new best hash to console
+                    const hashHex = hashValue.toString(16);
+                    const formattedHash = `0x${hashHex.padStart(64, '0')}`;
+                    console.log(`🔍 New best hash found: ${formattedHash}`);
+                    console.log(`Hash vs Difficulty: ${formattedHash} vs 0x${this.minerDifficulty.toString(16).padStart(64, '0')}`);
+                    console.log(`Is valid: ${hashValue <= this.minerDifficulty}`);
+                    
                     this.bestHash = hashValue;
+                    this.previousBestHash = hashValue;
+                    
                     if (hashValue <= this.minerDifficulty) {
+                        console.log(`🎯 VALID HASH FOUND! Setting progress to 100%`);
                         this.progress = 100;
                     }
                 }
 
                 if (hashValue <= this.minerDifficulty) {
+                    console.log(`🎯 VALID HASH FOUND! Returning nonce for submission`);
+                    console.log(`Final hash: 0x${hashValue.toString(16).padStart(64, '0')}`);
+                    console.log(`Final difficulty: 0x${this.minerDifficulty.toString(16).padStart(64, '0')}`);
                     this.emit('nonce_found', {
                         icon: '/images/trophy.png',
                         text: 'Hash found',

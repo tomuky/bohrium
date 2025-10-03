@@ -61,9 +61,7 @@ class StakingService extends EventEmitter {
             
             this.isConnected = true;
             
-            // Start listening for events
-            this.setupEventListeners();
-            
+            // No need for contract event listeners - we'll emit events directly when transactions succeed
             this.emit('connected', { address: this.address });
         } catch (error) {
             console.error("Connection error:", error);
@@ -71,32 +69,6 @@ class StakingService extends EventEmitter {
         }
     }
     
-    setupEventListeners() {
-        // Listen for delegation events
-        this.sBohrContract.on("DelegationSet", (sessionWallet, mainWallet) => {
-            if (mainWallet.toLowerCase() === this.address.toLowerCase() || 
-                sessionWallet.toLowerCase() === this.address.toLowerCase()) {
-                this.emit('delegation_set', {
-                    sessionWallet,
-                    mainWallet,
-                    message: "Delegation set successfully",
-                    icon: '/images/link.png'
-                });
-            }
-        });
-        
-        this.sBohrContract.on("DelegationRemoved", (sessionWallet, mainWallet) => {
-            if (mainWallet.toLowerCase() === this.address.toLowerCase() || 
-                sessionWallet.toLowerCase() === this.address.toLowerCase()) {
-                this.emit('delegation_removed', {
-                    sessionWallet,
-                    mainWallet,
-                    message: "Delegation removed",
-                    icon: '/images/unlink.png'
-                });
-            }
-        });
-    }
     
     async getBalances() {
         if (!this.isConnected) await this.connect();
@@ -159,8 +131,14 @@ class StakingService extends EventEmitter {
                 wait: async () => {
                     try {
                         const receipt = await approveTx.wait();
+                        // Emit success event when transaction is confirmed
+                        this.emit('approval_success', {
+                            message: "Approval successful",
+                            txHash: approveTx.hash
+                        });
                         return { success: true, receipt };
                     } catch (error) {
+                        this.emit('error', { message: "Approval failed", error: error.message });
                         return { success: false, error };
                     }
                 }
@@ -180,6 +158,12 @@ class StakingService extends EventEmitter {
             // Stake tokens
             const stakeTx = await this.sBohrContract.stake(amountWei);
             await stakeTx.wait();
+            
+            // Emit success event when transaction is confirmed
+            this.emit('stake_success', {
+                message: "Staking successful",
+                txHash: stakeTx.hash
+            });
             
             return { success: true, txHash: stakeTx.hash };
         } catch (error) {
@@ -209,6 +193,12 @@ class StakingService extends EventEmitter {
             const tx = await this.sBohrContract.requestUnstake(amountWei);
             const receipt = await tx.wait();
             
+            // Emit success event when transaction is confirmed
+            this.emit('unstake_requested', {
+                message: "Unstake request submitted",
+                txHash: receipt.hash
+            });
+            
             return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Unstake request error:", error);
@@ -223,6 +213,12 @@ class StakingService extends EventEmitter {
         try {
             const tx = await this.sBohrContract.completeUnstake();
             const receipt = await tx.wait();
+            
+            // Emit success event when transaction is confirmed
+            this.emit('unstake_completed', {
+                message: "Unstake completed",
+                txHash: receipt.hash
+            });
             
             return { success: true, txHash: receipt.hash };
         } catch (error) {
@@ -239,6 +235,12 @@ class StakingService extends EventEmitter {
             const tx = await this.sBohrContract.cancelUnstake();
             const receipt = await tx.wait();
             
+            // Emit success event when transaction is confirmed
+            this.emit('unstake_cancelled', {
+                message: "Unstake cancelled",
+                txHash: receipt.hash
+            });
+            
             return { success: true, txHash: receipt.hash };
         } catch (error) {
             console.error("Cancel unstake error:", error);
@@ -253,6 +255,13 @@ class StakingService extends EventEmitter {
         try {
             const tx = await this.sBohrContract.requestDelegation(sessionWalletAddress);
             const receipt = await tx.wait();
+            
+            // Emit success event when transaction is confirmed
+            this.emit('delegation_set', {
+                message: "Delegation request submitted",
+                txHash: receipt.hash,
+                sessionWallet: sessionWalletAddress
+            });
             
             return { success: true, txHash: receipt.hash };
         } catch (error) {
@@ -283,6 +292,12 @@ class StakingService extends EventEmitter {
         try {
             const tx = await this.sBohrContract.removeDelegation();
             const receipt = await tx.wait();
+            
+            // Emit success event when transaction is confirmed
+            this.emit('delegation_removed', {
+                message: "Delegation removed",
+                txHash: receipt.hash
+            });
             
             return { success: true, txHash: receipt.hash };
         } catch (error) {

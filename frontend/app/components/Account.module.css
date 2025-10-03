@@ -1,7 +1,7 @@
 .accountArea{
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 20px;
     background: var(--background);
     /* border-bottom: 1px solid var(--border); */
     width: 100%;
