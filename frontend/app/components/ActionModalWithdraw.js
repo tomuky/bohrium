@@ -59,6 +59,9 @@ const ActionModalWithdraw = ({
 
     return (
         <>
+            <div className={styles.explanationText}>
+                <p>Withdraw assets from session wallet to connected wallet. Note: transactions are automatically approved.</p>
+            </div>
             <div className={styles.inputGroup}>
                 <input
                     type="number"

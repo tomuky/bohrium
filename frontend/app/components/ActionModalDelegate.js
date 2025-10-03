@@ -56,6 +56,9 @@ const ActionModalDelegate = ({
 
     return (
         <>
+            <div className={styles.explanationText}>
+                <p>Delegation allows you to separate your main wallet (holds funds) from your session wallet (does mining). Stake from main wallet, mine with session wallet.</p>
+            </div>
             {delegationInfo.isMainWallet ? (
                 <div className={styles.delegationCard}>
                     <h3 className={styles.cardTitle}>Active Delegation</h3>

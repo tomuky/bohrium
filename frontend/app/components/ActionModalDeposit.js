@@ -58,6 +58,9 @@ const ActionModalDeposit = ({
 
     return (
         <>
+            <div className={styles.explanationText}>
+                <p>Deposit assets from connected wallet to session wallet for mining operations</p>
+            </div>
             <div className={styles.inputGroup}>
                 <input
                     type="number"
