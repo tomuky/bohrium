@@ -21,7 +21,6 @@ export function MiningProvider({ children }) {
     const [sessionWalletAddress, setSessionWalletAddress] = useState(null);
     const [difficultyModifier, setDifficultyModifier] = useState(null);
     const [elapsedTime, setElapsedTime] = useState(0);
-    const [miningStartTime, setMiningStartTime] = useState(null);
 
     useEffect(() => {
         const unsubscribe = miningService.subscribe((event) => {
@@ -51,7 +50,6 @@ export function MiningProvider({ children }) {
                 // Handle the stopping mining
                 if (event.type === 'stop') {
                     setIsMining(false);
-                    setMiningStartTime(null);
                     setElapsedTime(0);
                 }
             }
@@ -70,19 +68,15 @@ export function MiningProvider({ children }) {
                 return;
             }
 
-            // Set mining start time when mining begins
-            setMiningStartTime(Date.now());
             setElapsedTime(0);
 
             miningService.start().catch(error => {
                 setWalletError(error.message);
                 setIsMining(false);
-                setMiningStartTime(null);
                 setElapsedTime(0);
             });
         } else {
             miningService.stop();
-            setMiningStartTime(null);
             setElapsedTime(0);
         }
     }, [isMining, isConnected]);
@@ -134,20 +128,25 @@ export function MiningProvider({ children }) {
 
     // Timer effect to update elapsed time while mining
     useEffect(() => {
-        if (!isMining || !miningStartTime) {
+        if (!isMining) {
             return;
         }
 
         const timer = setInterval(() => {
-            const now = Date.now();
-            const elapsed = Math.floor((now - miningStartTime) / 1000); // elapsed time in seconds
-            setElapsedTime(elapsed);
+            const blockStartTime = miningService.getBlockStartTime();
+            if (blockStartTime) {
+                const now = Date.now();
+                const elapsed = Math.floor((now - blockStartTime) / 1000); // elapsed time in seconds
+                setElapsedTime(elapsed);
+            } else {
+                setElapsedTime(0);
+            }
         }, 1000); // Update every second
 
         return () => {
             clearInterval(timer);
         };
-    }, [isMining, miningStartTime]);
+    }, [isMining]);
 
     useEffect(() => {
         if (sessionWalletContext) {

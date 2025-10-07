@@ -2,6 +2,7 @@ import styles from './AccountMetrics.module.css';
 import { useMining } from '../contexts/MiningContext';
 import { formatHashRate, formatElapsedTime } from '../services/utils';
 import { useAccount } from 'wagmi';
+import { useState, useEffect, useRef } from 'react';
 
 const AccountMetrics = () => {
     const { isConnected } = useAccount()
@@ -13,6 +14,23 @@ const AccountMetrics = () => {
         difficultyModifier,
         elapsedTime
     } = useMining()
+    
+    const [isAnimating, setIsAnimating] = useState(false)
+    const prevBestHash = useRef(bestHash)
+    
+    useEffect(() => {
+        if (bestHash && bestHash !== prevBestHash.current) {
+            setIsAnimating(true)
+            prevBestHash.current = bestHash
+            
+            // Reset animation after it completes
+            const timer = setTimeout(() => {
+                setIsAnimating(false)
+            }, 1000) // Animation duration
+            
+            return () => clearTimeout(timer)
+        }
+    }, [bestHash])
 
     return (
         <div className={styles.metricsArea}>
@@ -57,13 +75,13 @@ const AccountMetrics = () => {
                 <div className={styles.metricsRowTitle}>
                     <h3>Best Hash</h3>
                 </div>
-                <div className={`${styles.metricsRowValue} ${bestHash ? styles.metricsRowValueSmall : ''}`}>
+                <div className={`${styles.metricsRowValue} ${bestHash ? styles.metricsRowValueSmall : ''} ${isAnimating ? styles.bestHashAnimate : ''}`}>
                     {bestHash ? `0x${bestHash.padStart(64, '0').substring(0, 12)}…` : '-'}
                 </div>
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Difficulty</h3>
+                    <h3>Difficulty Hash</h3>
                 </div>
                 <div className={`${styles.metricsRowValue} ${minerDifficulty ? styles.metricsRowValueSmall : ''}`}>
                     {minerDifficulty ? `0x${minerDifficulty.padStart(64, '0').substring(0, 12)}…` : '-'}

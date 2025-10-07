@@ -20,7 +20,7 @@
 .metricsRow{
     display: flex;
     flex-direction: row;
-    gap: 40px;
+    gap: 30px;
     min-height: 24px;
 }
 .metricsRowTitle{
@@ -68,4 +68,20 @@
 }
 .greenText{
     color: var(--green);;
+}
+
+.bestHashAnimate {
+    animation: bestHashFlash 1s ease-in-out;
+}
+
+@keyframes bestHashFlash {
+    0% {
+        color: white;
+    }
+    20% {
+        color: var(--green);
+    }
+    100% {
+        color: white;
+    }
 }

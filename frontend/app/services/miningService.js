@@ -40,6 +40,7 @@ class MiningService {
 
         this.baseDifficulty = null;
         this.minerDifficulty = null;
+        this.blockStartTime = null;
     }
 
     // Add event listener
@@ -125,6 +126,7 @@ class MiningService {
             this.currentBlockHeight = await this.miningContract.blockHeight();
             this.currentBlockReward = await this.miningContract.currentReward();
             this.startTime = Date.now();
+            this.blockStartTime = Date.now(); // Reset block start time
             
             // The main mining loop
             await this.miningLoop();
@@ -198,6 +200,7 @@ class MiningService {
                     }
                     
                     this.startTime = Date.now();
+                    this.blockStartTime = Date.now(); // Reset block start time for new block
 
                     // Flag for restart
                     this.shouldRestartMining = true;
@@ -212,6 +215,7 @@ class MiningService {
         if (this.isRunning) {
             this.isRunning = false;
             this.startTime = null;
+            this.blockStartTime = null;
             this.emit('stop',{
                 icon: '/images/stop.png',
                 text: 'Mining stopped'
@@ -441,6 +445,7 @@ class MiningService {
         if (blockHeight !== undefined) this.currentBlockHeight = blockHeight;
         if (reward !== undefined) this.currentBlockReward = reward;
         this.startTime = Date.now();
+        this.blockStartTime = Date.now(); // Reset block start time for new block
     }
 
     async findValidNonce() {
@@ -505,7 +510,7 @@ class MiningService {
                     this.emit('nonce_found', {
                         icon: '/images/trophy.png',
                         text: 'Hash found',
-                        pill: `0x${hashValue.padStart(64, '0').substring(0, 12)}…`,
+                        pill: `0x${hashValue.toString(16).padStart(64, '0').substring(0, 12)}…`,
                     });
                     return { nonce, hashValue };
                 }
@@ -593,6 +598,11 @@ class MiningService {
     // Add getter for miner difficulty
     getMinerDifficulty() {
         return this.minerDifficulty ? this.minerDifficulty.toString(16) : null;
+    }
+
+    // Add getter for block start time
+    getBlockStartTime() {
+        return this.blockStartTime;
     }
 }
 
