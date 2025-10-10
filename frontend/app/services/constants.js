@@ -119,6 +119,37 @@ export const MINING_ABI = [
         ],
         "name": "UnstakeCompleted",
         "type": "event"
+    },
+    {
+        "name": "getMiningParams",
+        "type": "function",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "tuple",
+                "components": [
+                    {"name": "lastBlockHash", "type": "bytes32"},
+                    {"name": "baseDifficulty", "type": "uint256"},
+                    {"name": "blockHeight", "type": "uint256"},
+                    {"name": "currentReward", "type": "uint256"}
+                ]
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "name": "getMinerParams",
+        "type": "function",
+        "inputs": [{"name": "miner", "type": "address"}],
+        "outputs": [
+            {"name": "_lastBlockHash", "type": "bytes32"},
+            {"name": "_baseDifficulty", "type": "uint256"},
+            {"name": "_blockHeight", "type": "uint256"},
+            {"name": "_currentReward", "type": "uint256"},
+            {"name": "_minerDifficulty", "type": "uint256"}
+        ],
+        "stateMutability": "view"
     }
 ];
 

@@ -40,6 +40,21 @@ contract BohriumMining is Ownable {
     );
     event DifficultyAdjusted(uint256 newDifficulty);
     event RewardHalved(uint256 newReward);
+    
+    // Event for parameter changes
+    event MiningParamsChanged(
+        uint256 indexed blockHeight,
+        bytes32 indexed newBlockHash,
+        uint256 newBaseDifficulty
+    );
+
+    // Struct for batch parameter retrieval
+    struct MiningParams {
+        bytes32 lastBlockHash;
+        uint256 baseDifficulty;
+        uint256 blockHeight;
+        uint256 currentReward;
+    }
 
     constructor(
         address _bohriumTokenAddress,
@@ -93,8 +108,36 @@ contract BohriumMining is Ownable {
         return difficulty;
     }
 
+    // Get all general mining parameters in one call
+    function getMiningParams() external view returns (MiningParams memory) {
+        return MiningParams({
+            lastBlockHash: lastBlockHash,
+            baseDifficulty: baseDifficulty,
+            blockHeight: blockHeight,
+            currentReward: currentReward()
+        });
+    }
+
+    // Get all parameters including miner-specific difficulty
+    function getMinerParams(address miner) external view returns (
+        bytes32 _lastBlockHash,
+        uint256 _baseDifficulty,
+        uint256 _blockHeight,
+        uint256 _currentReward,
+        uint256 _minerDifficulty
+    ) {
+        return (
+            lastBlockHash,
+            baseDifficulty,
+            blockHeight,
+            currentReward(),
+            getMinerDifficulty(miner)
+        );
+    }
+
     function submitBlock(uint256 nonce) external {
         uint256 minerDifficulty = getMinerDifficulty(msg.sender);
+        
         bytes32 hash = keccak256(abi.encodePacked(
             msg.sender,
             lastBlockHash,
@@ -126,6 +169,9 @@ contract BohriumMining is Ownable {
         lastBlockTimestamp = block.timestamp;
         blockHeight++;
         
+        // Emit the params changed event
+        emit MiningParamsChanged(blockHeight, hash, baseDifficulty);
+        
         // Check for halving based on block height
         if (blockHeight % HALVING_INTERVAL == 0) {
             emit RewardHalved(currentReward());
@@ -135,7 +181,6 @@ contract BohriumMining is Ownable {
     }
     
     function adjustDifficulty(uint256 timeElapsed) internal {
-        // If this is the start of a new adjustment period, store the timestamp
         if (blockHeight % DIFFICULTY_ADJUSTMENT_BLOCKS == 0) {
             adjustmentStartTimestamp = block.timestamp;
         }

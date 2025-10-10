@@ -1,8 +1,7 @@
 import { ethers } from 'ethers';
 import { MINING_ABI, TOKEN_ABI, MINING_CONFIG } from './constants';
 import { getCurrentTimestamp } from './utils';
-import { getNetworkConfig } from './config';
-import { useSessionWallet } from '../contexts/SessionWalletContext';
+import { MINING_CONTRACT_ADDRESS } from './contracts';
 
 class MiningService {
     constructor() {
@@ -41,6 +40,12 @@ class MiningService {
         this.baseDifficulty = null;
         this.minerDifficulty = null;
         this.blockStartTime = null;
+
+        // New properties for event listening
+        this.useEvents = false;
+        this.isListening = false;
+        this.eventRetryCount = 0;
+        this.maxEventRetries = 3;
     }
 
     // Add event listener
@@ -59,6 +64,67 @@ class MiningService {
                 timestamp
             });
         });
+    }
+
+    // Setup event listeners for real-time updates
+    async setupEventListeners() {
+        try {
+            // Test if events work
+            const testFilter = this.miningContract.filters.BlockMined();
+            await this.miningContract.queryFilter(testFilter, -1);
+            
+            // Set up event listeners
+            this.miningContract.on('BlockMined', (miner, blockHeight, nonce, reward, timeTaken, rewardRecipient) => {
+                console.log('New block mined via events');
+                this.updateMiningParameters();
+            });
+
+            this.miningContract.on('MiningParamsChanged', (blockHeight, newBlockHash, newBaseDifficulty) => {
+                console.log('Mining params changed via events');
+                this.updateMiningParameters();
+            });
+
+            this.useEvents = true;
+            this.isListening = true;
+            console.log('Event listeners active');
+            
+        } catch (error) {
+            console.log('Events failed, falling back to smart polling:', error);
+            this.useEvents = false;
+            this.isListening = false;
+            this.startSmartPolling();
+        }
+    }
+
+    // Smart polling fallback when events don't work
+    startSmartPolling() {
+        // Clear any existing interval
+        if (this.parameterCheckInterval) {
+            clearInterval(this.parameterCheckInterval);
+        }
+
+        // Much less frequent polling as fallback
+        this.parameterCheckInterval = setInterval(async () => {
+            try {
+                await this.checkForParameterChanges();
+            } catch (error) {
+                console.error('Smart polling error:', error);
+            }
+        }, 10000); // Every 10 seconds instead of 2
+    }
+
+    // Check for parameter changes (used by smart polling)
+    async checkForParameterChanges() {
+        try {
+            // Only check if block hash changed
+            const currentBlockHash = await this.miningContract.lastBlockHash();
+            if (currentBlockHash !== this.latestBlockHash) {
+                // Block changed, update all parameters
+                await this.updateMiningParameters();
+            }
+        } catch (error) {
+            console.error('Error checking for parameter changes:', error);
+        }
     }
 
     async connect() {
@@ -81,12 +147,9 @@ class MiningService {
             this.signerAddress = sessionWalletAddress;
             this.sessionWalletAddress = sessionWalletAddress;
             
-            const chainId = (await this.provider.getNetwork()).chainId;
-            const networkConfig = getNetworkConfig(Number(chainId));
-
-            // Initialize contracts
+            // Initialize contracts using simple centralized config
             this.miningContract = new ethers.Contract(
-                networkConfig.contracts.mining,
+                MINING_CONTRACT_ADDRESS,
                 MINING_ABI,
                 this.signer
             );
@@ -111,7 +174,13 @@ class MiningService {
                     text: 'Starting...'
                 });
                 
-                this.startParameterCheck(); // Start mining parameters checking timer
+                // Try events first, fall back to polling
+                await this.setupEventListeners();
+                
+                // If events failed, start polling
+                if (!this.useEvents) {
+                    this.startParameterCheck();
+                }
             }
             
             this.isRunning = true;
@@ -119,12 +188,8 @@ class MiningService {
             this.bestNonce = null;
             this.previousBestHash = null;
 
-            // Update mining parameters
-            this.latestBlockHash = await this.miningContract.lastBlockHash();
-            this.minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
-            this.baseDifficulty = await this.miningContract.baseDifficulty();
-            this.currentBlockHeight = await this.miningContract.blockHeight();
-            this.currentBlockReward = await this.miningContract.currentReward();
+            // Update mining parameters using the new batch function
+            await this.updateMiningParameters();
             this.startTime = Date.now();
             this.blockStartTime = Date.now(); // Reset block start time
             
@@ -227,9 +292,11 @@ class MiningService {
                 this.parameterCheckInterval = null;
             }
 
-            // Clean up any event listeners if they exist
-            if (this.miningContract) {
+            // Clean up event listeners
+            if (this.miningContract && this.isListening) {
                 this.miningContract.removeAllListeners();
+                this.isListening = false;
+                this.useEvents = false;
             }
         }
     }
@@ -259,7 +326,7 @@ class MiningService {
             }
 
             let lastParamCheck = Date.now();
-            const PARAM_CHECK_INTERVAL = 2000; // Check every 2 seconds
+            const PARAM_CHECK_INTERVAL = this.useEvents ? 30000 : 2000; // Less frequent if using events
 
             while (this.isRunning) {
                 // Check session wallet balance and parameters less frequently
@@ -271,8 +338,10 @@ class MiningService {
                         return;
                     }
 
-                    // Update mining parameters
-                    await this.updateMiningParameters();
+                    // Only update parameters if not using events (events handle this automatically)
+                    if (!this.useEvents) {
+                        await this.updateMiningParameters();
+                    }
                     lastParamCheck = now;
                 }
 
@@ -383,6 +452,48 @@ class MiningService {
     }
 
     async updateMiningParameters() {
+        try {
+            // Single call gets everything using the new batch function
+            const params = await this.miningContract.getMinerParams(this.signerAddress);
+            
+            // Check if anything actually changed
+            if (params._lastBlockHash !== this.latestBlockHash) {
+                this.emit('new_block', {
+                    message: "New block",
+                    icon: '/images/new-block.png',
+                    blockHeight: params._blockHeight,
+                    lastBlockHash: params._lastBlockHash,
+                    pill: `#${params._blockHeight}`
+                });
+            }
+
+            if (params._baseDifficulty !== this.baseDifficulty) {
+                this.emit('difficulty_change', {
+                    message: "Difficulty changed",
+                    icon: '/images/gauge.png',
+                    difficulty: params._baseDifficulty
+                });
+            }
+
+            // Update all values atomically
+            this.latestBlockHash = params._lastBlockHash;
+            this.baseDifficulty = params._baseDifficulty;
+            this.currentBlockHeight = params._blockHeight;
+            this.currentBlockReward = params._currentReward;
+            this.minerDifficulty = params._minerDifficulty;
+            
+            this.startTime = Date.now();
+            this.blockStartTime = Date.now(); // Reset block start time for new block
+            
+        } catch (error) {
+            console.error('Error updating mining parameters:', error);
+            // Fallback to individual calls if batch call fails
+            await this.updateMiningParametersFallback();
+        }
+    }
+
+    // Fallback method using individual calls
+    async updateMiningParametersFallback() {
         // Get parameters individually with error handling
         let blockHash, minerDifficulty, blockHeight, reward, baseDifficulty;
         
@@ -459,13 +570,16 @@ class MiningService {
         while (this.isRunning) {
             // Check block parameters less frequently (every 10 batches)
             if (hashCount % (MINING_CONFIG.MINING_BATCH_SIZE * 10) === 0) {
-                const [currentBlockHash, currentMinerDifficulty] = await Promise.all([
-                    this.miningContract.lastBlockHash(),
-                    this.miningContract.getMinerDifficulty(this.signerAddress)
-                ]);
-                
-                if (currentBlockHash !== this.latestBlockHash || currentMinerDifficulty !== this.minerDifficulty) {
-                    return null;
+                try {
+                    // Use the new batch function for parameter checks
+                    const params = await this.miningContract.getMinerParams(this.signerAddress);
+                    
+                    if (params._lastBlockHash !== this.latestBlockHash || params._minerDifficulty !== this.minerDifficulty) {
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('Error checking parameters in mining loop:', error);
+                    // Continue mining with current parameters if check fails
                 }
             }
 
