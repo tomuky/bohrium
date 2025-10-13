@@ -171,7 +171,7 @@ class MiningService {
 
                 this.emit('start',{
                     icon: '/images/rocket.png',
-                    text: 'Starting...'
+                    text: 'Started'
                 });
                 
                 // Try events first, fall back to polling
