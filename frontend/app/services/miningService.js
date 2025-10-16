@@ -464,7 +464,7 @@ class MiningService {
                     icon: '/images/new-block.png',
                     blockHeight: params._blockHeight,
                     lastBlockHash: params._lastBlockHash,
-                    pill: `#${params._blockHeight}`
+                    pill: `Height: ${params._blockHeight}`
                 });
             }
 
