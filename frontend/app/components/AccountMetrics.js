@@ -39,7 +39,7 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Progress</h3>
+                    Progress
                 </div>
                 <div className={styles.metricsRowValue}>
                     {isConnected && bestHash && minerDifficulty ? (
@@ -57,23 +57,7 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Hash Rate</h3>
-                </div>
-                <div className={styles.metricsRowValue}>
-                    {isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}
-                </div>
-            </div>
-            <div className={styles.metricsRow}>
-                <div className={styles.metricsRowTitle}>
-                    <h3>Elapsed Time</h3>
-                </div>
-                <div className={styles.metricsRowValue}>
-                    {isConnected && elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '-'}
-                </div>
-            </div>
-            <div className={styles.metricsRow}>
-                <div className={styles.metricsRowTitle}>
-                    <h3>Best Hash</h3>
+                    Best Hash
                 </div>
                 <div className={`${styles.metricsRowValue} ${bestHash ? styles.metricsRowValueSmall : ''} ${isAnimating ? styles.bestHashAnimate : ''}`}>
                     {bestHash ? `0x${bestHash.padStart(64, '0').substring(0, 12)}…` : '-'}
@@ -81,7 +65,7 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Difficulty Hash</h3>
+                    Difficulty Hash
                 </div>
                 <div className={`${styles.metricsRowValue} ${minerDifficulty ? styles.metricsRowValueSmall : ''}`}>
                     {minerDifficulty ? `0x${minerDifficulty.padStart(64, '0').substring(0, 12)}…` : '-'}
@@ -89,7 +73,23 @@ const AccountMetrics = () => {
             </div>
             <div className={styles.metricsRow}>
                 <div className={styles.metricsRowTitle}>
-                    <h3>Modifier</h3>
+                    Hash Rate
+                </div>
+                <div className={styles.metricsRowValue}>
+                    {isConnected && currentHashRate ? formatHashRate(currentHashRate) : '-'}
+                </div>
+            </div>
+            <div className={styles.metricsRow}>
+                <div className={styles.metricsRowTitle}>
+                    Elapsed Time
+                </div>
+                <div className={styles.metricsRowValue}>
+                    {isConnected && elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '-'}
+                </div>
+            </div>
+            <div className={styles.metricsRow}>
+                <div className={styles.metricsRowTitle}>
+                    Modifier
                 </div>
                 <div className={styles.metricsRowValue}>
                     {difficultyModifier ? (

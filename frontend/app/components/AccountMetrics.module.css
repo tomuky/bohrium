@@ -9,10 +9,10 @@
 .metricsAreaTitle{
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
 }
 .metricsAreaTitle h3{
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #888;
     margin: 0 0 0.5rem 0;
     line-height: 14px;
@@ -24,12 +24,13 @@
     min-height: 24px;
 }
 .metricsRowTitle{
+    font-size: 0.8rem;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    color: #888;
 }
 .metricsRowTitle h3{
-    font-size: 0.9rem;
     color: #888;
     line-height: 14px;
 }

@@ -1,0 +1,147 @@
+.miningStatus {
+    width: 100%;
+}
+
+.statusContainer {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.statusContainer.mining {
+    background: rgba(0, 255, 136, 0.08);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    animation: miningPulse 2s ease-in-out infinite;
+}
+
+.statusHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.statusLabel {
+    font-size: 1rem;
+    color: #888;
+    margin: 0;
+    line-height: 14px;
+}
+
+.statusIndicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.7;
+}
+
+.statusDot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.statusDot.active {
+    background: #00ff88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+}
+
+.statusDot.inactive {
+    background: #666;
+    box-shadow: 0 0 3px rgba(102, 102, 102, 0.2);
+}
+
+.pulseWave {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid #00ff88;
+    animation: pulseWave 2s infinite ease-out;
+    opacity: 0;
+}
+
+@keyframes pulseWave {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(3);
+        opacity: 0;
+    }
+}
+
+@keyframes miningPulse {
+    0% {
+        background: rgba(0, 255, 136, 0.08);
+        border-color: rgba(0, 255, 136, 0.2);
+        box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.1);
+    }
+    50% {
+        background: rgba(0, 255, 136, 0.12);
+        border-color: rgba(0, 255, 136, 0.3);
+        box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.05);
+    }
+    100% {
+        background: rgba(0, 255, 136, 0.08);
+        border-color: rgba(0, 255, 136, 0.2);
+        box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.1);
+    }
+}
+
+.statusText {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.statusText:has(+ .statusDot.active) {
+    color: rgba(0, 255, 136, 0.8);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .miningStatus {
+        margin-bottom: 15px;
+    }
+    
+    .statusContainer {
+        padding: 15px;
+    }
+    
+    .statusLabel {
+        font-size: 0.85rem;
+    }
+    
+    .statusIndicator {
+        gap: 6px;
+    }
+    
+    .statusDot {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .pulseWave {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .statusText {
+        font-size: 0.7rem;
+    }
+}
