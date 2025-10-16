@@ -25,10 +25,10 @@ const ConsoleTransactionItem = memo(({ hash, timestamp }) => {
     }, [isPending, isSuccess, isError])
 
     const message = useMemo(() => {
-        if (isError) return "Transaction failed"
-        if (isSuccess) return "Transaction successful"
-        if (isPending) return "Transaction pending"
-        return "Transaction pending"
+        if (isError) return "Hash submission failed"
+        if (isSuccess) return "Hash submitted"
+        if (isPending) return "Submitting hash"
+        return "Submitting hash"
     }, [isPending, isSuccess, isError])
 
     return (
