@@ -188,8 +188,8 @@ class MiningService {
             this.bestNonce = null;
             this.previousBestHash = null;
 
-            // Update mining parameters using the new batch function
-            await this.updateMiningParameters();
+            // Initialize mining parameters (this sets values without emitting events)
+            await this.initializeMiningParameters();
             this.startTime = Date.now();
             this.blockStartTime = Date.now(); // Reset block start time
             
@@ -395,11 +395,12 @@ class MiningService {
                                 const isDelegated = rewardRecipient.toLowerCase() !== this.signerAddress.toLowerCase();
                                 
                                 this.emit('reward', {
-                                    message: `Mined Block #${minedBlockHeight}`,
+                                    message: `Earned BOHR`,  
                                     pill: `+${formattedReward} BOHR`,
                                     icon: '/images/earned.png',
                                     delegated: isDelegated,
-                                    recipient: rewardRecipient
+                                    recipient: rewardRecipient,
+                                    blockHeight: minedBlockHeight  // Keep block height for reference if needed
                                 });
                             }
                         } else {
@@ -487,76 +488,24 @@ class MiningService {
             
         } catch (error) {
             console.error('Error updating mining parameters:', error);
-            // Fallback to individual calls if batch call fails
-            await this.updateMiningParametersFallback();
         }
     }
 
-    // Fallback method using individual calls
-    async updateMiningParametersFallback() {
-        // Get parameters individually with error handling
-        let blockHash, minerDifficulty, blockHeight, reward, baseDifficulty;
-        
+    async initializeMiningParameters() {
         try {
-            blockHash = await this.miningContract.lastBlockHash();
+            const params = await this.miningContract.getMinerParams(this.signerAddress);
+            
+            // Set initial values without emitting events
+            this.latestBlockHash = params._lastBlockHash;
+            this.baseDifficulty = params._baseDifficulty;
+            this.currentBlockHeight = params._blockHeight;
+            this.currentBlockReward = params._currentReward;
+            this.minerDifficulty = params._minerDifficulty;
+            
         } catch (error) {
-            console.error('Error getting last block hash:', error);
-            return; // Don't update if we can't get the block hash
+            console.error('Error initializing mining parameters:', error);
+            // If initialization fails, the updateMiningParameters call will handle it
         }
-        
-        try {
-            minerDifficulty = await this.miningContract.getMinerDifficulty(this.signerAddress);
-        } catch (error) {
-            console.error('Error getting miner difficulty:', error);
-            // Keep existing minerDifficulty value
-        }
-        
-        try {
-            blockHeight = await this.miningContract.blockHeight();
-        } catch (error) {
-            console.error('Error getting block height:', error);
-            // Keep existing blockHeight value
-        }
-        
-        try {
-            reward = await this.miningContract.currentReward();
-        } catch (error) {
-            console.error('Error getting current reward:', error);
-            // Keep existing reward value
-        }
-        
-        try {
-            baseDifficulty = await this.miningContract.baseDifficulty();
-        } catch (error) {
-            console.error('Error getting base difficulty:', error);
-            // Keep existing baseDifficulty value
-        }
-
-        if (blockHash !== this.latestBlockHash) {
-            this.emit('new_block', {
-                message: "New block",
-                icon: '/images/new-block.png',
-                blockHeight,
-                lastBlockHash: blockHash,
-                pill: `#${blockHeight}`
-            });
-
-            if (baseDifficulty !== this.baseDifficulty) {
-                this.emit('difficulty_change', {
-                    message: "Difficulty changed",
-                    icon: '/images/params.png',
-                    difficulty: baseDifficulty,
-                });
-            }
-        }
-
-        this.latestBlockHash = blockHash;
-        if (minerDifficulty !== undefined) this.minerDifficulty = minerDifficulty;
-        if (baseDifficulty !== undefined) this.baseDifficulty = baseDifficulty;
-        if (blockHeight !== undefined) this.currentBlockHeight = blockHeight;
-        if (reward !== undefined) this.currentBlockReward = reward;
-        this.startTime = Date.now();
-        this.blockStartTime = Date.now(); // Reset block start time for new block
     }
 
     async findValidNonce() {
@@ -575,6 +524,9 @@ class MiningService {
                     const params = await this.miningContract.getMinerParams(this.signerAddress);
                     
                     if (params._lastBlockHash !== this.latestBlockHash || params._minerDifficulty !== this.minerDifficulty) {
+                        // Update the difficulty before returning null so next iteration doesn't re-detect
+                        this.minerDifficulty = params._minerDifficulty;
+                        this.latestBlockHash = params._lastBlockHash;
                         return null;
                     }
                 } catch (error) {
