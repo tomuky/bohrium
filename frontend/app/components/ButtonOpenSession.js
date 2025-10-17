@@ -17,7 +17,7 @@ const ButtonOpenSession = () => {
         }
     };
 
-    if(!hasSessionWallet) {
+    if(!hasSessionWallet && isConnected) {
         return (
             <div 
                 className={`${styles.startMiningButton} ${!isConnected ? styles.disabled : ''}`} 

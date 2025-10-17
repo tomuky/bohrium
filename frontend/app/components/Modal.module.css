@@ -349,7 +349,7 @@
 .completeButton {
     flex: 1;
     padding: 10px;
-    background: var(--green, #3b82f6);
+    background: var(--new-blue, #3b82f6);
     color: white;
     border: none;
     border-radius: 8px;
@@ -381,7 +381,7 @@
 }
 
 .successMessage{
-    color: var(--green);
+    color: var(--new-blue);
 }
 
 .socialLinks {

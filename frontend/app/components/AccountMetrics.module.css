@@ -72,7 +72,7 @@
 
 .progressFill {
     height: 100%;
-    background-color: var(--green);
+    background-color: var(--new-blue);
     transition: width 0.3s ease-in-out;
 }
 .redText{
@@ -82,7 +82,7 @@
     color: yellow;
 }
 .blueText{
-    color: var(--green);;
+    color: var(--new-blue);;
 }
 
 .bestHashAnimate {
@@ -94,7 +94,7 @@
         color: white;
     }
     20% {
-        color: var(--green);
+        color: var(--new-blue);
     }
     100% {
         color: white;

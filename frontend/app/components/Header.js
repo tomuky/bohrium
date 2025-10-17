@@ -4,10 +4,12 @@ import styles from './Header.module.css'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
 import SocialModal from './SocialModal'
+import { useAccount } from 'wagmi';
 
 const Header = () => {
     const [isSocialModalOpen, setIsSocialModalOpen] = useState(false)
-
+    const { isConnected } = useAccount();
+    
     const handleSocialClick = () => {
         setIsSocialModalOpen(true)
     }
@@ -37,7 +39,7 @@ const Header = () => {
                             className={styles.socialIcon}
                         />
                     </button>
-                    <ConnectButton chainStatus="full" accountStatus="address" showBalance={false}/>
+                    {isConnected && <ConnectButton chainStatus="full" accountStatus="address" showBalance={false}/>}
                 </div>
             </div>
             <SocialModal 

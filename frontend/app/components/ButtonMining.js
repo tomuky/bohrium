@@ -2,6 +2,7 @@ import styles from '../mine/page.module.css';
 import { useSessionWallet } from '../contexts/SessionWalletContext';
 import { useMining } from '../contexts/MiningContext';
 import { useAccount } from 'wagmi';
+import ButtonConnectWallet from './ButtonConnectWallet';
 
 const ButtonMining = () => {
     const { hasSessionWallet, isDelegated, sessionHasEth } = useSessionWallet();
@@ -29,6 +30,11 @@ const ButtonMining = () => {
                 STOP MINING
             </div>
         )
+    }
+
+    // Show connect wallet button when no wallet is connected
+    if (!isConnected) {
+        return <ButtonConnectWallet />;
     }
 }
 
