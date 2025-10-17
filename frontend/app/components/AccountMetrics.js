@@ -18,6 +18,12 @@ const AccountMetrics = () => {
     const [isAnimating, setIsAnimating] = useState(false)
     const [isCollapsed, setIsCollapsed] = useState(false)
     const prevBestHash = useRef(bestHash)
+
+    // Set collapsed by default on mobile devices
+    useEffect(() => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        setIsCollapsed(isMobile);
+    }, []);
     
     useEffect(() => {
         if (bestHash && bestHash !== prevBestHash.current) {

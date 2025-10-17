@@ -1,6 +1,6 @@
 'use client'
 import styles from './AccountSession.module.css'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ActionModal from './ActionModal'
 import { useSessionWallet } from '../contexts/SessionWalletContext'
 import AccountBalanceItem from './AccountBalanceItem'
@@ -10,6 +10,12 @@ const AccountSession = () => {
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('deposit');
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Set collapsed by default on mobile devices
+    useEffect(() => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        setIsCollapsed(isMobile);
+    }, []);
 
     const openActionModal = (tab) => {
         setActiveTab(tab);
