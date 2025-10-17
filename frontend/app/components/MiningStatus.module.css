@@ -6,7 +6,7 @@
     width: 100%;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
-    padding: 20px;
+    padding: 17px 20px; /* to have the same height as the other blocks */
     display: flex;
     flex-direction: column;
     border: 1px solid transparent;

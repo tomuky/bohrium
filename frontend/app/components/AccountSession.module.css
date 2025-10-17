@@ -18,7 +18,7 @@
 .sessionAreaBlock h3{
     font-size: 1rem;
     color: #888;
-    margin: 0 0 0.5rem 0;
+    margin: 0;
     line-height: 14px;
 }
 .sessionAreaBlock p{
@@ -114,12 +114,63 @@
 }
 .sessionAreaBlockTitle{
     display: flex;
-    align-items: stat;
+    align-items: center;
     justify-content: space-between;
-    flex-direction: column;
+    flex-direction: row;
+    width: 100%;
+}
+
+.sessionAreaBlockTitle.collapsedHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
 }
 .desktopOnly{
     display: flex;
+}
+
+/* Collapse/Expand Button Styles */
+.collapseButton, .expandButton {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    /* padding: 4px; */
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    min-width: 24px;
+    /* min-height: 24px; */
+    position: relative;
+}
+
+.collapseButton:hover, .expandButton:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+    opacity: 1;
+}
+
+/* Removed margin-left: auto from collapseButton to prevent text shifting */
+
+/* Collapsed State */
+.sessionAreaBlock.collapsed {
+    padding: 20px;
+    min-height: auto;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.sessionAreaBlock.collapsed:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sessionAreaBlock.collapsed .balances,
+.sessionAreaBlock.collapsed .actions {
+    display: none;
 }
 @media (max-width: 768px) {
     .desktopOnly{
@@ -153,6 +204,16 @@
     }
     .sessionAreaBlockTitle h3{
         margin: 0;
+    }
+    
+    .sessionAreaBlock.collapsed {
+        padding: 15px;
+    }
+    
+    .collapseButton, .expandButton {
+        padding: 4px;
+        min-width: 24px;
+        min-height: 24px;
     }
     
 }
