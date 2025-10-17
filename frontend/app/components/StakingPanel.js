@@ -166,7 +166,7 @@ export default function StakingPanel() {
                             <button
                                 onClick={handleCompleteUnstake}
                                 disabled={loading}
-                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex-1 disabled:opacity-50"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex-1 disabled:opacity-50"
                             >
                                 Complete Unstake
                             </button>

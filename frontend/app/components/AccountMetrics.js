@@ -134,7 +134,7 @@ const AccountMetrics = () => {
                                 <span className={
                                     difficultyModifier < 1.0 ? styles.redText :
                                     difficultyModifier === 1.0 ? styles.yellowText :
-                                    styles.greenText
+                                    styles.blueText
                                 }>
                                     {`${difficultyModifier}x`}
                                 </span>

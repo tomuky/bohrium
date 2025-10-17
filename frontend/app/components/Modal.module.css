@@ -349,7 +349,7 @@
 .completeButton {
     flex: 1;
     padding: 10px;
-    background: var(--green, #22c55e);
+    background: var(--green, #3b82f6);
     color: white;
     border: none;
     border-radius: 8px;

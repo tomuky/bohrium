@@ -14,8 +14,8 @@
 }
 
 .statusContainer.mining {
-    background: rgba(0, 255, 136, 0.08);
-    border: 1px solid rgba(0, 255, 136, 0.2);
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
     animation: miningPulse 2s ease-in-out infinite;
 }
 
@@ -49,8 +49,8 @@
 }
 
 .statusDot.active {
-    background: #00ff88;
-    box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+    background: #3b82f6;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
 }
 
 .statusDot.inactive {
@@ -66,7 +66,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    border: 1px solid #00ff88;
+    border: 1px solid #3b82f6;
     animation: pulseWave 2s infinite ease-out;
     opacity: 0;
 }
@@ -84,19 +84,19 @@
 
 @keyframes miningPulse {
     0% {
-        background: rgba(0, 255, 136, 0.08);
-        border-color: rgba(0, 255, 136, 0.2);
-        box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.1);
+        background: rgba(59, 130, 246, 0.08);
+        border-color: rgba(59, 130, 246, 0.2);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.1);
     }
     50% {
-        background: rgba(0, 255, 136, 0.12);
-        border-color: rgba(0, 255, 136, 0.3);
-        box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.05);
+        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.05);
     }
     100% {
-        background: rgba(0, 255, 136, 0.08);
-        border-color: rgba(0, 255, 136, 0.2);
-        box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.1);
+        background: rgba(59, 130, 246, 0.08);
+        border-color: rgba(59, 130, 246, 0.2);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.1);
     }
 }
 
@@ -110,7 +110,7 @@
 }
 
 .statusText:has(+ .statusDot.active) {
-    color: rgba(0, 255, 136, 0.8);
+    color: rgba(59, 130, 246, 0.8);
 }
 
 /* Mobile adjustments */
