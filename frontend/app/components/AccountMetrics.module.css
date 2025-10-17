@@ -9,12 +9,26 @@
 .metricsAreaTitle{
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
+    flex-direction: row;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.metricsAreaTitle.collapsedHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 0;
+}
+.metricsAreaTitle.collapsedHeader h3{
+    margin: 0;
 }
 .metricsAreaTitle h3{
     font-size: 1rem;
     color: #888;
-    margin: 0 0 0.5rem 0;
+    margin: 0;
     line-height: 14px;
 }
 .metricsRow{
@@ -85,4 +99,42 @@
     100% {
         color: white;
     }
+}
+
+/* Collapse/Expand Button Styles */
+.collapseButton, .expandButton {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    min-width: 24px;
+    position: relative;
+}
+
+.collapseButton:hover, .expandButton:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+    opacity: 1;
+}
+
+/* Collapsed State */
+.metricsArea.collapsed {
+    padding: 20px;
+    min-height: auto;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.metricsArea.collapsed:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.metricsArea.collapsed .metricsRow {
+    display: none;
 }
