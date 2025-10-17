@@ -5,10 +5,10 @@ import { useMining } from '../contexts/MiningContext';
 
 const ButtonDelegateSession = () => {
     const { isConnected } = useAccount();
-    const { setDelegation, isDelegationLoading, hasSessionWallet, isDelegated } = useSessionWallet();
+    const { setDelegation, isDelegationLoading, hasSessionWallet, isDelegated, sessionHasEth } = useSessionWallet();
     const { isMining } = useMining();
 
-    if(hasSessionWallet && !isDelegated && !isMining){
+    if(hasSessionWallet && sessionHasEth && !isDelegated && !isMining){
         return (
             <div 
                 className={`${styles.startMiningButton} ${!isConnected || isDelegationLoading ? styles.disabled : ''}`} 

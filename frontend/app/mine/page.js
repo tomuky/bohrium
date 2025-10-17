@@ -3,6 +3,7 @@ import styles from './page.module.css'
 import Console from '../components/Console';
 import Instructions from '../components/Instructions';
 import ButtonOpenSession from '../components/ButtonOpenSession';
+import ButtonFundSession from '../components/ButtonFundSession';
 import ButtonDelegateSession from '../components/ButtonDelegateSession';
 import ButtonMining from '../components/ButtonMining';
 
@@ -13,6 +14,8 @@ const Mine = () => {
             <div className={styles.buttonContainer}>
 
                 <ButtonOpenSession/>
+
+                <ButtonFundSession/>
 
                 <ButtonDelegateSession/>
 
