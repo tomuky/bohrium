@@ -31,8 +31,8 @@ export default function Home() {
       </nav>
 
       <div className={styles.mainContent}>
-        <h1>Do the work. Earn BOHR.</h1>
-        <p>BOHR is the first proof-of-work token on Base</p>
+        <h1>Mine BOHR in the browser.</h1>
+        <p>BOHR is the first proof-of-work token on Base.</p>
         <Link href="/mine">
           <button className={`${styles.startButton}`}>
             START MINING
