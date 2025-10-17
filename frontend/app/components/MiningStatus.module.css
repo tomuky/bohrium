@@ -115,16 +115,9 @@
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-    .miningStatus {
-        margin-bottom: 15px;
-    }
     
     .statusContainer {
         padding: 15px;
-    }
-    
-    .statusLabel {
-        font-size: 0.85rem;
     }
     
     .statusIndicator {
