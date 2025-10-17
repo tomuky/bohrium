@@ -13,7 +13,7 @@ const LeftPane = () => {
                 <p>Base Sepolia Testnet Only</p>
             </div> */}
             {hasSessionWallet && <Account />}
-            <Socials />
+            
         </div>
     )
 }

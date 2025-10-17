@@ -32,13 +32,49 @@
     margin-right: 6px;
 }
 
+.right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.socialButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.socialButton:hover {
+    background-color: var(--background-hover, rgba(255, 255, 255, 0.1));
+}
+
+.socialIcon {
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.socialButton:hover .socialIcon {
+    opacity: 1;
+}
+
 @media (max-width: 768px) {
+    .header{
+      padding: 20px;
+    }
     .title {
         font-size: 1.5rem;
     }
+    .right{
+      gap: 10px;
+    }
     .logo{
-        height: 30px;
-        width: 30px;
+        display: none;
     }
 }
 

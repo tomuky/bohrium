@@ -384,6 +384,35 @@
     color: var(--green);
 }
 
+.socialLinks {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.socialLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: var(--background-hover);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-color);
+    transition: all 0.2s;
+    width: 56px;
+    height: 56px;
+}
+
+.socialLink:hover {
+    background: var(--background-hover);
+    border-color: var(--border-hover-color, #555);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 @media (max-width: 480px) {
     .tabsContainer {
         padding-bottom: 4px;
@@ -400,5 +429,14 @@
     .modalContent{
         width: 90%;
         max-width: 90%;
+    }
+    
+    .socialLinks {
+        gap: 16px;
+    }
+    
+    .socialLink {
+        height: 48px;
+        padding: 8px;
     }
 }
