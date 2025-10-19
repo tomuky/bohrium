@@ -5,12 +5,8 @@ import { useSessionWallet } from '../contexts/SessionWalletContext'
 
 const Instructions = () => {
     const {isConnected} = useAccount();
-    const {
-        data: sessionBalance, 
-        hasSessionWallet, 
-        isDelegated, 
-        sessionHasEth 
-    } = useSessionWallet();
+    const { balances, hasSessionWallet, isDelegated, sessionHasEth } = useSessionWallet();
+    const sessionBalance = balances?.session?.eth?.formatted || '0';
 
     if(!hasSessionWallet || !sessionHasEth || !isDelegated){
         return (
