@@ -344,6 +344,12 @@ class MiningService {
                     }
                     lastParamCheck = now;
                 }
+                
+                // Last check if parameters changed before mining
+                const currentBlockHash = await this.miningContract.lastBlockHash();
+                if (currentBlockHash !== this.latestBlockHash) {
+                    await this.updateMiningParameters();
+                }
 
                 this.emit('mining', { 
                     message: "Mining"
