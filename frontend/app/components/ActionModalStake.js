@@ -1,5 +1,6 @@
 'use client';
 import { useApproval } from '../hooks/useApproval';
+import { useStake } from '../hooks/useStake';
 import { useTransactionStatus } from '../hooks/useTransactionStatus';
 import styles from './Modal.module.css';
 
@@ -14,6 +15,11 @@ const ActionModalStake = ({
         approvalStatus, 
         setApprovalStatus 
     } = useApproval(amount, 'stake');
+    
+    const { 
+        stakeStatus, 
+        setStakeStatus 
+    } = useStake();
     
     const { 
         error, 
@@ -70,7 +76,7 @@ const ActionModalStake = ({
     };
 
     const handleStake = async () => {
-        if (loading) return;
+        if (loading || stakeStatus.isStaking) return;
         
         try {
             resetStatus();
@@ -90,11 +96,31 @@ const ActionModalStake = ({
                 return;
             }
             
+            // Update stake status
+            setStakeStatus(prev => ({
+                ...prev,
+                isStaking: true,
+                isStaked: false,
+                txHash: ''
+            }));
+            
             const result = await onStake(amount);
-            // Success message is handled by ActionModal via stakingService event
+            
+            if (result.success) {
+                setSuccess('Staking successful', result.txHash);
+                setStakeStatus(prev => ({
+                    ...prev,
+                    isStaking: false,
+                    isStaked: true
+                }));
+            }
         } catch (err) {
-            setErrorState(err.message || 'Failed to stake');
-            console.error('Staking error:', err);
+            setStakeStatus(prev => ({
+                ...prev,
+                isStaking: false,
+                isStaked: false
+            }));
+            handleUserRejectedError(err);
         }
     };
 
@@ -132,9 +158,9 @@ const ActionModalStake = ({
                 <button 
                     className={styles.actionButton}
                     onClick={handleStake}
-                    disabled={loading}
+                    disabled={loading || stakeStatus.isStaking}
                 >
-                    {loading ? 'STAKING...' : 'STAKE'}
+                    {stakeStatus.isStaking ? 'STAKING...' : 'STAKE'}
                 </button>
             )}
             
