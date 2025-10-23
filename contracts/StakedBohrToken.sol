@@ -132,7 +132,14 @@ contract StakedBohrToken is ERC20, Ownable {
     function requestDelegation(address sessionWallet) external {
         require(sessionWallet != address(0), "Invalid session wallet");
         require(sessionWallet != msg.sender, "Cannot delegate to self");
-        require(delegatedTo[msg.sender] == address(0), "Already delegated");
+        
+        // If already delegated to another session wallet, remove the old delegation first
+        if (delegatedTo[msg.sender] != address(0)) {
+            address oldSessionWallet = delegatedTo[msg.sender];
+            delegatedBy[oldSessionWallet] = address(0);
+            delegatedTo[msg.sender] = address(0);
+            emit DelegationRemoved(oldSessionWallet, msg.sender);
+        }
         
         // Add this check to prevent circular delegations
         require(delegatedTo[sessionWallet] == address(0), "Circular delegation not allowed");
@@ -147,7 +154,14 @@ contract StakedBohrToken is ERC20, Ownable {
     function acceptDelegation() external {
         address mainWallet = pendingDelegations[msg.sender];
         require(mainWallet != address(0), "No pending delegation");
-        require(delegatedBy[msg.sender] == address(0), "Already a session wallet");
+        
+        // If this session wallet is already delegated to another main wallet, remove the old delegation first
+        if (delegatedBy[msg.sender] != address(0)) {
+            address oldMainWallet = delegatedBy[msg.sender];
+            delegatedTo[oldMainWallet] = address(0);
+            delegatedBy[msg.sender] = address(0);
+            emit DelegationRemoved(msg.sender, oldMainWallet);
+        }
         
         // Clear the pending request
         delete pendingDelegations[msg.sender];
