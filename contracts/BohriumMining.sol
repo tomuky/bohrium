@@ -14,8 +14,8 @@ interface IStakedBohrToken is IERC20 {
 }
 
 contract BohriumMining is Ownable {
-    IBohriumToken public immutable bohriumToken;
-    IStakedBohrToken public immutable stakedBohrToken;
+    IBohriumToken public bohriumToken;
+    IStakedBohrToken public stakedBohrToken;
     
     uint256 public constant INITIAL_REWARD = 10 * 10**18;       // 10 BOHR initial reward
     uint256 public constant HALVING_INTERVAL_BLOCKS = 262800;          // Number of blocks in a year with 2-minute blocks
@@ -68,6 +68,17 @@ contract BohriumMining is Ownable {
         lastBlockTimestamp = block.timestamp;
         baseDifficulty = type(uint256).max >> 16;
         lastBlockHash = bytes32(0);
+    }
+    
+    // Setter functions for token references (only owner)
+    function setBohriumToken(address _bohriumTokenAddress) external onlyOwner {
+        require(_bohriumTokenAddress != address(0), "Invalid address");
+        bohriumToken = IBohriumToken(_bohriumTokenAddress);
+    }
+    
+    function setStakedBohrToken(address _stakedBohrTokenAddress) external onlyOwner {
+        require(_stakedBohrTokenAddress != address(0), "Invalid address");
+        stakedBohrToken = IStakedBohrToken(_stakedBohrTokenAddress);
     }
 
     function currentReward() public view returns (uint256) {
