@@ -17,10 +17,12 @@ contract BohriumMining is Ownable {
     IBohriumToken public immutable bohriumToken;
     IStakedBohrToken public immutable stakedBohrToken;
     
-    uint256 public constant INITIAL_REWARD = 10 * 10**18; // 10 BOHR
-    uint256 public constant HALVING_INTERVAL = 262800; // Number of blocks in a year with 2-minute blocks
-    uint256 public constant TARGET_BLOCK_TIME = 120 seconds; // 2 minutes
-    uint256 public constant DIFFICULTY_ADJUSTMENT_BLOCKS = 5;
+    uint256 public constant INITIAL_REWARD = 10 * 10**18;       // 10 BOHR initial reward
+    uint256 public constant HALVING_INTERVAL_BLOCKS = 262800;          // Number of blocks in a year with 2-minute blocks
+    uint256 public constant TARGET_BLOCK_TIME = 120 seconds;    // 2 minutes target block time
+    uint8 public constant DIFFICULTY_ADJUSTMENT_BLOCKS = 5;     // Adjust difficulty every 5 blocks
+    uint8 public constant REQUIRED_STAKE_MULTIPLIER = 10;       // Must stake 10x reward to avoid penalty
+    uint8 public constant UNDERSTAKE_PENALTY_MULTIPLIER = 2;    // 2x harder difficulty if under required stake
     
     // Additional state variables
     uint256 public baseDifficulty;
@@ -69,21 +71,21 @@ contract BohriumMining is Ownable {
     }
 
     function currentReward() public view returns (uint256) {
-        uint256 halvings = blockHeight / HALVING_INTERVAL;
+        uint256 halvings = blockHeight / HALVING_INTERVAL_BLOCKS;
         uint256 reward = INITIAL_REWARD >> halvings;
         return reward > 1e14 ? reward : 1e14; // Minimum reward of 0.0001 BOHR
     }
 
     function getMinerDifficulty(address miner) public view returns (uint256) {
         uint256 stakedAmount = stakedBohrToken.getEffectiveBalance(miner);
-        uint256 requiredStake = currentReward() * 10;
+        uint256 requiredStake = currentReward() * REQUIRED_STAKE_MULTIPLIER;
         uint256 difficulty = baseDifficulty;
 
         // Apply penalty for unstaked miners (make mining harder)
         if (stakedAmount < requiredStake) {
             // Using unchecked for intentional overflow protection
             unchecked {
-                difficulty = difficulty * 2;
+                difficulty = difficulty * UNDERSTAKE_PENALTY_MULTIPLIER;
             }
             return difficulty;
         }
@@ -150,7 +152,7 @@ contract BohriumMining is Ownable {
         // Calculate block time
         uint256 timeElapsed = block.timestamp - lastBlockTimestamp;
         
-        // Adjust difficulty every block with a moderate step
+        // Check if difficulty should be adjusted
         adjustDifficulty(timeElapsed);
         
         // Determine reward recipient (main wallet if delegated)
@@ -160,20 +162,22 @@ contract BohriumMining is Ownable {
             rewardRecipient = mainWallet;
         }
         
-        // Mint reward to the appropriate recipient
+        // Calculate reward before updating state
         uint256 reward = currentReward();
-        bohriumToken.mint(rewardRecipient, reward);
         
-        // Update state
+        // Update state before minting reward
         lastBlockHash = hash;
         lastBlockTimestamp = block.timestamp;
         blockHeight++;
+
+        // Mint reward to the appropriate recipient
+        bohriumToken.mint(rewardRecipient, reward);
         
         // Emit the params changed event
         emit MiningParamsChanged(blockHeight, hash, baseDifficulty);
         
         // Check for halving based on block height
-        if (blockHeight % HALVING_INTERVAL == 0) {
+        if (blockHeight % HALVING_INTERVAL_BLOCKS == 0) {
             emit RewardHalved(currentReward());
         }
         
@@ -192,9 +196,9 @@ contract BohriumMining is Ownable {
             return;
         }
         
-        // Apply dampening (4x max change)
-        timeElapsed = timeElapsed < TARGET_BLOCK_TIME / 4 ? TARGET_BLOCK_TIME / 4 : 
-                      timeElapsed > TARGET_BLOCK_TIME * 4 ? TARGET_BLOCK_TIME * 4 : 
+        // Apply dampening (4x max change) (>> 2 is equivalent to / 4, << 2 is equivalent to * 4)
+        timeElapsed = timeElapsed < TARGET_BLOCK_TIME >> 2 ? TARGET_BLOCK_TIME >> 2 : 
+                      timeElapsed > TARGET_BLOCK_TIME << 2 ? TARGET_BLOCK_TIME << 2 : 
                       timeElapsed;
         
         // Calculate new difficulty using actual ratio
